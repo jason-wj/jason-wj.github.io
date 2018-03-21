@@ -24,4 +24,23 @@ post_copyright:
 # in theme directory(source/images): /images/avatar.gif
 # in site  directory(source/uploads): /uploads/avatar.gif
 avatar: /images/my_head.jpg  //设置头像图片，在sources/images下添加头像图片，默认不显示
-```
+```  
+### 替换标签符号,将"#"变成一个标签图片  
+在`/themes/next/layout/_macro/post.swig`中，找到`rel="tag">#`，将其中的`#`替换成`<i class="fa fa-tag"></i>`  
+### 在文章末尾添加结束标示  
+* 在路径`\themes\next\layout\_macro`中新建`passage-end-tag.swig`文件,并添加以下内容：  
+    ```html
+    <div>
+        {% if not is_index %}
+            <div style="text-align:center;color: #ccc;font-size:14px;">-------------本文结束<i class="fa fa-paw"></i>感谢您的阅读-------------</div>
+        {% endif %}
+    </div>
+    ```  
+* 接着进入`\themes\next\layout\_macro\post.swig`文件中，在`post-body`对应标签结束后，输入如下： 
+    ```html
+    <div>
+      {% if not is_index %}
+        {% include 'passage-end-tag.swig' %}
+      {% endif %}
+    </div>
+    ```

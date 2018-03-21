@@ -1,7 +1,7 @@
 ---
 title: 提交hexo源码到项目（网页）子分支
 date: 2018-03-21 17:01:36
-categorise: [Hexo,项目编译部署]
+categories: [Hexo,项目编译部署]
 tags: [Hexo,git,github]
 ---
 通过Hexo发布到name.github.io中到文件是用来网站展示静态页面，并不是编译使用的源文件，若不备份好本地的源文件，当机器丢失由没做好备份的画，就再也不能发表文章了。  

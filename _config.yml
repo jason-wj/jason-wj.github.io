@@ -45,7 +45,7 @@ filename_case: 0
 render_drafts: false
 
 # 启动 Asset 文件夹
-post_asset_folder: false
+post_asset_folder: true
 
 # 把链接改为与根目录的相对位址
 relative_link: false
@@ -57,7 +57,7 @@ future: true
 highlight:
   enable: true         # 使用代码高亮
   line_number: true    # 显示行号
-  auto_detect: true   # 自动检测语言
+  auto_detect: false   # 自动检测语言
   tab_replace:
   
 # Home page setting
