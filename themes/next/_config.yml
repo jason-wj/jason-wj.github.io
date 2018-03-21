@@ -27,10 +27,10 @@ override: false
 # For example, you put your favicons into `hexo-site/source/images` directory.
 # Then need to rename & redefine they on any other names, otherwise icons from Next will rewrite your custom icons in Hexo.
 favicon:
-  small: /images/favicon-16x16-next.png
-  medium: /images/favicon-32x32-next.png
-  apple_touch_icon: /images/apple-touch-icon-next.png
-  safari_pinned_tab: /images/logo.svg
+  small: /images/my_head-16x16-next.png
+  medium: /images/my_head-32x32-next.ico
+  apple_touch_icon: /images/my_head-touch-icon-next.png
+  safari_pinned_tab: /images/my_head-logo.png
   #android_manifest: /images/manifest.json
   #ms_browserconfig: /images/browserconfig.xml
 
@@ -361,9 +361,9 @@ han: false
 # Duoshuo ShortName
 #duoshuo_shortname:
 
-# Disqus 评论
+# Disqus 评论，网页访问异常，估计被墙了，不能用
 disqus:
-  enable: true
+  enable: false
   shortname: 评论
   count: true
 
