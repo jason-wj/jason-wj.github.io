@@ -26,3 +26,5 @@ hexo clean
 hexo g
 hexo d
 ```
+ 
+也可以配置下IntelliJ idea，就可以使用工具上传了
