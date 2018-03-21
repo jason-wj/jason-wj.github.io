@@ -45,7 +45,7 @@ rss:
 footer:
   # Specify the date when the site was setup.
   # If not defined, current year will be used.
-  #since: 2015
+  since: 2017
 
   # Icon between year and copyright info.
   icon: user
@@ -75,11 +75,12 @@ footer:
 canonical: true
 
 # Change headers hierarchy on site-subtitle (will be main site description) and on all post/pages titles for better SEO-optimization.
-seo: false
+seo: true
 
 # If true, will add site-subtitle to index page, added in main hexo config.
-# subtitle: Subtitle
-index_with_subtitle: false
+# 子标题也显示在标签
+subtitle: Subtitle
+index_with_subtitle: true
 
 
 # ---------------------------------------------------------------
@@ -145,11 +146,13 @@ social_icons:
 
 # Blog rolls
 links_icon: link
-links_title: Links
+links_title: 友情链接
 links_layout: block
 #links_layout: inline
-#links:
-  #Title: http://example.com/
+links:
+  智黑科技: http://www.inheater.com/
+  区块链解析: https://github.com/jason-wj/blockchain-analysis
+  小编github: https://github.com/jason-wj/
 
 # Sidebar Avatar
 # in theme directory(source/images): /images/avatar.gif
@@ -230,9 +233,9 @@ post_meta:
 # Dependencies: https://github.com/willin/hexo-wordcount
 post_wordcount:
   item_text: true
-  wordcount: false
-  min2read: false
-  totalcount: false
+  wordcount: true
+  min2read: true
+  totalcount: true
   separated_meta: true
 
 # Wechat Subscriber
@@ -241,11 +244,11 @@ post_wordcount:
   #qcode: /path/to/your/wechatqcode ex. /uploads/wechat-qcode.jpg
   #description: ex. subscribe to my blog by scanning my public wechat account
 
-# Reward
-#reward_comment: Donate comment here
-#wechatpay: /images/wechatpay.jpg
-#alipay: /images/alipay.jpg
-#bitcoin: /images/bitcoin.png
+# Reward 打赏功能
+#eward_comment: 感谢大家支持，我会创作或转载更多更好的文章
+# wechatpay: /images/my_wechatpay.png
+alipay: /images/my_alipay.png
+# bitcoin: /images/bitcoin.png
 
 # Declare license on posts
 post_copyright:
@@ -358,10 +361,10 @@ han: false
 # Duoshuo ShortName
 #duoshuo_shortname:
 
-# Disqus
+# Disqus 评论
 disqus:
-  enable: false
-  shortname:
+  enable: true
+  shortname: 评论
   count: true
 
 # Hypercomments
@@ -420,6 +423,7 @@ gitment:
 # Warning: Baidu Share does not support https.
 #baidushare:
 ##  type: button
+# baidushare: true # 设置无效，，醉了
 
 # Share
 # This plugin is more useful in China, make sure you known how to use it.
@@ -428,6 +432,7 @@ gitment:
 #jiathis:
   ##uid: Get this uid from http://www.jiathis.com/
 #add_this_id:
+jiathis: true
 
 # Share
 #duoshuo_share: true
@@ -549,7 +554,7 @@ firestore:
 # Get more information on http://ibruce.info/2015/04/04/busuanzi/
 busuanzi_count:
   # count values only if the other configs are false
-  enable: false
+  enable: true
   # custom uv span for the whole site
   site_uv: true
   site_uv_header: <i class="fa fa-user"></i>
@@ -604,12 +609,18 @@ algolia_search:
 # Local search
 # Dependencies: https://github.com/flashlab/hexo-generator-search
 local_search:
-  enable: false
+  enable: true
   # if auto, trigger search by changing input
   # if manual, trigger search by pressing enter key or search button
   trigger: auto
   # show top n results per article, show all results by setting to -1
   top_n_per_article: 1
+
+search:
+  path: search.xml
+  field: post
+  format: html
+  limit: 10000
 
 
 # ---------------------------------------------------------------

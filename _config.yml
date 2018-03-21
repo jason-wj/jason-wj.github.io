@@ -45,7 +45,7 @@ filename_case: 0
 render_drafts: false
 
 # 启动 Asset 文件夹
-post_asset_folder: true
+post_asset_folder: false
 
 # 把链接改为与根目录的相对位址
 relative_link: false
@@ -92,7 +92,7 @@ pagination_dir: page
 
 # Extensions
 ## Plugins: https://hexo.io/plugins/
-## Themes: https://hexo.io/themes/
+## Themes: https://hexo.iouse_motion/themes/
 theme: next
 
 # Deployment
