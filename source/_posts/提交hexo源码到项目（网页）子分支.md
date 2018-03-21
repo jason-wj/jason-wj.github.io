@@ -13,4 +13,16 @@ git add .  # 把当前目录的文件都加到索引（ignore的除外）
 git commit -m "init"  # 消息
 git push origin master:src  # 当前索引的代码添加到远程的src分支
 ```
-之后就可以用Intellij idea将项目关联git了，之后发文章的时候，记得分清哪个分支就行
+只要有新内容，则更新源文件内容到src分支
+```text
+git add .
+git commit -m "src"
+git push origin master:src
+```  
+
+发布网页  
+```text
+hexo clean
+hexo g
+hexo d
+```
