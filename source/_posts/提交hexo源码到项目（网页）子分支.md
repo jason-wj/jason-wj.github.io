@@ -16,7 +16,7 @@ git push origin master:src  # 当前索引的代码添加到远程的src分支
 只要有新内容，则更新源文件内容到src分支
 ```text
 git add .
-git commit -m "src"
+git commit -m "update"
 git push origin master:src
 ```  
 
