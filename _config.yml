@@ -13,7 +13,7 @@ timezone:
 # URL
 ## If your site is put in a subdirectory, set url as 'http://yoursite.com/child' and root as '/child/'
 ## 文章存放目录，默认在跟路径不友好，需要修改
-url: http://yoursite.com
+url: http://www.wjblog.top
 root: /
 # 会在跟路径按照年月日生成目录
 # permalink: :year/:month/:day/:title/
