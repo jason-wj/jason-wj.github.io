@@ -45,7 +45,7 @@ filename_case: 0
 render_drafts: false
 
 # 启动 Asset 文件夹
-post_asset_folder: false
+post_asset_folder: true
 
 # 把链接改为与根目录的相对位址
 relative_link: false

@@ -25,7 +25,7 @@ tags: [Hexo,NexT]
 }  
  
 /*修改文章内code样式*/
-code {color:#fff;background:#333;}
+code {color:#c7254e;background:#f8f3f4;}
 //修改文章中图片样式，改为居中
 .posts-expand .post-body img {
 	margin: 0 auto;
