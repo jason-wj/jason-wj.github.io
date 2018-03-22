@@ -5,6 +5,7 @@ categories: [Hexo,项目编译部署]
 tags: [Next,Hexo,github]
 ---
 当Hexo项目发送到github上时，发现`/themes/next`文件夹打不开，小编网上找了下，大体是这么一回事：  
+<!-- more -->
 这属于git的子模块功能，当在自己的项目里clone别人的项目的时候，子模块只是一个HEAD指针，指向子模块的commit。  
 也就是说，最初我们是通过`git clone`将NexT克隆到Hexo项目里的，这个NexT和Hexo项目一起上传到github的时候，是把NexT当成指向NexT官方地址一个指针传上去的。而实际的NexT文件还是在本地的git缓存中。  
 

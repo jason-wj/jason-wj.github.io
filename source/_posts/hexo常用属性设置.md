@@ -7,6 +7,7 @@ tags: [Hexo,NexT]
 ##  
 * 进入`themes/next`,打开`_config.yml`  
 * 修改如下： 
+<!-- more -->
 ```yml
 # Automatically Excerpt. Not recommand.
 # Please use <!-- more --> in the post to control excerpt accurately.

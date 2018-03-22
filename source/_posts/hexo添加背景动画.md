@@ -4,7 +4,8 @@ date: 2018-03-21 09:44:05
 categories: [Hexo,界面优化]
 tags: [Hexo,NexT]
 ---
-项目中，在文件：\themes\next\layout\_layout.swig的`</body>`上面添加  
+项目中，在文件：`\themes\next\layout\_layout.swig`的`</body>`上面添加  
+<!-- more -->
 ```html
 {% if theme.canvas_nest %}
   <script type="text/javascript" src="//cdn.bootcss.com/canvas-nest.js/1.0.0/canvas-nest.min.js"></script>

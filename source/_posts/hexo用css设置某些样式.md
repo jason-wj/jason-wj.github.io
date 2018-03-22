@@ -4,7 +4,8 @@ date: 2018-03-21 12:05:51
 categories: [Hexo,界面优化]
 tags: [Hexo,NexT]
 ---
-在 `themes\next\source\css\_custom\custom.styl` 中，添加如下css：  
+在 `themes\next\source\css\_custom\custom.styl` 中，添加如下css：
+<!-- more -->  
 ```css
 /*修改文章内链接文本样式*/
 .post-body p a {
