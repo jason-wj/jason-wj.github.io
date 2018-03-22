@@ -3,6 +3,8 @@ title: hexo的next分享设置
 date: 2018-03-22 14:07:24
 categories: [Hexo,界面优化]
 tags: [Hexo,NexT]
+copyright: true
+original: true
 ---
 next官方介绍的那个`baidushare: true`方式的分享，一直无效。网上找了半天，也没发现个合适的分享设置方式，也一个比一个复杂，更何况小编也不是搞前端开发的。。。。
 <!-- more --> 

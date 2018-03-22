@@ -1,7 +1,10 @@
 ---
 title: '''hexo d''后github需重新绑定域名问题'
 date: 2018-03-22 11:21:37
-tags:
+categories: [Hexo,项目编译部署]
+tags: [Next,Hexo,github]
+copyright: true
+original: true
 ---
 小编每次`hexo d`发布的时候，github都需要重新绑定域名，并且还得该域名解析，很麻烦。为了避免这种麻烦，可以进行如下操作：  
 <!-- more -->

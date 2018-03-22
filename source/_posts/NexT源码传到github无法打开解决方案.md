@@ -3,6 +3,8 @@ title: NexT源码传到github无法打开解决方案
 date: 2018-03-21 18:01:10
 categories: [Hexo,项目编译部署]
 tags: [Next,Hexo,github]
+copyright: true
+original: true
 ---
 当Hexo项目发送到github上时，发现`/themes/next`文件夹打不开，小编网上找了下，大体是这么一回事：  
 <!-- more -->

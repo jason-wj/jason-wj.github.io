@@ -3,6 +3,11 @@ title: 以太坊ERC20_Token标准完整说明
 date: 2018-03-22 11:42:18
 categories: [区块链转载精品,以太坊]
 tags: [Ethereum,Token]
+copyright: true
+authorship: CSDN
+original: false
+explain: 文中可能会根据需要做部分调整
+srcpath: http://blog.csdn.net/diandianxiyu_geek/article/details/78082551?utm_source=gold_browser_extension
 ---
 ## wj前言  
 * 本文涉及到了以太坊官方的翻译，但部分翻译原作者表述的不够明了，小编按自己理解改了一下。  
@@ -74,9 +79,4 @@ token的接口标准
 * 允许的最大交易  
     ```solidity
     event Approval(address indexed _owner, address indexed _spender, uint256 _val
-    ```  
-
-## wj本文声明 
-* 本文参考自：http://blog.csdn.net/diandianxiyu_geek/article/details/78082551?utm_source=gold_browser_extension  
-* 文中可能会根据需要做部分调整  
-* 若给原作者带来不便影响，请与[`小编`](/about)联系，小编会及时撤去该文
+    ```

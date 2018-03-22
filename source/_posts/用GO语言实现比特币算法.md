@@ -3,7 +3,11 @@ title: 用GO语言实现比特币算法
 date: 2018-03-21 19:33:36
 categories: [区块链转载精品,比特币]
 tags: [Go,bitCoin]
-comments: true
+copyright: true
+authorship: 巴比特
+original: false
+explain: 文中可能会根据需要做部分调整
+srcpath: http://www.8btc.com/go-bitcoin
 ---
 ## 概述
 本节的这个例子展示一点点高精度数学包一点点散列包hash一点点加密包还有一点点测试包的知识。这里不介绍协议和算法——尽管它们很有趣，而是试图指出，对多种操作系统的支持，是实现这种跨平台应用的理想语言。
@@ -191,9 +195,4 @@ x.Add(x, z)
         }
     }
     ```
-* 对于编写支持所有桌面操作系统的位钱程序，这只是个开始。Go提供了RIPEMD160散列算法，也提供了ECDSA公钥算法。而Go的网络包net，可以用来实现点对点联网（peer-to-peer networking）。这些已经可以支持位钱的实现了。  
-
-## wj本文声明 
-* 本文参考自：http://www.8btc.com/go-bitcoin  
-* 文中可能会根据需要做部分调整  
-* 若给原作者带来不便影响，请与[`小编`](/about)联系，小编会及时撤去该文
+* 对于编写支持所有桌面操作系统的位钱程序，这只是个开始。Go提供了RIPEMD160散列算法，也提供了ECDSA公钥算法。而Go的网络包net，可以用来实现点对点联网（peer-to-peer networking）。这些已经可以支持位钱的实现了。

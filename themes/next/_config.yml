@@ -251,8 +251,10 @@ alipay: /images/my_alipay.png
 # bitcoin: /images/bitcoin.png
 
 # Declare license on posts
+# 代码已单独修改，因此,enable功能已失效，但下面的license还是可以使用的
+# enable功能需要在每个文章单独控制
 post_copyright:
-  enable: true
+  enable: false
   license: CC BY-NC-SA 3.0
   license_url: https://creativecommons.org/licenses/by-nc-sa/3.0/
 
@@ -557,16 +559,22 @@ busuanzi_count:
   enable: true
   # custom uv span for the whole site
   site_uv: true
-  site_uv_header: <i class="fa fa-user"></i>
-  site_uv_footer:
+  # site_uv_header: <i class="fa fa-user"></i>
+  # site_uv_footer:
+  site_uv_header: 本站访客数
+  site_uv_footer: 人次
   # custom pv span for the whole site
   site_pv: true
-  site_pv_header: <i class="fa fa-eye"></i>
-  site_pv_footer:
+  # site_pv_header: <i class="fa fa-eye"></i>
+  # site_pv_footer:
+  site_pv_header: 本站总访问量
+  site_pv_footer: 次
   # custom pv span for one page only
   page_pv: true
-  page_pv_header: <i class="fa fa-file-o"></i>
-  page_pv_footer:
+  # page_pv_header: <i class="fa fa-file-o"></i>
+  # page_pv_footer:
+  page_pv_header: 本文总阅读量
+  page_pv_footer: 次
 
 
 # Tencent analytics ID

@@ -3,6 +3,8 @@ title: hexo添加背景动画
 date: 2018-03-21 09:44:05
 categories: [Hexo,界面优化]
 tags: [Hexo,NexT]
+copyright: true
+original: true
 ---
 项目中，在文件：`\themes\next\layout\_layout.swig`的`</body>`上面添加  
 <!-- more -->
