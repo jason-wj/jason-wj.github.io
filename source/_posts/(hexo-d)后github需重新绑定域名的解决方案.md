@@ -1,5 +1,5 @@
 ---
-title: '''hexo d''后github需重新修改域名绑定问题'
+title: '''hexo d''后github需重新绑定域名问题'
 date: 2018-03-22 11:21:37
 tags:
 ---
