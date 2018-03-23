@@ -1,7 +1,7 @@
 ---
 title: 用GO语言实现比特币算法
 date: 2018-03-21 19:33:36
-categories: [区块链转载精品,比特币]
+categories: [精品转载,比特币]
 tags: [Go,bitCoin]
 copyright: true
 authorship: 巴比特
