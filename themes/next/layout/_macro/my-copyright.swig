@@ -38,8 +38,8 @@
       <li class="post-copyright-update">
         <strong>原文链接{{ __('symbol.colon') }}</strong>
         {% if page.srcpath %}
-          <a href="{{ url_for(page.srcpath) }}" title="{{ page.title }}">{{ page.permalink }}</a>
-          <span class="copy-path"  title="点击复制文章链接"><i class="fa fa-clipboard" data-clipboard-text="{{ page.permalink }}"  aria-label="复制成功！"></i></span>
+          <a href="{{ url_for(page.srcpath) }}" title="{{ page.title }}">{{ page.srcpath }}</a>
+          <span class="copy-path"  title="点击复制文章链接"><i class="fa fa-clipboard" data-clipboard-text="{{ page.srcpath }}"  aria-label="复制成功！"></i></span>
         {% else %}
           未知
         {% endif  %}
