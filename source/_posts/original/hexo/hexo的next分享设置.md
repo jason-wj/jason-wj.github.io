@@ -1,7 +1,7 @@
 ---
 title: hexo的next分享设置
 date: 2018-03-22 14:07:24
-categories: [Hexo,界面优化]
+categories: [原创,Hexo,界面优化]
 tags: [Hexo,NexT]
 copyright: true
 original: true

@@ -1,7 +1,7 @@
 ---
 title: hexo添加背景动画
 date: 2018-03-21 09:44:05
-categories: [Hexo,界面优化]
+categories: [原创,Hexo,界面优化]
 tags: [Hexo,NexT]
 copyright: true
 original: true

@@ -1,7 +1,7 @@
 ---
 title: hexo常用属性设置
 date: 2018-03-21 13:33:34
-categories: [Hexo,界面优化]
+categories: [原创,Hexo,界面优化]
 tags: [Hexo,NexT]
 copyright: true
 original: true

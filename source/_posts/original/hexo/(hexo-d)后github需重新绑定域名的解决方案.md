@@ -1,7 +1,7 @@
 ---
 title: '''hexo d''后github需重新绑定域名问题'
 date: 2018-03-22 11:21:37
-categories: [Hexo,项目编译部署]
+categories: [原创,Hexo,项目编译部署]
 tags: [Next,Hexo,github]
 copyright: true
 original: true

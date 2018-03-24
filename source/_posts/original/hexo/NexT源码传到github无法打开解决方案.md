@@ -1,7 +1,7 @@
 ---
 title: NexT源码传到github无法打开解决方案
 date: 2018-03-21 18:01:10
-categories: [Hexo,项目编译部署]
+categories: [原创,Hexo,项目编译部署]
 tags: [Next,Hexo,github]
 copyright: true
 original: true

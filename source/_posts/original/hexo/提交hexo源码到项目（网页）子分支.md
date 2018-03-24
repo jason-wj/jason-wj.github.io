@@ -1,7 +1,7 @@
 ---
 title: 提交hexo源码到项目（网页）子分支
 date: 2018-03-21 17:01:36
-categories: [Hexo,项目编译部署]
+categories: [原创,Hexo,项目编译部署]
 tags: [Hexo,git,github]
 copyright: true
 original: true
