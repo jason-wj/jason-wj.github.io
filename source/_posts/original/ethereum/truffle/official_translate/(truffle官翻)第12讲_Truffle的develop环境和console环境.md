@@ -1,5 +1,5 @@
 ---
-title: (truffle官翻译)第12讲 Truffle的develop环境和console环境
+title: (truffle官翻)第12讲 Truffle的develop环境和console环境
 copyright: true
 original: true
 date: 2018-03-24 10:17:26

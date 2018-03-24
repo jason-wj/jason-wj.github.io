@@ -1,5 +1,5 @@
 ---
-title: (truffle官翻译)第2讲 安装
+title: (truffle官翻)第2讲 安装
 copyright: true
 original: true
 date: 2018-03-24 10:13:02

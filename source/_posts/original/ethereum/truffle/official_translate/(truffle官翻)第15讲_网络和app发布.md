@@ -1,5 +1,5 @@
 ---
-title: (truffle官翻译)第15讲 网络和app发布
+title: (truffle官翻)第15讲 网络和app发布
 copyright: true
 original: true
 date: 2018-03-24 10:19:57

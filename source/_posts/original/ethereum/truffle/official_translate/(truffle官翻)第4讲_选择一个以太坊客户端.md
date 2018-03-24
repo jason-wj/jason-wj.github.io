@@ -1,5 +1,5 @@
 ---
-title: (truffle官翻译)第4讲 选择一个以太坊客户端
+title: (truffle官翻)第4讲 选择一个以太坊客户端
 copyright: true
 original: true
 date: 2018-03-24 10:13:30

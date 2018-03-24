@@ -1,5 +1,5 @@
 ---
-title: (truffle官翻译)第16讲 将应用和truffle集成编译
+title: (truffle官翻)第16讲 将应用和truffle集成编译
 copyright: true
 original: true
 date: 2018-03-24 10:20:27

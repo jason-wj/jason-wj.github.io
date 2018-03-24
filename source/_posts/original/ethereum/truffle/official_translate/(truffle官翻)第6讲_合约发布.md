@@ -1,5 +1,5 @@
 ---
-title: (truffle官翻译)第6讲 发布合约
+title: (truffle官翻)第6讲 发布合约
 copyright: true
 original: true
 date: 2018-03-24 10:14:54

@@ -1,5 +1,5 @@
 ---
-title: (truffle官翻译)第7.1讲 合约测试
+title: (truffle官翻)第7.1讲 合约测试
 copyright: true
 original: true
 date: 2018-03-24 10:16:32

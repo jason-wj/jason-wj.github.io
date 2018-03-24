@@ -1,5 +1,5 @@
 ---
-title: (truffle官翻译)第14讲 各种配置文件（truffle.js、MochaJS、Solidity）
+title: (truffle官翻)第14讲 各种配置文件（truffle.js、MochaJS、Solidity）
 copyright: true
 original: true
 date: 2018-03-24 10:19:08

@@ -1,5 +1,5 @@
 ---
-title: (truffle官翻译)第13讲 编写外部脚本
+title: (truffle官翻)第13讲 编写外部脚本
 copyright: true
 original: true
 date: 2018-03-24 10:18:17

@@ -1,5 +1,5 @@
 ---
-title: (truffle官翻译)第1讲 概述
+title: (truffle官翻)第1讲 概述
 copyright: true
 original: true
 date: 2018-03-24 10:10:01

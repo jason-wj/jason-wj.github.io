@@ -1,5 +1,5 @@
 ---
-title: (truffle官翻译)第7.2讲 编写一个JavaScript测试文件
+title: (truffle官翻)第7.2讲 编写一个JavaScript测试文件
 copyright: true
 original: true
 date: 2018-03-24 10:16:56
