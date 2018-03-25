@@ -23,7 +23,7 @@ NodeJS本身就实现了一个http服务器，不需要额外再部署类似tomc
        //设置HTTP 头部，状态码是200，文件类型是html，字符集是utf8
        responerse.writeHead(200,{"Content-Type":"text/html;charset=UTF-8"});
        // 发送响应数据 "Hello BlockChain"
-       response.end("Hello BlockChain!");
+       response.end("Hello BlockChain!"); //结束响应，否则浏览器一直在请求
     }).listen(8888);
     // 终端打印如下信息
     console.log('此处后台打印，服务器正在8080端口监听');    
