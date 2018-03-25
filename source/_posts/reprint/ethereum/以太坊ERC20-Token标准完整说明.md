@@ -2,7 +2,7 @@
 title: 以太坊ERC20_Token标准完整说明
 date: 2018-03-22 11:42:18
 categories: [精品转载,以太坊]
-tags: [Ethereum,Token]
+tags: [ethereum,token]
 copyright: true
 authorship: CSDN
 original: false
