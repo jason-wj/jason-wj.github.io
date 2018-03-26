@@ -2,7 +2,6 @@
 title: nodejs入门-第2讲-包、npm第三方安装、package.jso以及cnpm
 copyright: true
 original: true
-explain: 文中可能会根据需要做部分调整
 date: 2018-03-26 19:15:12
 categories: [原创,nodejs,入门教程]
 tags: [nodejs,区块链]
