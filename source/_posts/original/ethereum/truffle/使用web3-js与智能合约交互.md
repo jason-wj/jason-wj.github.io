@@ -37,7 +37,7 @@ var token = contract(crowdsaleToken);  //实例化合约，contract方法可以�
 web3.setProvider(new web3.providers.HttpProvider());  //设置网络
 token.setProvider(web3.currentProvider);
 ```
-4. 核心代码，具体合约中的方法以及变量的调用：
+4. 核心代码，具体合约中的方法以及变量的调用(要注意合约中的方法和变量是不是`public`的)：
 ```js
 router.get('/send', function(req, res, next) {
     try {
