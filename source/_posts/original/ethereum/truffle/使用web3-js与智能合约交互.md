@@ -11,6 +11,8 @@ tags: [truffle,contracts]
 大体两种方式：
 1. 直接使用原生的web3.js与智能合约操作，小编尝试了以下，操作起来很麻烦，总之很别扭。
 2. 使用`truffle-contract`模块来操作智能合约，它将原生的web3.js进行了一些必要的封装，简化了操作方式，用着很顺手，基本类似于写truffle测试用例时候的语法格式。但是[官方](https://github.com/trufflesuite/truffle-contract)有些地方的使用方法讲的很模糊，小编在此进一步翻译一下。
+<!-- more -->
+
 ## truffle-contract的使用
 备注：`需要有nodejs基础`
 1. truffle编译智能合约，发布到以太坊私有网络。生成的json文件放在接口项目的某文件夹下：
