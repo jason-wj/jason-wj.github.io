@@ -4,7 +4,7 @@ copyright: true
 original: true
 date: 2018-03-26 20:26:49
 categories: [原创,nodejs,入门教程]
-tags: [nodejs,区块链]
+tags: [nodejs]
 ---
 ## fs.stat 检测是文件还是目录
 ```js
@@ -20,7 +20,7 @@ fs.stat('test.js', function (error, stats) {
     }
 });
 ```
-
+<!-- more -->
 ## fs.mkdir 创建目录
 ```js
 const fs = require('fs')

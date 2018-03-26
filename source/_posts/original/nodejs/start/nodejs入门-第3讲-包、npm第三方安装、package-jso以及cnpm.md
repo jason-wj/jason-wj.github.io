@@ -4,7 +4,7 @@ copyright: true
 original: true
 date: 2018-03-26 19:15:12
 categories: [原创,nodejs,入门教程]
-tags: [nodejs,区块链]
+tags: [nodejs]
 ---
 ## 包与npm
 ### 包 概述
@@ -16,7 +16,7 @@ Nodejs中第三方模块由包组成，可以通过包来对一组具有相互�
 * lib :用于存放JavaScript代码的目录。
 * doc :用于存放文档的目录。
 通过npm来安装这些包
-
+<!-- more -->
 ### npm 概述
 npm是世界上最大的开放源代码的生态系统。我们可以通过npm下载各种各样的包，这些源代码（包）我们可以在https://www.npmjs.com找到。
 npm是随同NodeJS一起安装的包管理工具，能解决NodeJS代码部署上的很多问题，常见的使用场景有以下几种：
