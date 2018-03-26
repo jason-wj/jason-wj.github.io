@@ -13,8 +13,8 @@ tags: [truffle,contracts]
 2. 使用`truffle-contract`模块来操作智能合约，它将原生的web3.js进行了一些必要的封装，简化了操作方式，用着很顺手，基本类似于写truffle测试用例时候的语法格式。但是[官方](https://github.com/trufflesuite/truffle-contract)有些地方的使用方法讲的很模糊，小编在此进一步翻译一下。
 <!-- more -->
 
-## truffle-contract的使用
-备注：`需要有nodejs基础`
+## truffle-contract的使用 (`需要有nodejs基础`)
+ 
 1. truffle编译智能合约，发布到以太坊私有网络。生成的json文件放在接口项目的某文件夹下：
 `备注：`编译发布智能合约可以参考此处：http://www.wjblog.top/categories/%E5%8E%9F%E5%88%9B/%E4%BB%A5%E5%A4%AA%E5%9D%8A/truffle/%E5%AE%98%E7%BF%BB/
 ```
@@ -62,5 +62,5 @@ router.get('/send', function(req, res, next) {
     }
 });
 ```
-代码中，`deployed()`标示使用以太坊默认账户操作，也就是`coinbase`账户，也可以使用`at(账户地址)`来指定别的账户。
+    代码中，`deployed()`标示使用以太坊默认账户操作，也就是`coinbase`账户，也可以使用`at(账户地址)`来指定别的账户。
 5. 整体的使用方式就是上面提到的那些了，这么一展示，之后看[官方](https://github.com/trufflesuite/truffle-contract)的文档就很容易了
