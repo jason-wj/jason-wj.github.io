@@ -56,6 +56,11 @@ router.get('/send', function(req, res, next) {
             instance.saleAmount.call().then(function (result) {
                res.send(result);
             });
+            
+            //发送以太币，换取token
+            instance.buyTokens(web3.eth.accounts[1],{from:web3.eth.accounts[1],value:web3.toWei(1000,"ether")}).then(function (result) {
+                res.send(result);
+            });
         });
     }catch (err){
         console.log(err);
