@@ -57,7 +57,7 @@ node
 2. 解析url，生成一个具体结构：
 ```js
 url.parse("http://www.wjblog.com")
-// url.parse("http://www.wjblog.com",true),第二个参数，若设为true，可返回请求参数结果
+// url.parse("http://www.wjblog.com",true),第二个参数，若设为true，可将query值变为对象形式
 ```
     返回结果：
     ```js
@@ -105,6 +105,7 @@ url.resolve('http://www.wjblog.top/Hexo','about'); //此为替换
     ```
 
 ## 自启动工具supervisor
+`注意`：**新版的nodejs已经默认支持热部署，以下功能为第三方模块提供的，仅供参考**
 `supervisor`会不停的`watch`应用下面的所有文件，发现有文件被修改，就重新载入程序文件这样就实现了部署，修
 改了程序文件后马上就能看到变更后的结果。
 1. 安装`supervisor`，根目录输入如下：
