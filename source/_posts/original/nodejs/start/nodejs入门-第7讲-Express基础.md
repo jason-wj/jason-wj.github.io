@@ -243,10 +243,11 @@ app.use('/news', express.static("./static"));
 ```
 
 ### 第三方中间件
+`新版express中，body-parser已经被集成其中，可直接express.json`，不需要额外通过`npm install body-parser`安装。
 ```text
 body-parser中间件 第三方的 获取post提交的数据 
 1.cnpm install body-parser --save 
-2.var bodyParser = require('body-parser') 
+2.var bodyParser = require('body-parser')  
 3.设置中间件 
 //处理form表单的中间件
 // parse application/x-www-form-urlencoded 
@@ -266,7 +267,7 @@ npm install body-parser
 2. 使用`req.body`获取post过来的参数
 ```js
 var express = require('express')
-var bodyParser = require('body-parser')
+var bodyParser = require('body-parser')  
 var app = express()
 // parse application/x-www-form-urlencoded
 app.use(bodyParser.urlencoded({extended: false}))
