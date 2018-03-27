@@ -1,5 +1,5 @@
 ---
-title: nodejs入门-第6讲-路由、EJS模板引擎、GET、POST
+title: (nodejs入门)第6讲-路由、EJS模板引擎、GET、POST
 copyright: true
 original: true
 explain: 文中可能会根据需要做部分调整
@@ -10,6 +10,7 @@ tags: [nodejs]
 ## 路由
 1. 官方解释： 路由（Routing）是由一个 URI（或者叫路径）和一个特定的 HTTP 方法（GET、POST 等）组成的，涉及到应用如何响应客户端对某个网站节点的访问。 
 2. 非官方解释： 路由指的就是针对不同请求的URL，处理不同的业务逻辑
+<!-- more -->
 {% asset_img 1.png  路由%}
 
 ## EJS模板引擎
@@ -31,13 +32,13 @@ ejs.renderFile(filename, data, options, function(err, str){
 ```html
 <a href="<%= url %>"><img src="<%= imageURL %>" alt=""></a>
 ```
-```html
-<ul> 
-    <% for(var i = 0 ; i < news.length ; i++){ %> 
-        <li><%= news[i] %></li>
-    <% } %>
-</ul>
-```
+    ```html
+    <ul> 
+        <% for(var i = 0 ; i < news.length ; i++){ %> 
+            <li><%= news[i] %></li>
+        <% } %>
+    </ul>
+    ```
 
 ## Get、Post
 超文本传输协议（HTTP）的设计目的是保证客户端机器与服务器之间的通信。

@@ -1,5 +1,5 @@
 ---
-title: nodejs入门-第2讲-CommonJS规范和NodeJS模块
+title: (nodejs入门)第2讲-CommonJS规范和NodeJS模块
 copyright: true
 original: true
 explain: 文中可能会根据需要做部分调整
