@@ -20,6 +20,15 @@ Express特点：
 小编使用了intelliJ idea开发工具，直接新建的默认项目就是Express的，目录划分，基本配置已经规划好，这个安装过程不复杂，不熟悉的可以去网上别的地方找找看。
 
 ## 使用（demo）
+* 新建项目：
+```text
+mkdir test
+cd test
+npm init --yes
+npm install express  --save
+vim app.js
+```
+* app.js中输入如下内容并保存：
 ```js
 var express = require('express');
 /*引入express*/
@@ -41,7 +50,10 @@ app.get('/register', function (req, res) {
 })
 app.listen(3000, "127.0.0.1");
 ```
-
+* 运行服务器，启动项目
+```text
+node app.js
+```
 ## Express中的路由
 路由（Routing）是由一个 URI（或者叫路径）和一个特定的 HTTP 方法（GET、POST 等）组成的，涉及到应用如何响应客户端对某个网站节点的访问
 
@@ -182,6 +194,7 @@ Express 是一个自身功能极简，完全是由路由和中间件构成一个
 * 修改请求和响应对象。 
 * 终结请求-响应循环。 
 * 调用堆栈中的下一个中间件
+通俗的说，中间件就是`匹配路由之前和匹配路由之后做的一系列操作`
 
 如果我的get、post回调函数中，没有next参数，那么就匹配上第一个路由，就不会往下匹配了。如果想往下匹配的话，那么需要写next()
 
@@ -209,17 +222,19 @@ app.get('/index', function (req, res) {
     res.send('首页');
 })
 ```
+用use匹配一个方法，等打印完log后，被匹配到等方法再开始执行。`权限判断用的比较多`
 
 ### 路由中间件
 ```js
-app.get("/", function (req, res, next) {
+app.get("/news", function (req, res, next) {
     console.log("1");
     next();
 });
-app.get("/", function (req, res) {
+app.get("/news", function (req, res) {
     console.log("2");
 });
 ```
+路由地址相同，在处理该路由前，先进行一系列操作，然后next()向下执行，开始执行。
 
 ### 错误处理中间件
 ```js
@@ -227,7 +242,7 @@ app.get('/index', function (req, res) {
     res.send('首页');
 })
 /*中间件相应404*/
-app.use(function (req, res) {
+app.use(function (req, res) {  //use没有指定路由，匹配所有路由，只要路由状态为404，就跳转页面
     //res.render('404',{});
     res.status(404).render('404', {});
 })
@@ -239,7 +254,6 @@ app.use(function (req, res) {
 app.use('/static', express.static("./static"));
 /*匹配所有的路径*/
 app.use('/news', express.static("./static"));
-/*匹配所有的路径*/
 ```
 
 ### 第三方中间件
@@ -251,7 +265,7 @@ body-parser中间件 第三方的 获取post提交的数据
 3.设置中间件 
 //处理form表单的中间件
 // parse application/x-www-form-urlencoded 
-app.use(bodyParser.urlencoded({ extended: false })); form表单提交的数据 
+app.use(bodyParser.urlencoded({ extended: false })); 获取form表单提交的数据 
 // parse application/json 
 app.use(bodyParser.json()); 提交的json数据的数据 
 4.req.body 获取数据
