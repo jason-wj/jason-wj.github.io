@@ -3,7 +3,7 @@ title: 关于NodeJS在区块链中的应用说明
 copyright: true
 original: true
 date: 2018-03-25 22:51:45
-categories: [原创,nodejs,入门教程]
+categories: [原创,nodejs]
 tags: [nodejs,区块链]
 ---
 `既然选择了远方 便只顾风雨兼程`
