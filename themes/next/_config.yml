@@ -80,7 +80,7 @@ seo: true
 # If true, will add site-subtitle to index page, added in main hexo config.
 # 子标题也显示在标签
 subtitle: Subtitle
-index_with_subtitle: true
+index_with_subtitle: false
 
 
 # ---------------------------------------------------------------
