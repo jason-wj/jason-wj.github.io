@@ -401,6 +401,7 @@ valine:
 # You can get your uid from https://livere.com/insight/myCode (General web site)
 #livere_uid: your uid
 
+# 评论，已开通
 # Gitment
 # Introduction: https://imsun.net/posts/gitment-introduction/
 # You can get your Github ID from https://api.github.com/users/<Github username>
@@ -409,13 +410,13 @@ gitment:
   mint: true # RECOMMEND, A mint on Gitment, to support count, language and proxy_gateway
   count: true # Show comments count in post meta area
   lazy: false # Comments lazy loading with a button
-  cleanly: false # Hide 'Powered by ...' on footer, and more
+  cleanly: true # Hide 'Powered by ...' on footer, and more
   language: # Force language, or auto switch by theme
-  github_user: jason-wj # MUST HAVE, Your Github ID
-  github_repo: jason-wj # MUST HAVE, The repo you use to store Gitment comments
+  github_user: 13200618 # MUST HAVE, Your Github ID
+  github_repo: https://api.github.com/users/jason-wj/repos # MUST HAVE, The repo you use to store Gitment comments
   client_id: 0aa1b86c59ed56c03def # MUST HAVE, Github client id for the Gitment
   client_secret: 92566ad8e06f4bf9d39f2e29fec021ab19a9927d # EITHER this or proxy_gateway, Github access secret token for the Gitment
-  proxy_gateway: http://jason-wj.github.io # Address of api proxy, See: https://github.com/aimingoo/intersect
+  proxy_gateway:  # Address of api proxy, See: https://github.com/aimingoo/intersect
   redirect_protocol: # Protocol of redirect_uri with force_redirect_protocol when mint enabled
 
 # Baidu Share
