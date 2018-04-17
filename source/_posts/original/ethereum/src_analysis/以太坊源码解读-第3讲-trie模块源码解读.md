@@ -15,10 +15,13 @@ tags: [ethereum]
 看到这么强大的东西，是不是经不起诱惑了？那我们就快来解刨吧。
 
 ## MPT的前世今生
-MPT是这三种结构的组合：Trie，Patricia Trie，Merkle tree。每一种都非常经典，为了更好的了解以太坊，小编专门整理了三篇文章，值得一读（依次从上往下读）：
-[浅谈标准Trie树（字典树）](/articles/original/ethereum/src_analysis/以太坊源码解读-第3讲-trie模块源码解读.html)
-[Patricia树介绍](/articles/original/blockchain/Patricia树介绍.html)
-[Merkle Tree（默克尔树）算法解析](/articles/reprint/blockchain/Merkle-Tree（默克尔树）算法解析.html)
-正是这三种树的进一步柔和，才有了今天以太坊上大名鼎鼎的MPT。
+* MPT是这三种结构的组合：Trie，Patricia Trie，Merkle tree。每一种都非常经典，为了更好的了解以太坊，小编专门整理了三篇文章，值得一读（依次从上往下读）：
+	[`浅谈标准Trie树（字典树）`](/articles/original/ethereum/src_analysis/以太坊源码解读-第3讲-trie模块源码解读.html)
+	[`Patricia树介绍`](/articles/original/blockchain/Patricia树介绍.html)
+	[`Merkle Tree（默克尔树）算法解析`](/articles/reprint/blockchain/Merkle-Tree（默克尔树）算法解析.html)
+	正是这三种树的进一步柔和，才有了今天以太坊上大名鼎鼎的MPT。
+* MPT是什么，它相比上面有什么优势？建议大家看看小编整理的这篇文章：
+	[`Merkle Patricia Tree (MPT) 以太坊merkle技术分析`](/articles/reprint/blockchain/Merkle-Patricia-Tree-MPT-以太坊merkle技术分析.html)
 
-## MPT
+## 黄皮书中的MPT公式描述
+
