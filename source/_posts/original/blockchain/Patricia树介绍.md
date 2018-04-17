@@ -11,6 +11,7 @@ tags: [区块链]
 ## 概述
 小编本想在网上找一篇合适的文章来介绍这个Patricia树的，但找了半天，没发现一个合适的。尤其很多地方直接把标准的trie当成了Patricia树，这样很容易受到勿扰。
 思来想去，小编打算自己大概介绍下这个树了。
+<!-- more -->
 看该文前，Patricia树是标准trie的改进，因此，建议大家先看看另一篇文章：[浅谈标准Trie树（字典树）](/articles/reprint/blockchain/%E6%B5%85%E8%B0%88Trie%E6%A0%91%EF%BC%88%E5%AD%97%E5%85%B8%E6%A0%91%EF%BC%89.html)
 
 ## 什么是Patricia树
