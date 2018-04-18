@@ -1,5 +1,5 @@
 ---
-title: 以太坊源码解读-第3讲-trie模块源码解读
+title: 以太坊源码解读-第3讲-trie模块源码解读（1）
 mathjax: true
 copyright: true
 original: true
