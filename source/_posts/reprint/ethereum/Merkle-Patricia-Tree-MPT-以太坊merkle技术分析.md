@@ -2,10 +2,10 @@
 title: Merkle Patricia Tree (MPT) 以太坊merkle技术分析
 mathjax: false
 copyright: true
-original: true
+original: false
 explain: 文中可能会根据需要做部分调整
 date: 2018-04-17 18:53:52
-categories: [原创,以太坊,源码解读]
+categories: [精品转载,以太坊]
 tags: [ethereum]
 authorship: CSDN
 srcpath: https://blog.csdn.net/zslomo/article/details/53434883
