@@ -77,6 +77,14 @@ fmt.Println(nibbles)
 
 ### COMPACT encoding
 
+### 总结一下
+在以太坊中，`KEYBYTES encoding`不会直接转位`COMPACT encoding`，需要先经过`HEX encoding`。
+三种编码中，目前以太坊只支持如下转换：
+* `KEYBYTES encoding`转`HEX encoding`
+* `HEX encoding`转`KEYBYTES encoding`
+* `HEX encoding`转`COMPACT encoding`
+* `COMPACT encoding`转`HEX encoding`
+
 
 
 
