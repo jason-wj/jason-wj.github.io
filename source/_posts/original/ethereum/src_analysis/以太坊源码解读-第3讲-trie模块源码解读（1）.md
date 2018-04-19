@@ -3,7 +3,6 @@ title: 以太坊源码解读-第3讲-trie模块源码解读（1）
 mathjax: true
 copyright: true
 original: true
-explain: 文中可能会根据需要做部分调整
 date: 2018-04-17 14:44:59
 categories: [原创,以太坊,源码解读]
 tags: [ethereum]
@@ -15,16 +14,18 @@ tags: [ethereum]
 它提供了一种强大的数据结构`Merkle Patricia Tries`，我们亲切的称它为`MPT`。正是它维护着我们的这三种状态，让整个以太坊平稳有序的进行着。
 看到这么强大的东西，是不是经不起诱惑了？那我们就快来解刨吧。
 
+这篇文章主要是讲阅读trie模块源码前要掌握的一些内容，具体源码的解析请看小编的另一篇文章：[以太坊源码解读-第3讲-trie模块源码解读（2）](/articles/original/ethereum/src_analysis/以太坊源码解读-第3讲-trie模块源码解读（2）.html)
+
 ## MPT的前世今生
 * MPT是这三种结构的组合：Trie，Patricia Trie，Merkle tree。每一种都非常经典，为了更好的了解以太坊，小编专门整理了三篇文章，值得一读（依次从上往下读）：
-	[`浅谈标准Trie树（字典树）`](/articles/original/ethereum/src_analysis/以太坊源码解读-第3讲-trie模块源码解读.html)
+	[`浅谈标准Trie树（字典树）`](/articles/reprint/blockchain/浅谈Trie树（字典树）.html)
 	[`Patricia树介绍`](/articles/original/blockchain/Patricia树介绍.html)
 	[`Merkle Tree（默克尔树）算法解析`](/articles/reprint/blockchain/Merkle-Tree（默克尔树）算法解析.html)
 	正是这三种树的进一步柔和，才有了今天以太坊上大名鼎鼎的MPT。
 * MPT是什么，它相比上面有什么优势？建议大家看看小编整理的这篇文章：
-	[`Merkle Patricia Tree (MPT) 以太坊merkle技术分析`](/articles/reprint/blockchain/Merkle-Patricia-Tree-MPT-以太坊merkle技术分析.html)
+	[`Merkle Patricia Tree (MPT) 以太坊merkle技术分析`](/articles/reprint/ethereum/Merkle-Patricia-Tree-MPT-以太坊merkle技术分析.html)
 
-注意，上面这篇文章只是宏观上的介绍，MPT也只是大概讲讲是什么样的逻辑，具体细节，且听下回分析。
+注意，上面这篇文章只是宏观上的介绍，MPT也只是大概讲讲是什么样的逻辑，能有个大概映像。具体细节，小编后面再详细介绍。
 ## MPT中的编码概念
 MPT中会涉及到三种编码：`KEYBYTES encoding`、`HEX encoding`、`COMPACT encoding`，每种编码在特定场合都有其重要的作用，小编曾尝试通过网络中的相关文章来了解这些编码是怎么生成的，但无奈啊，这些文章一个比一个写的复杂，一堆数学公式和专业术语，越看越看不懂。。。
 终于，小编还是看完源码后，弯回来，自己来解释下这三种编码具体是怎么实现的。毕竟，了解了这些基础后，再看源码就会容易很多。吸取以前看的文章的不足之处，这次小编一定讲的通俗易懂：
@@ -76,12 +77,51 @@ fmt.Println(nibbles)
 	* 这下该懂了吧，再不懂就只能弯回去再读几遍了。。小编自认为对这个hex编码的解释算是很仔细啦。。
 * 小编还要补充的重要内容是，很重要，否则很难理解`COMPACT encoding`编码：
 	* `KEYBYTES encoding`编码的数据转成`HEX encoding`的编码的数据后，该byte[]最后一个是一定有后缀的，值为`16`，并且除去后缀后，剩余的编码长度为偶数。具体看上面的解释。
-	* 但是，对于从其它渠道（不要管哪个渠道）生成的hexo编码，可能会有前缀，也可能前缀后缀都有。记着，`后缀永远是16，前缀为任何数。`
+	* hex中两个连续byte表示原始数据的一个byte。
+	* 但是小编从以太坊源码中了解到，hex字节数组如果不是经过`KEYBYTES encoding`编码得到的，可能会有`前缀`(姑且这么称呼)这么一个东西，具体生成的hex结果会分为如下几种情况：
+		1. hex字节数组长度为奇数，最后一个是后缀，标记为16，此时无前缀这。种就是前面所讲的经过`KEYBYTES encoding`编码得到的。
+		2. hex字节数组长度为奇数，最后一个不是后缀，此时会认为hex字节数组的第一个是其的前缀。
+		3. hex字节数组长度为偶数，最后一个是后缀，此时hex字节数组的第一个一定是其前缀。
+		4. hex字节数组长度为偶数，最后一个不是后缀，并且无前缀
+	
+	`ps:`截止目前为止，小编依旧不知道hex的这个前缀是怎么生成的，为什么要有。。。如果有哪个小伙伴了解，可以留言分享一下。
+
 
 ### COMPACT encoding
-这种编码也就是黄皮书里讲的`Hex-Prefix Encoding`编码，可以看作是`HEX encoding`编码的另一种形式，在磁盘存储数据的时候，会节省磁盘空间。同样，这种编码的实现方式小编也需要好好讲讲。
-既然都说了它是`HEX encoding`编码的另一种形式，也就是说，`COMPACT encoding`需要经过`HEX encoding`转换实现的。
-咱们先通过代码来看一下hex编码是怎样转换为COMPACT编码的（`先知道，hex是有前缀的，前面提到过`）：
+这种编码也就是黄皮书里讲的`Hex-Prefix Encoding`编码，可以看作是`HEX encoding`编码的另一种形式，在磁盘存储数据的时候，会节省磁盘空间。
+既然都说了它是`HEX encoding`编码的另一种形式，也就是说，`COMPACT encoding`是通过`HEX encoding`转换实现的，转换后，会节省将近一半的磁盘空间。
+思前想后，换了N种方式，最终小编认为，还是得先通过数学公式来理解什么是`COMPACT encoding`编码。
+
+#### 数学公式定义
+这是黄皮书中给出的公式，耐心看，不复杂。
+$$
+\begin{split}
+HP(x,t):x \in \mathbb{Y} &\equiv 
+\begin{cases}
+&(16f(t),16x[0]+x[1],16x[2]+x[3],...)\ \ \ \ if\ ||x||\ is\ even \\\
+&(16(f(t)+1)+x[0],16x[1]+x[2],16x[3]+x[4],...)\ \ \ \ otherwise
+\end{cases}
+\\\
+f(t) &\equiv 
+\begin{cases}
+&2\ \ \ \ if\ \ t = 1 \\\
+&0\ \ \ \ if\ \ t = 0
+\end{cases}
+\end{split}
+$$
+解释一下公式的意思：
+1. ||x||表示求x的长度，在源码中，x表示一个字节数组byte[]，也就是hex编码。
+2. HP(x,t)代表的就是最终`COMPACT encoding`编码后的结果，其中的`t`，黄皮书中原本定义的是$t=0和t \neq 0$两种情况，但是结合源码，小编将其改为t=0和t=1这两种情况，这样更容易理解。
+因为，源码中是这样实现的：`当hex有后缀的时候，则t=1，否则t=0`。
+3. $\mathbb{Y}$根据hex的长度是`偶数(even)`还是`奇数(odd)`，划分为两种集合。每种集合中的第一个数据，代表的是`COMPACT encoding`编码的前缀，它包含了转换回hex编码所需要的信息。
+4. $\mathbb{Y}$每种集合中的第二个数据开始，你会发现全是`16x[i]+x[i+1]`这种样式，这在二进制中，其实就是高4位和低4位组成一个byte 8位的过程1。如下图（为了画个像样的图，小编专门学axure。。。）：
+{% asset_img 1.png  16x[i]+x[i+1]过程%}
+
+`COMPACT encoding`大体就是这样子，理解了吗？不理解的继续看看后面的代码实现。
+
+#### 代码实现
+
+来看一下hex编码是怎样转换为COMPACT编码的（`先知道，hex是有前缀的，前面提到过`）,要对着上面公式看：
 ```go
 // 测试案例，将hex编码{1,2,3,4,5}转换成Compact编码，并输出
 func TestHexToCompact(t *testing.T) {
@@ -91,51 +131,40 @@ func TestHexToCompact(t *testing.T) {
 
 //用于hex编码是转换为COMPACT编码
 func hexToCompact(hex []byte) []byte {
-	terminator := byte(0) //初始化一个值为0的byte
+	terminator := byte(0) //初始化一个值为0的byte，它就是我们上面公式中提到的t
 	if hasTerm(hex) { //验证hex有后缀编码，
-		terminator = 1  //hex有后缀编码则先设置个变量为1，后面有用
+		terminator = 1  //hex编码有后缀，则t=1
 		hex = hex[:len(hex)-1]  //此处只是去掉后缀部分的hex编码
 	}
 	//Compact开辟的空间长度为hex编码的一半再加1，这个1对应的空间是Compact的前缀
 	buf := make([]byte, len(hex)/2+1) 
-	//若hex有后缀，则Compact的前缀初始化为32；
-	//若hex无后缀，则Compact的前缀初始化为0；
+	
+	//这一阶段的buf[0]可以理解为公式中的16*f(t)
 	buf[0] = terminator << 5 
 	if len(hex)&1 == 1 { //hex 长度为奇数，则逻辑上说明hex有前缀
-		//buf[0]值若为16，则标记hex编码长度不小于16时是肯定有前缀；
-		//buf[0]值为若48，标记hex编码长度不小于48时，同时有前缀有后缀
+		//这一阶段的buf[0]可以理解为公式中的16*（f(t)+1）
 		buf[0] |= 1 << 4 
-		//下面的或操作是为了之后Compact编码转回成hex编码时，能够恢复hex[0]
+		//这一阶段的buf[0]可以理解为公式中的16*（f(t)+1）+ x[0]
 		buf[0] |= hex[0]  
 		hex = hex[1:] //此时获取的hex编码无前缀无后缀
 	}
-	//若hex无前缀无后缀，则Compact的前缀buf[0]为0；
-	/若hex只有后缀，则Compact的前缀buf[0]为32；
 	decodeNibbles(hex, buf[1:]) //将hex编码映射到compact编码中
-	return buf
+	return buf  //返回compact编码
 }
 
 
 func decodeNibbles(nibbles []byte, bytes []byte) {
 	for bi, ni := 0, 0; ni < len(nibbles); bi, ni = bi+1, ni+2 {
-		bytes[bi] = nibbles[ni]<<4 | nibbles[ni+1] //高4位低4位还原，代码不精妙吗？
+		bytes[bi] = nibbles[ni]<<4 | nibbles[ni+1] //这个过程就是16x[i]+x[i+1]的过程
 	}
 }
 ```
 最后输出的Compact编码结果为：
 	```go
-	//17为compact前缀，因为17大于16小于32，则说明hex编码没有前缀无后缀；
+	//17为compact前缀
 	[17 35 69]  
 	```
-看完代码和注释，是不是头晕？上面那片代码是小编半夜整理的，愣改了两个小时才注释好，小编已经头晕的不行了。。
-它的目的其实是为了两个目的：
-1. 当然是编码为Compact
-2. 判断hex编码：`只有前缀`；`只有后缀`；`前缀后缀都有`；`前缀后缀都没`这四种情况。
-	* Compact的前缀等于`0`：前缀后缀都没
-	* Compact的前缀不小于等于`16`：只有前缀
-	* Compact的前缀等于`32`：只有后缀
-	* 
-明天再解释。。。
+大伙这下该理解Compact编码是怎么实现的了吧？要还有什么疑问，就请大家留言吧。。
 
 ### 总结一下
 在以太坊中，`KEYBYTES encoding`不会直接转位`COMPACT encoding`，需要先经过`HEX encoding`。
