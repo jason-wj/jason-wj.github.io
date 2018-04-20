@@ -11,7 +11,7 @@ tags: [ethereum]
 这一部分，我们主要是讲trie源码的实现，要理解代码的实现过程，是需要先了解一下理论内容的，建议大家先看看我的上一篇文章：[以太坊源码解读-第3讲-trie模块源码解读（1）](/articles/original/ethereum/src_analysis/以太坊源码解读-第3讲-trie模块源码解读（1）.html)
 <!-- more -->
 
-## encoding.go文件源码解读
+## encoding.go源码解读
 trie模块中，这个文件是我们首先要掌握的，这个主要是讲三种编码（`KEYBYTES encoding`、`HEX encoding`、`COMPACT encoding`）的实现与转换，trie中全程都需要用到这些，该文件中主要实现了如下功能：
 1. hex编码转换为Compact编码：`hexToCompact()`
 2. Compact编码转换为hex编码：`compactToHex()`
@@ -22,27 +22,12 @@ trie模块中，这个文件是我们首先要掌握的，这个主要是讲三�
 但是，小编不会去讲这块的源码内容了，因为[以太坊源码解读-第3讲-trie模块源码解读（1）](/articles/original/ethereum/src_analysis/以太坊源码解读-第3讲-trie模块源码解读（1）.html)这篇文章里已经穿插了很多相关的源码，重点都已经在其中解释的很详细了。
 如果还有哪些地方不了解，大家可以留言在此处。
 
-## node.go文件源码解读
-该文件是trie文件的重要组成部分，MPT中的每个节点都是通过它来实现的。接下来我们一部分一部分的看看这个文件的内容
+## node.go源码解读
+node结构是MPT的核心，网上各种文章，理论方面讲的没问题，但涉及到对以太坊node的解释时候，越看越看不懂，无奈之下，直接看着源码才真正搞懂是怎么一回事。首先，我们要知道MPT中，各节点是如何划分的，直接上图来看（根标准trie结构很相似）：
+{% asset_img 1.png  MPT树整体结构 %}
+四种节点：`根节点`、`分支节点`、`扩展节点`、`叶子节点`，我们逐一来`详细`解释(一定要看懂，要不然看源码会一脸懵逼)：
+1. 根节点
+节点为空，没有数据信息
+2. 扩展节点
 
-### MPT结点的种类
-从[`Merkle Patricia Tree (MPT) 以太坊merkle技术分析`](/articles/reprint/ethereum/Merkle-Patricia-Tree-MPT-以太坊merkle技术分析.html)文章中，我们得知，MPT中拥有：`分支节点`、`扩展节点`以及`叶子结点`。
-来看看代码是如何定义的：
-```go
-type (
-	fullNode struct {
-		Children [17]node  
-		flags    nodeFlag
-	}
-	shortNode struct {  
-		Key   []byte
-		Val   node  
-		flags nodeFlag
-	}
-	hashNode  []byte
-	valueNode []byte  //叶子节点
-)
-```
-解释一下：
-* `fullNode`：这就是所说的
 
