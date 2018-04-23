@@ -76,7 +76,7 @@ nodeFlage中的bool，只要对应的node发生变化，它就变成true，表�
 type Trie struct {
 	db           *Database  //trei在levelDB中
 	root         node  //根结点
-	originalRoot common.Hash  //从db中恢复出完整的trie
+	originalRoot common.Hash  //32位byte[],从db中恢复出完整的trie
 
 	//cachegen表示当前trie树的版本，trie每次commit，则增加1
 	//cachelimit如果当前的cache时代 - cachelimit参数 大于node的cache时代，那么node会从cache里面卸载，以便节约内存。
@@ -89,6 +89,8 @@ type Trie struct {
 * originalRoot
 * cachegen
 * cachelimit
+
+按小编的理解，trie中存入db本身的是各种类型的node，也就是从root指向的那个node开始存储，root本身并不存储。
 
 想要真正掌握以太坊中的trie，小编建议还是从它的测试文件node_test.go作为入口来读取源码，这里面涉及到内容如果都看懂，那相信你对MPT了解已经非常深刻了。好，那咱们一个个来看：
 ### 一颗空树
@@ -126,6 +128,283 @@ key：应该是value对应的rlp编码后的hash值
 可以这么理解，此时这棵树有一个根结点和一个叶子结点。
 为更好说明，上个图，大体如下：
 {% asset_img 1.png  空树中添加到一个节点 %}
+
+### 数据库中检测一个不存在的trie根节点
+小编曾说个，以太坊的MPT中，是有google的levelDB参与的，而从trie定义的结构中，我们可知通过trie中的originalRoot可以恢复出一棵levelDB中存在的MPT树。
+这个案例中，我们尝试使用一个不存在的hash来判断level中的确不存在该对应的MTP树。代码如下：
+`ps：小编需要说明，其中涉及的levelDB以及代码中的db操作相关，属于以太坊的ethdb模块中的内容，这个将在后续的文章中讲解，本文只一笔概述不会深入去讲db内容。`
+```go
+func TestMissingRoot(t *testing.T) {
+	diskdb, _ := ethdb.NewMemDatabase()
+	//New()中，第一个参数是将hex编码转为原始的hash 32位byte[]
+	trie, err := New(common.HexToHash("0beec7b5ea3f0fdbc95d0dd47f3c5bc275da8a33"), NewDatabase(diskdb))
+	if trie != nil {
+		t.Error("New returned non-nil trie for invalid root")
+	}
+	if _, ok := err.(*MissingNodeError); !ok {
+		t.Errorf("New returned wrong error: %v", err)
+	}
+}
+```
+代码中我们可知，我们是要从一个新建的db中去找某hash对应的trie树。呵呵，当然会找不到。但程序具体是怎么执行查找的？需要我们进入New()方法去进一步了解过程：
+传入的root是一个hash，根据该hash最后是在db中查找对应的trie根的。
+其中`originalRoot: root, `，若最终查找出了该trie，则该root就是整个trie的hash。
+```go
+func New(root common.Hash, db *Database) (*Trie, error) {
+	if db == nil {
+		panic("trie.New called without a database")
+	}
+	trie := &Trie{
+		db:           db,
+		originalRoot: root,  //把传入的hash保存在此处，只要能恢复了整个trie
+	}
+	if (root != common.Hash{}) && root != emptyRoot {
+		rootnode, err := trie.resolveHash(root[:], nil) //检查是否有对应的trie
+		if err != nil {
+			return nil, err
+		}
+		trie.root = rootnode  //返回了找到的trie，按小编理解，这个rootnode应该是分支节点或叶子节点
+	}
+	return trie, nil
+}
+```
+其中，真正进行node查找的方法是resolveHash()该方法也需要大家了解一下：
+```go
+func (t *Trie) resolveHash(n hashNode, prefix []byte) (node, error) {
+	cacheMissCounter.Inc(1)  //每执行一次resolveHash()方法，计数器+1
+
+	hash := common.BytesToHash(n)
+	enc, err := t.db.Node(hash)
+	if err != nil || enc == nil {
+		return nil, &MissingNodeError{NodeHash: hash, Path: prefix}
+	}
+	return mustDecodeNode(n, enc, t.cachegen), nil
+}
+```
+主要的是那个计数器，`cacheMissCounter.Inc(1)`，不论从db中还原trie成功还是失败，计数器都会累加1
+
+### 操作存储在内存或磁盘的trie
+db中只会存放最终真正确认有效的数据块，因此trie会被分为存在db磁盘中的以及留在内存中的两大类，具体可以看测试代码，（期间会涉及到部分非重点代码，小编就不列出了）：
+```go
+
+func testMissingNode(t *testing.T, memonly bool) {
+	diskdb, _ := ethdb.NewMemDatabase()  //磁盘空间
+	triedb := NewDatabase(diskdb)  //生成db
+
+	trie, _ := New(common.Hash{}, triedb) //空节点创建
+	updateString(trie, "120000", "qwerqwerqwerqwerqwerqwerqwerqwer")  //插入第一个结点数据
+	updateString(trie, "123456", "asdfasdfasdfasdfasdfasdfasdfasdf")  //插入第二个结点数据
+	root, _ := trie.Commit(nil)  //trie.Commit需要了解
+	if !memonly {  //根据此处来判断是否提交到db
+		triedb.Commit(root, true)  //这个就是将trie提交到db了
+	}
+
+	//根据key查找某个trie是否存在
+	var bts []byte
+	trie, _ = New(root, triedb)
+	bts, err := trie.TryGet([]byte("120000"))
+	fmt.Println(bts)
+	
+	//添加一个node
+	trie, _ = New(root, triedb)
+	err = trie.TryUpdate([]byte("120099"), []byte("zxcvzxcvzxcvzxcvzxcvzxcvzxcvzxcv"))
+
+	//删除一个node
+	trie, _ = New(root, triedb)
+	err = trie.TryDelete([]byte("123456"))
+	
+	hash := common.HexToHash("0xe1d943cc8f061a0c0b98162830b970395ac9315654824bf21b73b891365262f9")
+	if memonly { //为true，则在内存中删除该trie
+		delete(triedb.nodes, hash)
+	} else {  //为false，则在磁盘中删除该trie
+		diskdb.Delete(hash[:])
+	}
+}
+```
+
+### 缓存清除
+```go
+func TestCacheUnload(t *testing.T) {
+	trie := newEmpty() //创建新的trie，root空节点
+	key1 := "---------------------------------"
+	key2 := "---some other branch"
+	updateString(trie, key1, "this is the branch of key1.")
+	updateString(trie, key2, "this is the branch of key2.")
+
+	root, _ := trie.Commit(nil) //提交到内存
+	trie.db.Commit(root, true)  //提交到磁盘
+
+	db := &countingDB{Database: trie.db.diskdb, gets: make(map[string]int)}
+	trie, _ = New(root, NewDatabase(db))
+	trie.SetCacheLimit(5)  //设置缓存队列长度为5
+	for i := 0; i < 12; i++ {
+		trie.Get([]byte(key1)) //在trie中找到key1所对应的原始数据，key1是各节点拼出的完整hash
+		trie.Commit(nil) 
+	}
+
+	for dbkey, count := range db.gets {
+		if count != 2 {
+			t.Errorf("db key %x loaded %d times, want %d times", []byte(dbkey), count, 2)
+		}
+	}
+}
+```
+
+### 随机数操作
+```go
+type randTest []randTestStep
+
+type randTestStep struct {
+	op    int
+	key   []byte // for opUpdate, opDelete, opGet
+	value []byte // for opUpdate
+	err   error  // for debugging
+}
+
+const (
+	opUpdate = iota
+	opDelete
+	opGet
+	opCommit
+	opHash
+	opReset
+	opItercheckhash
+	opCheckCacheInvariant
+	opMax // boundary value, not an actual op
+)
+
+func (randTest) Generate(r *rand.Rand, size int) reflect.Value {
+	var allKeys [][]byte
+	genKey := func() []byte {
+		if len(allKeys) < 2 || r.Intn(100) < 10 {
+			// new key
+			key := make([]byte, r.Intn(50))
+			r.Read(key)
+			allKeys = append(allKeys, key)
+			return key
+		}
+		// use existing key
+		return allKeys[r.Intn(len(allKeys))]
+	}
+
+	var steps randTest
+	for i := 0; i < size; i++ {
+		step := randTestStep{op: r.Intn(opMax)}
+		switch step.op {
+		case opUpdate:
+			step.key = genKey()
+			step.value = make([]byte, 8)
+			binary.BigEndian.PutUint64(step.value, uint64(i))
+		case opGet, opDelete:
+			step.key = genKey()
+		}
+		steps = append(steps, step)
+	}
+	return reflect.ValueOf(steps)
+}
+
+func runRandTest(rt randTest) bool {
+	diskdb, _ := ethdb.NewMemDatabase()
+	triedb := NewDatabase(diskdb)
+
+	tr, _ := New(common.Hash{}, triedb)
+	values := make(map[string]string) // tracks content of the trie
+
+	for i, step := range rt {
+		switch step.op {
+		case opUpdate:
+			tr.Update(step.key, step.value)
+			values[string(step.key)] = string(step.value)
+		case opDelete:
+			tr.Delete(step.key)
+			delete(values, string(step.key))
+		case opGet:
+			v := tr.Get(step.key)
+			want := values[string(step.key)]
+			if string(v) != want {
+				rt[i].err = fmt.Errorf("mismatch for key 0x%x, got 0x%x want 0x%x", step.key, v, want)
+			}
+		case opCommit:
+			_, rt[i].err = tr.Commit(nil)
+		case opHash:
+			tr.Hash()
+		case opReset:
+			hash, err := tr.Commit(nil)
+			if err != nil {
+				rt[i].err = err
+				return false
+			}
+			newtr, err := New(hash, triedb)
+			if err != nil {
+				rt[i].err = err
+				return false
+			}
+			tr = newtr
+		case opItercheckhash:
+			checktr, _ := New(common.Hash{}, triedb)
+			it := NewIterator(tr.NodeIterator(nil))
+			for it.Next() {
+				checktr.Update(it.Key, it.Value)
+			}
+			if tr.Hash() != checktr.Hash() {
+				rt[i].err = fmt.Errorf("hash mismatch in opItercheckhash")
+			}
+		case opCheckCacheInvariant:
+			rt[i].err = checkCacheInvariant(tr.root, nil, tr.cachegen, false, 0)
+		}
+		// Abort the test on error.
+		if rt[i].err != nil {
+			return false
+		}
+	}
+	return true
+}
+
+func checkCacheInvariant(n, parent node, parentCachegen uint16, parentDirty bool, depth int) error {
+	var children []node
+	var flag nodeFlag
+	switch n := n.(type) {
+	case *shortNode:
+		flag = n.flags
+		children = []node{n.Val}
+	case *fullNode:
+		flag = n.flags
+		children = n.Children[:]
+	default:
+		return nil
+	}
+
+	errorf := func(format string, args ...interface{}) error {
+		msg := fmt.Sprintf(format, args...)
+		msg += fmt.Sprintf("\nat depth %d node %s", depth, spew.Sdump(n))
+		msg += fmt.Sprintf("parent: %s", spew.Sdump(parent))
+		return errors.New(msg)
+	}
+	if flag.gen > parentCachegen {
+		return errorf("cache invariant violation: %d > %d\n", flag.gen, parentCachegen)
+	}
+	if depth > 0 && !parentDirty && flag.dirty {
+		return errorf("cache invariant violation: %d > %d\n", flag.gen, parentCachegen)
+	}
+	for _, child := range children {
+		if err := checkCacheInvariant(child, n, flag.gen, flag.dirty, depth+1); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func TestRandom(t *testing.T) {
+	if err := quick.Check(runRandTest, nil); err != nil {
+		if cerr, ok := err.(*quick.CheckError); ok {
+			t.Fatalf("random test iteration %d failed: %s", cerr.Count, spew.Sdump(cerr.In))
+		}
+		t.Fatal(err)
+	}
+}
+```
+
+
 
 
 
