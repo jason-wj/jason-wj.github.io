@@ -29,7 +29,7 @@ trie模块中，这个文件是我们首先要掌握的，这个主要是讲三�
 以太坊为MPT中的node定义了一套基本接口规则：
 ```go
 type node interface {
-	fstring(string) string
+	fstring(string) string //用来打印节点信息，没别的作用
 	cache() (hashNode, bool)  //保存缓存
 	canUnload(cachegen, cachelimit uint16) bool  //除去缓存，cache次数的计数器
 }
@@ -52,7 +52,7 @@ type (
 ```
 分为这四种节点：
 * fullNode
-这就是传说中的分支节点，会发现它里面定义了17个node，其中16个对应的16进制的0~9a~f，第17个还没搞清楚。nodeFlag稍后再说。
+这就是传说中的分支节点，会发现它里面定义了17个node，其中16个对应的16进制的0~9a~f，第17个还没搞清楚，后面清楚了再来讲。nodeFlag稍后再说。
 * shortNode
 它本身若是扩展节点，则它的属性Val可能指向分支节点或者叶子节点，但要知道，叶子节点本身同样是用shortNode表示的；
 它本身若是叶子节点，则Val的值为rlp编码的数据，而key则是该数据的完整hash(经过hex编码的)
@@ -65,9 +65,71 @@ type nodeFlag struct {
 	dirty bool     // whether the node has changes that must be written to the database
 }
 ```
-在其中发现了hashNode，这个属性是用来标记nodeFlag所属的node当前的hash值，若node有任何变化，则该hash就会发生变化。
+在其中发现了hashNode，这个属性是用来标记nodeFlag所属的node对象本身经过rlp编码后的hash值（该hash在hashNode中同样是经过hex编码的），若node有任何变化，则该hash就会发生变化。
 nodeFlag中的gen，只要对应的node发生一次变化，计数就加一
 nodeFlage中的bool，只要对应的node发生变化，它就变成true，表示要把数据重新刷新到DB中(以太坊用levelDB存储MTP信息)
+小编认为，对node理解到此处就可以了，对node的具体操作，要结合MPT的具体操作来掌握，这就引出了我们的下一部分需要掌握的文件：trie.go
+
+## trie.go源码解读
+我们先来了解下以太坊给trie定义的结构：
+```go
+type Trie struct {
+	db           *Database  //trei在levelDB中
+	root         node  //根结点
+	originalRoot common.Hash  //从db中恢复出完整的trie
+
+	//cachegen表示当前trie树的版本，trie每次commit，则增加1
+	//cachelimit如果当前的cache时代 - cachelimit参数 大于node的cache时代，那么node会从cache里面卸载，以便节约内存。
+	cachegen, cachelimit uint16
+}
+```
+具体我们来解读一下其中的每部分：
+* db
+* root 可以理解为当前root指向哪个节点，初始时候，没有内容，则root=nil，表示指向nil
+* originalRoot
+* cachegen
+* cachelimit
+
+想要真正掌握以太坊中的trie，小编建议还是从它的测试文件node_test.go作为入口来读取源码，这里面涉及到内容如果都看懂，那相信你对MPT了解已经非常深刻了。好，那咱们一个个来看：
+### 一颗空树
+当为一颗空树时候，也就是trie只有一个节点，且trie.root=nil。
+此时使用trie.Hash()可以返回当前整个trie树的hash值。而emptyRoot是trie预先定义的一个空节点时候的hash常量，将当前trie的hash和它比较，可以校验当前trie是否为空树。具体代码如下：
+注意，这些hash是真实值，从进一步的代码中，我们是可以得知，这些hash是使用hex转换回来的hash。
+```go
+func TestEmptyTrie(t *testing.T) {
+	var trie Trie
+	res := trie.Hash() //获取当前trie的hash
+	exp := emptyRoot
+	if res != common.Hash(exp) {
+		t.Errorf("expected %x got %x", exp, res)
+	}
+}
+```
+###  从空树中添加一个节点
+添加一个节点，也就是添加叶子结点，先来看代码：
+```go
+func TestNull(t *testing.T) {
+	var trie Trie
+	value := []byte("test")  //value为字节数组
+	key := make([]byte, 32) //一个32位的hash，但是其中每一位都是0
+	trie.Update(key, value)
+	if !bytes.Equal(trie.Get(key), value) {
+		t.Fatal("wrong value")
+	}
+}
+```
+初始时，tril.root指向的是nil。
+value：要把一个字符串内容为"test"的数据存入trie中
+key：应该是value对应的rlp编码后的hash值
+从trie.Update()进入到trie.go的insert方法中：会发现，key和value被组成一个shortNode，表示一个叶子节点，插入到trie空树中。
+然后trie.root指向这个叶子节点。
+可以这么理解，此时这棵树有一个根结点和一个叶子结点。
+为更好说明，上个图，大体如下：
+{% asset_img 1.png  空树中添加到一个节点 %}
+
+
+
+
 参考：https://blog.csdn.net/ddffr/article/details/78773013
 
 
