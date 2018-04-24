@@ -192,8 +192,8 @@ func testMissingNode(t *testing.T, memonly bool) {
 	triedb := NewDatabase(diskdb)  //生成db
 
 	trie, _ := New(common.Hash{}, triedb) //空节点创建
-	updateString(trie, "120000", "qwerqwerqwerqwerqwerqwerqwerqwer")  //插入第一个结点数据
-	updateString(trie, "123456", "asdfasdfasdfasdfasdfasdfasdfasdf")  //插入第二个结点数据
+	trie.Update([]byte("120000"), []byte("qwerqwerqwerqwerqwerqwerqwerqwer"))
+	trie.Update([]byte("123456"), []byte("asdfasdfasdfasdfasdfasdfasdfasdf"))
 	root, _ := trie.Commit(nil)  //trie.Commit需要了解
 	if !memonly {  //根据此处来判断是否提交到db
 		triedb.Commit(root, true)  //这个就是将trie提交到db了
@@ -207,6 +207,7 @@ func testMissingNode(t *testing.T, memonly bool) {
 	
 	//添加一个node
 	trie, _ = New(root, triedb)
+	//本质上也是调用trie.Update()方法
 	err = trie.TryUpdate([]byte("120099"), []byte("zxcvzxcvzxcvzxcvzxcvzxcvzxcvzxcv"))
 
 	//删除一个node
@@ -221,195 +222,162 @@ func testMissingNode(t *testing.T, memonly bool) {
 	}
 }
 ```
+会发现，trie中存这样的几对方法：Update()和TryUpdate()、Get()和TryGet()、Delete()和TryDelete()；其实是没有加`Try`关键字的方法进一步封装了带有`Try`的方法，做了异常处理。另外：
+* TryUpdate()方法：当传入的value长度大于0，则调用trie.insert()把把key和value组成节点插入trie（插入逻辑后续再说）；否则若value长度为0，则调用trie.delete()方法删除trie中key对应的节点。
+* TryGet()方法：就是从trie中调用tryGet()方法获取key对应的那一部分数据
+* TryDelete()方法：就是调用trie中delete()方法删除trie中key对应的节点。
+* triedb.Commit()方法：将数据提交给db，这个涉及到trie模块下的database.go，后面章节中单独讲
+* diskdb.Delete()方法：磁盘中删除某节点，这个属于`diskdb模块`内容，本文不讲解。
 
-### 缓存清除
+节点的操作本身很重要，我们知道了，真正处理数据的是trie中的insert()、delete()、tryGet()这三个方法。接下来详细介绍一下它们。
+先要知道，这些操作的数据目前都是在内存中保存的。
+下面操作中，除了明确标明是在操作db，其余情况都是在内存中操作，这点一定要清楚，很容易搞混。
+
+#### 新增数据到trie
+其实就是新增一个叶子节点到trie
+前面提到过的一些文章中只是理论上讲了讲新增原理，真实情况要复杂很多。先来上一坨代码，看看以太坊是怎么处理新增的：
 ```go
-func TestCacheUnload(t *testing.T) {
-	trie := newEmpty() //创建新的trie，root空节点
-	key1 := "---------------------------------"
-	key2 := "---some other branch"
-	updateString(trie, key1, "this is the branch of key1.")
-	updateString(trie, key2, "this is the branch of key2.")
-
-	root, _ := trie.Commit(nil) //提交到内存
-	trie.db.Commit(root, true)  //提交到磁盘
-
-	db := &countingDB{Database: trie.db.diskdb, gets: make(map[string]int)}
-	trie, _ = New(root, NewDatabase(db))
-	trie.SetCacheLimit(5)  //设置缓存队列长度为5
-	for i := 0; i < 12; i++ {
-		trie.Get([]byte(key1)) //在trie中找到key1所对应的原始数据，key1是各节点拼出的完整hash
-		trie.Commit(nil) 
+//该方法会被递归调用
+//n表示从trie当前节点n开始插入
+//prefix表示当前匹配到的key的公共前缀
+//key 表示待插入数据当前key中剩余未匹配的部分
+//value 待插入数据本身
+func (t *Trie) insert(n node, prefix, key []byte, value node) (bool, node, error) {
+	if len(key) == 0 { 
+		if v, ok := n.(valueNode); ok {
+			return !bytes.Equal(v, value.(valueNode)), value, nil
+		} //要在节点A中新增节点B，若A和B本身数据一致，则认为已经新增，则直接返回true
+		return true, value, nil
 	}
-
-	for dbkey, count := range db.gets {
-		if count != 2 {
-			t.Errorf("db key %x loaded %d times, want %d times", []byte(dbkey), count, 2)
-		}
-	}
-}
-```
-
-### 随机数操作
-```go
-type randTest []randTestStep
-
-type randTestStep struct {
-	op    int
-	key   []byte // for opUpdate, opDelete, opGet
-	value []byte // for opUpdate
-	err   error  // for debugging
-}
-
-const (
-	opUpdate = iota
-	opDelete
-	opGet
-	opCommit
-	opHash
-	opReset
-	opItercheckhash
-	opCheckCacheInvariant
-	opMax // boundary value, not an actual op
-)
-
-func (randTest) Generate(r *rand.Rand, size int) reflect.Value {
-	var allKeys [][]byte
-	genKey := func() []byte {
-		if len(allKeys) < 2 || r.Intn(100) < 10 {
-			// new key
-			key := make([]byte, r.Intn(50))
-			r.Read(key)
-			allKeys = append(allKeys, key)
-			return key
-		}
-		// use existing key
-		return allKeys[r.Intn(len(allKeys))]
-	}
-
-	var steps randTest
-	for i := 0; i < size; i++ {
-		step := randTestStep{op: r.Intn(opMax)}
-		switch step.op {
-		case opUpdate:
-			step.key = genKey()
-			step.value = make([]byte, 8)
-			binary.BigEndian.PutUint64(step.value, uint64(i))
-		case opGet, opDelete:
-			step.key = genKey()
-		}
-		steps = append(steps, step)
-	}
-	return reflect.ValueOf(steps)
-}
-
-func runRandTest(rt randTest) bool {
-	diskdb, _ := ethdb.NewMemDatabase()
-	triedb := NewDatabase(diskdb)
-
-	tr, _ := New(common.Hash{}, triedb)
-	values := make(map[string]string) // tracks content of the trie
-
-	for i, step := range rt {
-		switch step.op {
-		case opUpdate:
-			tr.Update(step.key, step.value)
-			values[string(step.key)] = string(step.value)
-		case opDelete:
-			tr.Delete(step.key)
-			delete(values, string(step.key))
-		case opGet:
-			v := tr.Get(step.key)
-			want := values[string(step.key)]
-			if string(v) != want {
-				rt[i].err = fmt.Errorf("mismatch for key 0x%x, got 0x%x want 0x%x", step.key, v, want)
-			}
-		case opCommit:
-			_, rt[i].err = tr.Commit(nil)
-		case opHash:
-			tr.Hash()
-		case opReset:
-			hash, err := tr.Commit(nil)
-			if err != nil {
-				rt[i].err = err
-				return false
-			}
-			newtr, err := New(hash, triedb)
-			if err != nil {
-				rt[i].err = err
-				return false
-			}
-			tr = newtr
-		case opItercheckhash:
-			checktr, _ := New(common.Hash{}, triedb)
-			it := NewIterator(tr.NodeIterator(nil))
-			for it.Next() {
-				checktr.Update(it.Key, it.Value)
-			}
-			if tr.Hash() != checktr.Hash() {
-				rt[i].err = fmt.Errorf("hash mismatch in opItercheckhash")
-			}
-		case opCheckCacheInvariant:
-			rt[i].err = checkCacheInvariant(tr.root, nil, tr.cachegen, false, 0)
-		}
-		// Abort the test on error.
-		if rt[i].err != nil {
-			return false
-		}
-	}
-	return true
-}
-
-func checkCacheInvariant(n, parent node, parentCachegen uint16, parentDirty bool, depth int) error {
-	var children []node
-	var flag nodeFlag
 	switch n := n.(type) {
 	case *shortNode:
-		flag = n.flags
-		children = []node{n.Val}
-	case *fullNode:
-		flag = n.flags
-		children = n.Children[:]
+		matchlen := prefixLen(key, n.Key) //n.Key是扩展节点的公共key，这是公共结点匹配
+		if matchlen == len(n.Key) { 
+			dirty, nn, err := t.insert(n.Val, append(prefix, key[:matchlen]...), key[matchlen:], value)
+			if !dirty || err != nil {
+				return false, n, err
+			}//新增返回的必是叶子结点
+			return true, &shortNode{n.Key, nn, t.newFlag()}, nil
+		}
+		//该case中，剩余部分代码，是为了将一个扩展节点拆分为两部分
+		branch := &fullNode{flags: t.newFlag()} //新建一个分支节点
+		var err error
+		//插入分支节点第一个数据
+		_, branch.Children[n.Key[matchlen]], err = t.insert(nil, append(prefix, n.Key[:matchlen+1]...), n.Key[matchlen+1:], n.Val)
+		if err != nil {
+			return false, nil, err
+		}
+		//插入分支节点第二个数据
+		_, branch.Children[key[matchlen]], err = t.insert(nil, append(prefix, key[:matchlen+1]...), key[matchlen+1:], value)
+		if err != nil {
+			return false, nil, err
+		}
+		//若待插入数据和trie中当前节点的前缀key一个也没匹配，则返回分支节点
+		if matchlen == 0 {
+			return true, branch, nil
+		}
+		// 否则返回扩展节点
+		return true, &shortNode{key[:matchlen], branch, t.newFlag()}, nil
+
+	case *fullNode: //分支节点插入数据
+		dirty, nn, err := t.insert(n.Children[key[0]], append(prefix, key[0]), key[1:], value)
+		if !dirty || err != nil 
+			return false, n, err
+		n = n.copy()
+		n.flags = t.newFlag()
+		n.Children[key[0]] = nn
+		return true, n, nil
+
+	case nil: //也就是说，在空trie中添加一个节点，就是叶子节点，返回shortNode。
+		return true, &shortNode{key, value, t.newFlag()}, nil
+
+	case hashNode: //恢复一个存储在db中的node
+		rn, err := t.resolveHash(n, prefix)  //检查该node是否存在，若存在，加载在node中
+		if err != nil 
+			return false, nil, err
+		dirty, nn, err := t.insert(rn, prefix, key, value)
+		if !dirty || err != nil 
+			return false, rn, err
+		return true, nn, nil
+
 	default:
-		return nil
-	}
-
-	errorf := func(format string, args ...interface{}) error {
-		msg := fmt.Sprintf(format, args...)
-		msg += fmt.Sprintf("\nat depth %d node %s", depth, spew.Sdump(n))
-		msg += fmt.Sprintf("parent: %s", spew.Sdump(parent))
-		return errors.New(msg)
-	}
-	if flag.gen > parentCachegen {
-		return errorf("cache invariant violation: %d > %d\n", flag.gen, parentCachegen)
-	}
-	if depth > 0 && !parentDirty && flag.dirty {
-		return errorf("cache invariant violation: %d > %d\n", flag.gen, parentCachegen)
-	}
-	for _, child := range children {
-		if err := checkCacheInvariant(child, n, flag.gen, flag.dirty, depth+1); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func TestRandom(t *testing.T) {
-	if err := quick.Check(runRandTest, nil); err != nil {
-		if cerr, ok := err.(*quick.CheckError); ok {
-			t.Fatalf("random test iteration %d failed: %s", cerr.Count, spew.Sdump(cerr.In))
-		}
-		t.Fatal(err)
+		panic(fmt.Sprintf("%T: invalid node: %v", n, n))
 	}
 }
 ```
+从代码中我们可以看出：
+* insert()最终返回的node其实就是trie.root所指向的node。
+* 若trie中本身是存在key所对应的数据的，则不可被修改。也就是会说，trie本身只可增加节点，不可修改节点
+* 若节点`n`指向的是`nil`，则当前是空trie，直接在其后加一个shortNode(叶子节点)即可。
+* 若节点`n`指向的是`shortNode`，则该`shortNode`可能是扩展节点，也可能是叶子节点。
+	* 若待插入的key剩余未匹配的部分能匹配到当前`shortNode`中key的全部长度，则在该`shortNode`之后新增分支节点，或者在`shortNode`之后的分支节点上新增待插入节点。
+	* 若待插入的key剩余未匹配的部分不能匹配到当前`shortNode`中key的全部长度，则该`shortNode`会新增一个分支节点，将shortNode分裂成两部分。这块建议大家画图理解。
+* 若节点`n`指向的是分支节点`fullNode`，理解了上面指向`shortNode`的过程，那这里就容易理解了，从分支节点下进一步查找要匹配的位置
+* 若节点`n`指向的是`hashNode`，前面我们也了解到了，`hashNode`唯一标识了一个节点。通过它可以找到对应的node。'shortNode'和`fullNode`都有hashNode。在此处我们可以理解为：根据hashNode，在db中找到对应的node，将该node加载到内存中，最终在内存中组成一个trie。
+
+#### 从trie中获取数据
+其实就是根据输入到hash，在找到对应的叶子节点的数据，一言不合，先来代码，一坨。。。：
+```go
+//origNode：当前查找的起始node位置
+//key：输入要查找的数据的hash
+//pos：当前hash匹配到第几位
+func (t *Trie) tryGet(origNode node, key []byte, pos int) (value []byte, newnode node, didResolve bool, err error) {
+	switch n := (origNode).(type) {
+	case nil: //这表示当前trie是空树
+		return nil, nil, false, nil
+	case valueNode: //这就是我们要查找的叶子节点对应的数据
+		return n, n, false, nil
+	case *shortNode: //在叶子节点或者扩展节点匹配
+		if len(key)-pos < len(n.Key) || !bytes.Equal(n.Key, key[pos:pos+len(n.Key)]) 
+			return nil, n, false, nil
+		value, newnode, didResolve, err = t.tryGet(n.Val, key, pos+len(n.Key))
+		if err == nil && didResolve {
+			n = n.copy()
+			n.Val = newnode
+			n.flags.gen = t.cachegen
+		}
+		return value, n, didResolve, err
+	case *fullNode:  //在分支节点匹配
+		value, newnode, didResolve, err = t.tryGet(n.Children[key[pos]], key, pos+1)
+		if err == nil && didResolve {
+			n = n.copy()
+			n.flags.gen = t.cachegen
+			n.Children[key[pos]] = newnode
+		}
+		return value, n, didResolve, err
+	case hashNode: //磁盘db获取，要明白，这个hashNode是外部输入查找的，这种输入会触发db操作。
+		child, err := t.resolveHash(n, key[:pos])
+		if err != nil 
+			return nil, n, true, err  //trie重组，因此需要返回true
+		value, newnode, _, err := t.tryGet(child, key, pos)
+		return value, newnode, true, err
+	default:
+		panic(fmt.Sprintf("%T: invalid node: %v", origNode, origNode))
+	}
+}
+```
+不说别的，先说`didResolve`这个东西，用于判断trie树是否会发生变化，按理tryGet()只是用来获取数据的，哪里会影响trie发生变化，但是因为有可能我们会根据hashNode去db中获取该node值，获取到后，需要更新现有的trie，`didResolve`就会发生变化。
+其实这段查询代码里，也就只有`didResolve`会让人郁闷一下，其它的就只是基本的递归查找树了。小编就不详解了，代码里注释大概写了点，够用了。
+补充一下，当涉及到hashNode时，我们要知道，这是通过外部输入hashNode，进磁盘DB中查找对应节点。
+
+#### 从trie中删除数据
+也就是说删除trie中的一个叶子节点。这个过程和插入过程很相似，小编就不讲了，再讲就累死了。
+
+### 节点缓存设置
+当一个节点被提交次数达到指定上线时候，该节点将会被重新加载。
+这个功能还是蛮有用的，提高效率。这个代码没细看，有兴趣的可以看看。
+在`test_trie.go`中看`TestCacheUnload()`测试方法，在`trie.go`中看trie.SetCacheLimit()方法
+话说这个缓存机制小编一直没看懂。。。
+
+## Trie树的序列化和反序列化
+小编相信，看懂[以太坊源码解读-第2讲-rlp模块源码解读](articles/reprint/blockchain/以太坊源码解读-第2讲-rlp模块源码解读.html)的同学，会很容易理解trie树的序列化的 。
+trie的序列化是在trie.Commit(nil)中执行的，其中的参数是用于回调，可以为nil。
+序列化和反序列化，本就是内存和磁盘存储时候的两种转化，具体概念小编就不讲了。
+需要注意的是，trie树序列化后，真正保存在磁盘上，是使用的`Compact Encoding`编码，这样会节省空间。
+如果大家感兴趣，可以前往`trie.go`文件中找到Commit(onleaf LeafCallback)进一步去了解。
+具体这里小编就不讲了。
 
 
-
-
-
-
-参考：https://blog.csdn.net/ddffr/article/details/78773013
 
 
 
