@@ -192,6 +192,7 @@ func testMissingNode(t *testing.T, memonly bool) {
 	triedb := NewDatabase(diskdb)  //生成db
 
 	trie, _ := New(common.Hash{}, triedb) //空节点创建
+	//实际使用时，Update中的 value是需要先经过rlp编码
 	trie.Update([]byte("120000"), []byte("qwerqwerqwerqwerqwerqwerqwerqwer"))
 	trie.Update([]byte("123456"), []byte("asdfasdfasdfasdfasdfasdfasdfasdf"))
 	root, _ := trie.Commit(nil)  //trie.Commit需要了解
@@ -233,9 +234,13 @@ func testMissingNode(t *testing.T, memonly bool) {
 先要知道，这些操作的数据目前都是在内存中保存的。
 下面操作中，除了明确标明是在操作db，其余情况都是在内存中操作，这点一定要清楚，很容易搞混。
 
+`注意！小编多个新号让大家注意：****`
+*只要trie树上的某条路径上有节点新增或者删除，那这条路径的节点都会被重新实例化并负值，如此一来，节点的nodeFlag中的dirty也被改为true，这样就表示这条路径的所有节点都需要重新插入到db。*
+
 #### 新增数据到trie
 其实就是新增一个叶子节点到trie
-前面提到过的一些文章中只是理论上讲了讲新增原理，真实情况要复杂很多。先来上一坨代码，看看以太坊是怎么处理新增的：
+前面提到过的一些文章中只是理论上讲了讲新增原理，真实情况要复杂很多。
+<span id="insert">先来上一坨代码，看看以太坊是怎么处理新增的：</span>
 ```go
 //该方法会被递归调用
 //n表示从trie当前节点n开始插入
@@ -257,7 +262,7 @@ func (t *Trie) insert(n node, prefix, key []byte, value node) (bool, node, error
 			if !dirty || err != nil {
 				return false, n, err
 			}//新增返回的必是叶子结点
-			return true, &shortNode{n.Key, nn, t.newFlag()}, nil
+			return true, &shortNode{n.Key, nn, t.newFlag()}, nil //从这里可以看出，从根路径到插入数据的位置，整条路径的节点都会被重新实例化，node的dirty也被改为true，表示要重新更新
 		}
 		//该case中，剩余部分代码，是为了将一个扩展节点拆分为两部分
 		branch := &fullNode{flags: t.newFlag()} //新建一个分支节点
@@ -306,6 +311,7 @@ func (t *Trie) insert(n node, prefix, key []byte, value node) (bool, node, error
 }
 ```
 从代码中我们可以看出：
+* 此时，只有key被编码为hex编码，而value是经过rlp编码的字节数组。
 * insert()最终返回的node其实就是trie.root所指向的node。
 * 若trie中本身是存在key所对应的数据的，则不可被修改。也就是会说，trie本身只可增加节点，不可修改节点
 * 若节点`n`指向的是`nil`，则当前是空trie，直接在其后加一个shortNode(叶子节点)即可。
@@ -369,15 +375,208 @@ func (t *Trie) tryGet(origNode node, key []byte, pos int) (value []byte, newnode
 在`test_trie.go`中看`TestCacheUnload()`测试方法，在`trie.go`中看trie.SetCacheLimit()方法
 话说这个缓存机制小编一直没看懂。。。
 
-## Trie树的序列化和反序列化
+## Trie树的序列化、缓存
 小编相信，看懂[以太坊源码解读-第2讲-rlp模块源码解读](articles/reprint/blockchain/以太坊源码解读-第2讲-rlp模块源码解读.html)的同学，会很容易理解trie树的序列化的 。
-trie的序列化是在trie.Commit(nil)中执行的，其中的参数是用于回调，可以为nil。
 序列化和反序列化，本就是内存和磁盘存储时候的两种转化，具体概念小编就不讲了。
+当trie.Commit(nil)的时候，会执行序列化、缓存等操作，因此小编就将这两者合在一起讲了
 需要注意的是，trie树序列化后，真正保存在磁盘上，是使用的`Compact Encoding`编码，这样会节省空间。
-如果大家感兴趣，可以前往`trie.go`文件中找到Commit(onleaf LeafCallback)进一步去了解。
-具体这里小编就不讲了。
+
+### trie.Commit(nil)入口解析
+Commit()的目的，是将trie树中的key转为Compact编码，为每个节点生成一个hash。
+可以这么说，它就是为了确保后续能正常将变动的数据提交到db.
+来看代码：
+```go
+func (t *Trie) Commit(onleaf LeafCallback) (root common.Hash, err error) {
+	if t.db == nil 
+		panic("commit called on trie with nil database")
+	hash, cached, err := t.hashRoot(t.db, onleaf)  
+	if err != nil 
+		return common.Hash{}, err
+	t.root = cached
+	t.cachegen++
+	return common.BytesToHash(hash.(hashNode)), nil  //返回trie.root所指向的节点的hash
+}
+
+//为每个node生成一个hash
+//返回的结果中，有两个node，后面文中详细解释
+func (t *Trie) hashRoot(db *Database, onleaf LeafCallback) (node, node, error) {
+	if t.root == nil 
+		return hashNode(emptyRoot.Bytes()), nil, nil
+	h := newHasher(t.cachegen, t.cachelimit, onleaf) //涉及到haser.go，后面解释
+	defer returnHasherToPool(h)
+	return h.hash(t.root, db, true)  //调用hash，为每个节点生成一个hash，该方法后面具体会详解
+}
+```
+上述代码我们了解到：
+* 每Commit()一次，该trie的cachegen就会加1
+* 最终Commit()方法返回的是trie.root所指向的node的hash
+* 其中的hashRoot()方法目的是`返回trie.root所指向的node的hash`以及`每个节点都带有各自hash的trie树的root`。
+* 期间会涉及到hasher.go中的操作，它维护着一个操作trie中hash相关的对象池，我们也发现，在hashRoot()中最重要的就是它的hash()方法，接下来我们就好好探索一下它的具体实现。
+
+### haser.go的hash()方法
+这个方法主要就是为每个节点都生成一个hash，
+<span id="hash">来一坨代码：</span>
+```go
+func (h *hasher) hash(n node, db *Database, force bool) (node, node, error) {
+	if hash, dirty := n.cache(); hash != nil {
+		if db == nil 
+			return hash, n, nil
+		if n.canUnload(h.cachegen, h.cachelimit) {
+			cacheUnloadCounter.Inc(1)
+			return hash, hash, nil
+		}
+		if !dirty 
+			return hash, n, nil
+	}
+	collapsed, cached, err := h.hashChildren(n, db) //处理每个节点
+	if err != nil 
+		return hashNode{}, n, err
+	hashed, err := h.store(collapsed, db, force) //将当前节点生成hash，这方法很重要，下一节讲
+	if err != nil 
+		return hashNode{}, n, err
+
+	cachedHash, _ := hashed.(hashNode)
+	switch cn := cached.(type) {
+	case *shortNode:
+		cn.flags.hash = cachedHash //将当前节点的hasn保存在flags中
+		if db != nil 
+			cn.flags.dirty = false
+	case *fullNode:  //和上面一样操作
+		cn.flags.hash = cachedHash
+		if db != nil 
+			cn.flags.dirty = false
+	}
+	return hashed, cached, nil  //发挥当前节点的hash以及当前节点本身
+}
+
+//依次处理trie中的每个节点
+func (h *hasher) hashChildren(original node, db *Database) (node, node, error) {
+	var err error
+	switch n := original.(type) {
+	case *shortNode:
+		collapsed, cached := n.copy(), n.copy()  //递归算下来，相当于复制了两个新的trie
+		collapsed.Key = hexToCompact(n.Key) //将hex转为compact，方便磁盘存储
+		cached.Key = common.CopyBytes(n.Key) //将key字节数组复制给cached
+		if _, ok := n.Val.(valueNode); !ok {
+			collapsed.Val, cached.Val, err = h.hash(n.Val, db, false)
+			if err != nil 
+				return original, original, err
+		}
+		if collapsed.Val == nil 
+			collapsed.Val = valueNode(nil) //确保不为nil
+		return collapsed, cached, nil  //前者是用于磁盘存储的节点，后者是hash化的节点，可以称为轻节点
+
+	case *fullNode:
+		collapsed, cached := n.copy(), n.copy()
+		for i := 0; i < 16; i++ {
+			if n.Children[i] != nil { //类似，处理每个节点
+				collapsed.Children[i], cached.Children[i], err = h.hash(n.Children[i], db, false)
+				if err != nil 
+					return original, original, err
+			} else 
+				collapsed.Children[i] = valueNode(nil) //确保不会出现nil
+		}
+		cached.Children[16] = n.Children[16]
+		if collapsed.Children[16] == nil 
+			collapsed.Children[16] = valueNode(nil)
+		return collapsed, cached, nil
+
+	default:
+		return n, original, nil
+	}
+}
+```
+纠结了半天，小编觉得也没什么注释可以写的。具体的这里来解释吧：
+* hash()方法很重要，最终它返回了头节点的hash以及每个子节点都带有hash的头节点。（头节点就是为了让trie.root最终指向它）
+它主要完成了3个任务：
+	* 缓存管理，检测是否要释放某节点
+	* 递归调用hashChildren()处理每个节点，它返回的是两个node，具体看下面的解释。
+	* 调用store()方法生成每个节点的hash，并保存在当前节点中，store()方法很重要，我们下一节单独讲
+* hashChildren()方法主要就是为了处理树中的每个节点，比如：将shortNode的key转为Compact编码，将nil数据处理一下。小编认为这个方法真正最主要的目的就是将当前所在节点复制了两份（分别叫做`collapsed`, `cached`），这样此时加上原先传入的总共就有3份当前节点数据了。复制的两份，其中一份`collapsed`是为了将来db磁盘存储；而另一份`cached`会保留在内存中，回调结束后trie.root会指向这个cached，这样，原先的那一份就会被gc了（trie.root原先是指向这一份），
+
+### haser.go的store()方法（涉及缓存）
+我们上面提到了hashChildren()返回的是两个node，其中一个叫做`collapsed`的当前node被传入了store()方法中，而它只返回了一个当前node的hash。
+前面我们已经知道`collapsed`节点做了部分处理，它最终目的是保存在db磁盘的。当它的节点本身被rlp序列化，就可以直接传入db保存了。
+store()方法就是用来rlp序列化`collapsed`节点并将其插入db磁盘中，当前节点的hash也是由它来生成的。
+具体我们来看这样一坨代码：
+```go
+func (h *hasher) store(n node, db *Database, force bool) (node, error) {
+	if _, isHash := n.(hashNode); n == nil || isHash //空数据或者hashNode，则不处理
+		return n, nil
+	h.tmp.Reset() //缓存初始化
+	if err := rlp.Encode(h.tmp, n); err != nil //将当前node序列化
+		panic("encode error: " + err.Error())
+	if h.tmp.Len() < 32 && !force 
+		return n, nil //编码后的node长度小于32，若force为true，则可确保所有节点都被编码
+	// 长度过大的，则都将被新计算出来的hash取代
+	hash, _ := n.cache()  //取出当前节点的hash
+	if hash == nil {  //如果hash
+		h.sha.Reset()
+		h.sha.Write(h.tmp.Bytes())  //将rlp编码的节点数据传入hash工具
+		hash = hashNode(h.sha.Sum(nil))  //根据传入的节点信息，生成hash
+	}
+	if db != nil {
+		db.lock.Lock()
+
+		hash := common.BytesToHash(hash)
+		db.insert(hash, h.tmp.Bytes()) //将其插入db
+
+		switch n := n.(type) {
+		case *shortNode:
+			if child, ok := n.Val.(hashNode); ok //指向的是分支节点
+				db.reference(common.BytesToHash(child), hash) //用于统计当前节点的信息，比如当前节点有几个子节点，当前有效的节点数
+		case *fullNode:
+			for i := 0; i < 16; i++ {
+				if child, ok := n.Children[i].(hashNode); ok 
+					db.reference(common.BytesToHash(child), hash)
+			}
+		}
+		db.lock.Unlock()
+
+		if h.onleaf != nil { //onleaf是回调时候使用的，记得trie.Commit(x)里的那个参数吧，就是它
+			switch n := n.(type) {
+			case *shortNode:
+				if child, ok := n.Val.(valueNode); ok 
+					h.onleaf(child, hash)
+			case *fullNode:
+				for i := 0; i < 16; i++ 
+					if child, ok := n.Children[i].(valueNode); ok {
+						h.onleaf(child, hash)
+				}
+			}
+		}
+	}
+	return hash, nil
+}
+```
+注意看db的插入，根据hash来插入rlp序列化的节点，到时候我们就能根据这个hash来还愿整个节点了。
+另外，代码里中要的一点就是hash的生成，它是更具序列化后的节点生成的。
+另外stroe()方法传入的有个参数叫force，通过代码我们得知，如果设置为true，则即使长度再小的节点，也要进行rlp编码
+剩下的代码，小编发现没什么要讲的。。。代码不复杂，写的都很清楚，能注释的也都注释了，
+
+### 缓存机制
+讲了半天，就剩缓存没讲了，再次回到haser.go的hash()方法，这时候再来看这个缓存机制就很容易理解了。
+[代码看这里](#hash)
+还记得Trie树的结构里面有两个参数， 一个是cachegen,一个是cachelimit。这两个参数就是cache控制的参数。 Trie树每一次调用Commit方法，会导致当前的cachegen增加1。
+数据节点插入时候（[代码看这里](#insert)），会把当前trie的cachegen存放到该节点中。
+要知道，只要trie路径上新增或者删除一个节点，整个路径的节点都需要重新实例化，也就是节点中的nodeFlag被初始化了。都需要重新更新到db磁盘。
+node.go源码中有针对每种node实现的`canUnload()`方法，大体上是当`trie.cachegen - node.cachegen > cachelimit`和`dirty=false（表示当前节点未发生变化）`条件满足时就会返回true（说明该节点数据始终没有发生变化，自己好好悟悟这句话吧，最好拿数据实际操作一下）,此时hash()方法中，就不会返回节点数据，而是返回节点的一个hash值。
+
+## proof.go 源码
 
 
+## database.go源码
+它对ethdb做了进一步封装，方便trie中节点的插入删除操作，具体代码小编等下一次讲ethdb.go的时候再来解释。现在就不说了。
+
+## iterator.go源码
+以太坊提供的对trie树的遍历工具，有兴趣的看看，这里也不解释了，小编也懒得看了。
+
+## security_trie.go源码
+这个可以理解为加密了的trie的实现，ecurity_trie包装了一下trie树， 所有的key都转换成keccak256算法计算的hash值。同时在数据库里面存储hash值对应的原始的key。
+但是官方在代码里也注释了，这个代码不稳定，除了测试用例，别的地方并没有使用该代码。
+
+## 总结
+还有几个trie模块下的代码文件，小逼没有提到，不是说不重要，只是小编的精力主要集中在trie的整体逻辑。关于trie，写了两篇文章，写了将近半个月，涉及的比较多，有些地方写的不一定合理，大家可以留言指出。
 
 
 
