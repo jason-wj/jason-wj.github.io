@@ -11,6 +11,10 @@ tags: [ethereum]
 这一部分，我们主要是讲trie源码的实现，要理解代码的实现过程，是需要先了解一下理论内容的，建议大家先看看我的上一篇文章：[以太坊源码解读-第3讲-trie模块源码解读（1）](/articles/original/ethereum/src_analysis/以太坊源码解读-第3讲-trie模块源码解读（1）.html)
 <!-- more -->
 
+## 概述
+小编根据对已有代码的了解，画了这么个trie相关一览图：
+{% asset_img 5.png  空树中添加到一个节点 %}
+
 ## encoding.go源码解读
 trie模块中，这个文件是我们首先要掌握的，这个主要是讲三种编码（`KEYBYTES encoding`、`HEX encoding`、`COMPACT encoding`）的实现与转换，trie中全程都需要用到这些，该文件中主要实现了如下功能：
 1. hex编码转换为Compact编码：`hexToCompact()`
@@ -319,7 +323,7 @@ func (t *Trie) insert(n node, prefix, key []byte, value node) (bool, node, error
 	* 若待插入的key剩余未匹配的部分能匹配到当前`shortNode`中key的全部长度，则在该`shortNode`之后新增分支节点，或者在`shortNode`之后的分支节点上新增待插入节点。
 	* 若待插入的key剩余未匹配的部分不能匹配到当前`shortNode`中key的全部长度，则该`shortNode`会新增一个分支节点，将shortNode分裂成两部分。这块建议大家画图理解。
 * 若节点`n`指向的是分支节点`fullNode`，理解了上面指向`shortNode`的过程，那这里就容易理解了，从分支节点下进一步查找要匹配的位置
-* 若节点`n`指向的是`hashNode`，前面我们也了解到了，`hashNode`唯一标识了一个节点。通过它可以找到对应的node。'shortNode'和`fullNode`都有hashNode。在此处我们可以理解为：根据hashNode，在db中找到对应的node，将该node加载到内存中，最终在内存中组成一个trie。
+* 若节点`n`指向的是`hashNode`，说明此时该节点属于轻节点，真实的节点数据被释放了。因此，通过hashNode去db中恢复该节点，然后进一步去插入。
 
 #### 从trie中获取数据
 其实就是根据输入到hash，在找到对应的叶子节点的数据，一言不合，先来代码，一坨。。。：
@@ -351,7 +355,7 @@ func (t *Trie) tryGet(origNode node, key []byte, pos int) (value []byte, newnode
 			n.Children[key[pos]] = newnode
 		}
 		return value, n, didResolve, err
-	case hashNode: //磁盘db获取，要明白，这个hashNode是外部输入查找的，这种输入会触发db操作。
+	case hashNode: //说明当前节点是轻节点，需要从db中获取
 		child, err := t.resolveHash(n, key[:pos])
 		if err != nil 
 			return nil, n, true, err  //trie重组，因此需要返回true
@@ -375,12 +379,13 @@ func (t *Trie) tryGet(origNode node, key []byte, pos int) (value []byte, newnode
 在`test_trie.go`中看`TestCacheUnload()`测试方法，在`trie.go`中看trie.SetCacheLimit()方法
 话说这个缓存机制小编一直没看懂。。。
 
-## Trie树的序列化、缓存
-小编相信，看懂[以太坊源码解读-第2讲-rlp模块源码解读](articles/reprint/blockchain/以太坊源码解读-第2讲-rlp模块源码解读.html)的同学，会很容易理解trie树的序列化的 。
+## Trie树的序列化、缓存(轻节点)
+小编相信，看懂[以太坊源码解读-第2讲-rlp模块源码解读](/articles/original/ethereum/src_analysis/以太坊源码解读-第2讲-rlp模块源码解读.html)的同学，会很容易理解trie树的序列化的 。
 序列化和反序列化，本就是内存和磁盘存储时候的两种转化，具体概念小编就不讲了。
 当trie.Commit(nil)的时候，会执行序列化、缓存等操作，因此小编就将这两者合在一起讲了
 需要注意的是，trie树序列化后，真正保存在磁盘上，是使用的`Compact Encoding`编码，这样会节省空间。
 还有一点需要分清：`node本身节点的hash和shortNode中的key要区分，从根结点到叶子节点的key衔接起来，表示的是叶子节点value数据的hash值`
+关于trie的缓存机制，其实就是轻节点机制的设计理念，后面小编在代码中深入介绍吧。
 
 ### trie.Commit(nil)入口解析
 Commit()的目的，是将trie树中的key转为Compact编码，为每个节点生成一个hash。
@@ -555,13 +560,16 @@ func (h *hasher) store(n node, db *Database, force bool) (node, error) {
 另外stroe()方法传入的有个参数叫force，通过代码我们得知，如果设置为true，则即使长度再小的节点，也要进行rlp编码
 剩下的代码，小编发现没什么要讲的。。。代码不复杂，写的都很清楚，能注释的也都注释了，
 
-### 缓存机制
+### 缓存机制（轻节点）
 讲了半天，就剩缓存没讲了，再次回到haser.go的hash()方法，这时候再来看这个缓存机制就很容易理解了。
 [代码看这里](#hash)
 还记得Trie树的结构里面有两个参数， 一个是cachegen,一个是cachelimit。这两个参数就是cache控制的参数。 Trie树每一次调用Commit方法，会导致当前的cachegen增加1。
 数据节点插入时候（[代码看这里](#insert)），会把当前trie的cachegen存放到该节点中。
 要知道，只要trie路径上新增或者删除一个节点，整个路径的节点都需要重新实例化，也就是节点中的nodeFlag被初始化了。都需要重新更新到db磁盘。
 node.go源码中有针对每种node实现的`canUnload()`方法，大体上是当`trie.cachegen - node.cachegen > cachelimit`和`dirty=false（表示当前节点未发生变化）`条件满足时就会返回true（说明该节点数据始终没有发生变化，自己好好悟悟这句话吧，最好拿数据实际操作一下）,此时hash()方法中，就不会返回节点数据，而是返回节点的一个hash值。
+
+#### 轻节点
+小编在[以太坊源码解读-第3讲-trie模块源码解读（1）](/articles/original/ethereum/src_analysis/以太坊源码解读-第3讲-trie模块源码解读（1）.html)中已经初步介绍了轻节点的概念，根据上述缓存机制，我们返回的只有hash节点本身。这其实就是我们所说的轻节点。。。貌似小编没有什么需要继续往下说的了。。。一路看下来这篇文章的同学，应该会很容易理解这个吧。
 
 ## proof.go 源码
 看了下，总共有三个方法：
