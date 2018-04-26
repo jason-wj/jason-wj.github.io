@@ -380,6 +380,7 @@ func (t *Trie) tryGet(origNode node, key []byte, pos int) (value []byte, newnode
 序列化和反序列化，本就是内存和磁盘存储时候的两种转化，具体概念小编就不讲了。
 当trie.Commit(nil)的时候，会执行序列化、缓存等操作，因此小编就将这两者合在一起讲了
 需要注意的是，trie树序列化后，真正保存在磁盘上，是使用的`Compact Encoding`编码，这样会节省空间。
+还有一点需要分清：`node本身节点的hash和shortNode中的key要区分，从根结点到叶子节点的key衔接起来，表示的是叶子节点value数据的hash值`
 
 ### trie.Commit(nil)入口解析
 Commit()的目的，是将trie树中的key转为Compact编码，为每个节点生成一个hash。
@@ -394,7 +395,7 @@ func (t *Trie) Commit(onleaf LeafCallback) (root common.Hash, err error) {
 		return common.Hash{}, err
 	t.root = cached
 	t.cachegen++
-	return common.BytesToHash(hash.(hashNode)), nil  //返回trie.root所指向的节点的hash
+	return common.BytesToHash(hash.(hashNode)), nil  //返回trie.root所指向的节点的hash，注意该hash是原始的32位hash，并未编码
 }
 
 //为每个node生成一个hash
@@ -404,12 +405,12 @@ func (t *Trie) hashRoot(db *Database, onleaf LeafCallback) (node, node, error) {
 		return hashNode(emptyRoot.Bytes()), nil, nil
 	h := newHasher(t.cachegen, t.cachelimit, onleaf) //涉及到haser.go，后面解释
 	defer returnHasherToPool(h)
-	return h.hash(t.root, db, true)  //调用hash，为每个节点生成一个hash，该方法后面具体会详解
+	return h.hash(t.root, db, true)  //为每个节点生成一个未编码的hash，该方法后面具体会详解
 }
 ```
 上述代码我们了解到：
 * 每Commit()一次，该trie的cachegen就会加1
-* 最终Commit()方法返回的是trie.root所指向的node的hash
+* 最终Commit()方法返回的是trie.root所指向的node的hash（未编码）。
 * 其中的hashRoot()方法目的是`返回trie.root所指向的node的hash`以及`每个节点都带有各自hash的trie树的root`。
 * 期间会涉及到hasher.go中的操作，它维护着一个操作trie中hash相关的对象池，我们也发现，在hashRoot()中最重要的就是它的hash()方法，接下来我们就好好探索一下它的具体实现。
 
@@ -446,7 +447,7 @@ func (h *hasher) hash(n node, db *Database, force bool) (node, node, error) {
 		if db != nil 
 			cn.flags.dirty = false
 	}
-	return hashed, cached, nil  //发挥当前节点的hash以及当前节点本身
+	return hashed, cached, nil  //返回当前节点的hash以及当前节点本身
 }
 
 //依次处理trie中的每个节点
@@ -455,7 +456,7 @@ func (h *hasher) hashChildren(original node, db *Database) (node, node, error) {
 	switch n := original.(type) {
 	case *shortNode:
 		collapsed, cached := n.copy(), n.copy()  //递归算下来，相当于复制了两个新的trie
-		collapsed.Key = hexToCompact(n.Key) //将hex转为compact，方便磁盘存储
+		collapsed.Key = hexToCompact(n.Key) //将前缀hex转为compact，方便磁盘存储
 		cached.Key = common.CopyBytes(n.Key) //将key字节数组复制给cached
 		if _, ok := n.Val.(valueNode); !ok {
 			collapsed.Val, cached.Val, err = h.hash(n.Val, db, false)
@@ -492,7 +493,7 @@ func (h *hasher) hashChildren(original node, db *Database) (node, node, error) {
 	* 缓存管理，检测是否要释放某节点
 	* 递归调用hashChildren()处理每个节点，它返回的是两个node，具体看下面的解释。
 	* 调用store()方法生成每个节点的hash，并保存在当前节点中，store()方法很重要，我们下一节单独讲
-* hashChildren()方法主要就是为了处理树中的每个节点，比如：将shortNode的key转为Compact编码，将nil数据处理一下。小编认为这个方法真正最主要的目的就是将当前所在节点复制了两份（分别叫做`collapsed`, `cached`），这样此时加上原先传入的总共就有3份当前节点数据了。复制的两份，其中一份`collapsed`是为了将来db磁盘存储；而另一份`cached`会保留在内存中，回调结束后trie.root会指向这个cached，这样，原先的那一份就会被gc了（trie.root原先是指向这一份），
+* hashChildren()方法主要就是为了处理树中的每个节点，比如：将shortNode的前缀key转为Compact编码，将nil数据处理一下。小编认为这个方法真正最主要的目的就是将当前所在节点复制了两份（分别叫做`collapsed`, `cached`），这样此时加上原先传入的总共就有3份当前节点数据了。复制的两份，其中一份`collapsed`是为了将来db磁盘存储；而另一份`cached`会保留在内存中，回调结束后trie.root会指向这个cached，这样，原先的那一份就会被gc了（trie.root原先是指向这一份），
 
 ### haser.go的store()方法（涉及缓存）
 我们上面提到了hashChildren()返回的是两个node，其中一个叫做`collapsed`的当前node被传入了store()方法中，而它只返回了一个当前node的hash。
@@ -549,8 +550,8 @@ func (h *hasher) store(n node, db *Database, force bool) (node, error) {
 	return hash, nil
 }
 ```
-注意看db的插入，根据hash来插入rlp序列化的节点，到时候我们就能根据这个hash来还愿整个节点了。
-另外，代码里中要的一点就是hash的生成，它是更具序列化后的节点生成的。
+代码中重要的一点就是hash的生成，它是根据序列化后的节点生成的。
+注意看db的插入，根据hash来插入rlp序列化的节点，到时候我们就能根据这个hash来还愿整个节点了。而要注意的一点是`该hash是32位的原始hash，并未经过任何编码，最终该方法返回的hash也没有经过任何处理`
 另外stroe()方法传入的有个参数叫force，通过代码我们得知，如果设置为true，则即使长度再小的节点，也要进行rlp编码
 剩下的代码，小编发现没什么要讲的。。。代码不复杂，写的都很清楚，能注释的也都注释了，
 
@@ -563,7 +564,11 @@ func (h *hasher) store(n node, db *Database, force bool) (node, error) {
 node.go源码中有针对每种node实现的`canUnload()`方法，大体上是当`trie.cachegen - node.cachegen > cachelimit`和`dirty=false（表示当前节点未发生变化）`条件满足时就会返回true（说明该节点数据始终没有发生变化，自己好好悟悟这句话吧，最好拿数据实际操作一下）,此时hash()方法中，就不会返回节点数据，而是返回节点的一个hash值。
 
 ## proof.go 源码
+看了下，总共有三个方法：
+* Prove()：根据给定的key，在trie中，将满足key中最大长度前缀的路径上的节点都加入到proofDb（队列中每个元素满足：未编码的hash以及对应rlp编码后的节点）
+* VerifyProof()：验证proffDb中是否存在满足输入的hash，和对应key的节点，如果满足，则返回rlp解码后的该节点。
 
+具体代码小编就不列了，也不复杂，有兴趣的可以看看
 
 ## database.go源码
 它对ethdb做了进一步封装，方便trie中节点的插入删除操作，具体代码小编等下一次讲ethdb.go的时候再来解释。现在就不说了。
