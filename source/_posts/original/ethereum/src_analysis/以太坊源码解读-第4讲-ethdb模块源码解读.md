@@ -431,7 +431,7 @@ func (db *LDBDatabase) meter(refresh time.Duration) {
 				compactions[i%2][idx] += value
 			}
 		}
-		// Update all the requested meters
+		// 更新所有需要的meter
 		if db.compTimeMeter != nil 
 			db.compTimeMeter.Mark(int64((compactions[i%2][0] - compactions[(i-1)%2][0]) * 1000 * 1000 * 1000))
 		if db.compReadMeter != nil 
@@ -526,6 +526,11 @@ func (b *ldbBatch) Reset() {
 ### 通用的db操作封装
 剩下的代码，定义了`table`和`tableBatch`的规则，这进一步对数据库做了通用的处理，通过这一套规则，底层可以使用别的各种数据库，不一定要选择levelDB。本不打算再列这块的代码的，算了，这模块的内容不多，就把这代码也都贴出来吧：
 ```go
+type table struct {
+	db     Database
+	prefix string
+}
+
 //只要传入一个满足Database接口的db，均可正常操作本数据库，通用性更强
 func NewTable(db Database, prefix string) Database {
 	return &table{
