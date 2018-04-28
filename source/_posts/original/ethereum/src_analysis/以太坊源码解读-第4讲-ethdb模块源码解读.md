@@ -379,7 +379,7 @@ func (db *LDBDatabase) Meter(prefix string) {
 
 #### 最后来看个最复杂的方法
 周期性监测leveldb内部的计数器，然后把信息报告给检测器，来看代码
-```
+```go
 // 这是当前版本报告的图表样式:
 //   Compactions
 //    Level |   Tables   |    Size(MB)   |    Time(sec)  |    Read(MB)   |   Write(MB)
