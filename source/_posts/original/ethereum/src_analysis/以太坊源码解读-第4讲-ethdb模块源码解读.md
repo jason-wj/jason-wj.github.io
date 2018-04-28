@@ -7,8 +7,10 @@ date: 2018-04-26 15:02:38
 categories: [原创,以太坊,源码解读]
 tags: [ethereum]
 ---
+## 前言
 看了trie模块的源码，我们知道了其中的节点数据是通过ethdb来进行磁盘db的读写操作的。其实ethdb是依赖google的一个开源kv数据库levelDB实现的。最终所有的数据都是存储在levelDB中。
-我们会很好奇，什么是levelDB？在ethdb中是如何处理levelDB的？下面小编一步步来揭开它的面纱
+我们会很好奇，什么是levelDB？在ethdb中是如何处理levelDB的？下面小编一步步来揭开它的面纱。
+<!-- more -->
 
 ## 什么是levelDB
 
