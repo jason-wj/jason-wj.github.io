@@ -94,5 +94,6 @@ reward:
   wechatpay: 微信支付
   alipay: 支付宝
   bitcoin: 比特币
+  ethereum: ETH
 
 gitmentbutton: 显示 Gitment 评论

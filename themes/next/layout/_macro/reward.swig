@@ -25,6 +25,12 @@
         <p>{{ __('reward.bitcoin') }}</p>
       </div>
     {% endif %}
+    {% if theme.ethereum %}
+      <div id="ethereum" style="display: inline-block">
+        <img id="ethereum_qr" src="{{ theme.ethereum }}" alt="{{ theme.author }} {{ __('reward.ethereum') }}"/>
+        <p>{{ __('reward.ethereum') }}</p>
+      </div>
+    {% endif %}
 
   </div>
 </div>

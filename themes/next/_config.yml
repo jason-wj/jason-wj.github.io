@@ -248,8 +248,9 @@ post_wordcount:
 #eward_comment: 感谢大家支持，我会创作或转载更多更好的文章
 # wechatpay: /images/my_wechatpay.png
 alipay: /images/my_alipay.png
-# bitcoin: /images/bitcoin.png
-
+# bitcoin: /images/my_eth.png
+ethereum: /images/my_eth.png
+ 
 # Declare license on posts
 # 代码已单独修改，因此,enable功能已失效，但下面的license还是可以使用的
 # enable功能需要在每个文章单独控制
