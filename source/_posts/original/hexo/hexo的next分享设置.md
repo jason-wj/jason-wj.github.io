@@ -6,10 +6,21 @@ tags: [Hexo,NexT]
 copyright: true
 original: true
 ---
-next官方介绍的那个`baidushare: true`方式的分享，一直无效。网上找了半天，也没发现个合适的分享设置方式，也一个比一个复杂，更何况小编也不是搞前端开发的。。。。
+## 2018-05-02 更新
+jiathis官方在2018.04.30宣布分享业务关闭，因此小编原先写的内容无法再使用。小编现在提供新的解决方案：
 <!-- more --> 
+同样是在`/theme/next/`中的`_config.yml`配置文件中，找到如下内容：
+```
+baidushare:
+  type: button
+```
+若有注释，则去掉，只如此配置即可，切记`type`前面有两个空格,`button`前有一个空格。
+重新发布即可。
+
+## 历史内容
+next官方介绍的那个`baidushare: true`方式的分享，一直无效。网上找了半天，也没发现个合适的分享设置方式，也一个比一个复杂，更何况小编也不是搞前端开发的。。。。
 在此，小编提供一个自己最终的解决方式： 
-* 进入`themes/next/l`目录，打开`_config.yml`，找到`jiathis:`这一项
+* 进入`themes/next`目录，打开`_config.yml`，找到`jiathis:`这一项
 * 取消`jiathis:`注释，并将其设置为`jiathis: true`，注意，` true`前面有一个空格
 * ok，此时重新发布自己的网站，博客最底部分享按钮出现了吧？但是里面各种分享都在，小编自己只需要几个常用的分享就行，好吧，只好改源码了（放心不复杂）  
     * 进入`themes/next/layout/_partials/share/`，打开`jiathis.swig`文件

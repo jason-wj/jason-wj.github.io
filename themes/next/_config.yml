@@ -157,7 +157,7 @@ links:
 # Sidebar Avatar
 # in theme directory(source/images): /images/avatar.gif
 # in site  directory(source/uploads): /uploads/avatar.gif
-avatar: /images/my_head.jpg
+avatar: /images/wj.jpeg
 
 # Table Of Contents in the Sidebar
 toc:
@@ -424,20 +424,20 @@ gitment:
 # Available value:
 #    button | slide
 # Warning: Baidu Share does not support https.
-#baidushare:
-##  type: button
+baidushare:
+  type: button
 # baidushare: true # 设置无效，，醉了
 
-# Share 目前启用该分享
+# Share 此分享功能也被废弃了
 # This plugin is more useful in China, make sure you known how to use it.
 # And you can find the use guide at official webiste: http://www.jiathis.com/.
 # Warning: JiaThis does not support https.
 #jiathis:
   ##uid: Get this uid from http://www.jiathis.com/
 #add_this_id:
-jiathis: true
+# jiathis: false
 
-# Share 本服务已经停止
+# Share 本服务废弃
 #duoshuo_share: true
 
 # NeedMoreShare2
