@@ -246,8 +246,8 @@ post_wordcount:
 
 # Reward 打赏功能
 #eward_comment: 感谢大家支持，我会创作或转载更多更好的文章
-# wechatpay: /images/my_wechatpay.png
-alipay: /images/my_alipay.png
+wechatpay: /images/my_wechat.png
+# alipay: /images/my_alipay.png
 # bitcoin: /images/my_eth.png
 ethereum: /images/my_eth.png
  
