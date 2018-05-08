@@ -8,10 +8,11 @@ date: 2018-05-08 21:53:13
 categories: [精品转载,Golang]
 tags: [Golang]
 authorship: CSDN-kjfcpua
-srcpath: https://blog.csdn.net/kjfcpua/article/details/18265441
+srcpath: https://blog.csdn.net/kjfcpua/article/details/18265461
 ---
 ## 前言
 接上一部分文章[golang语言并发与并行——goroutine和channel的详细理解（一）](/articles/reprint/go/golang语言并发与并行——goroutine和channel的详细理解（一）.html)
+继续深入探索
 <!--more-->
 
 ## Go语言的并发和并行
