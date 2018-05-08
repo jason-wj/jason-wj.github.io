@@ -7,14 +7,15 @@ explain: 文中可能会根据需要做部分调整
 date: 2018-05-08 17:14:11
 categories: [精品转载,Golang]
 tags: [Golang]
-authorship: CSDN-思维的深度
-srcpath: https://blog.csdn.net/skh2015java/article/details/60330785
+authorship: CSDN-kjfcpua
+srcpath: https://blog.csdn.net/kjfcpua/article/details/18265441
 ---
 ## 前言
 如果不是我对真正并行的线程的追求，就不会认识到Go有多么的迷人。
 Go语言从语言层面上就支持了并发，这与其他语言大不一样，不像以前我们要用Thread库 来新建线程，还要用线程安全的队列库来共享数据。
-以下是我入门的学习笔记。
+首先，并行!=并发, 两者是不同的。
 <!--more-->
+`ps:小编解释一下，并发是多个任务交替使用CPU,同一时刻还是只有一个任务在跑,并行是多个任务同时跑`
 
 ## Go语言的goroutines、channel和死锁
 ### goroutine
@@ -144,41 +145,222 @@ fatal error: all goroutines are asleep - deadlock!
 何谓死锁? 操作系统有讲过的，所有的线程或进程都在等待资源的释放。如上的程序中, 只有一个goroutine, 所以当你向里面加数据或者存数据的话，都会锁死信道， 并且阻塞当前 goroutine, 也就是所有的goroutine(其实就main线一个)都在等待信道的开放(没人拿走数据信道是不会开放的)，也就是死锁咯。
 我发现死锁是一个很有意思的话题，这里有几个死锁的例子:
 1. 只在单一的goroutine里操作无缓冲信道，一定死锁。比如你只在main函数里操作信道:
-```golang
-func main() {
-    ch := make(chan int)
-    ch <- 1 // 1流入信道，堵塞当前线, 没人取走数据信道不会打开
-    fmt.Println("This line code wont run") //在此行执行之前Go就会报死锁
-}
-```
+    ```golang
+    func main() {
+        ch := make(chan int)
+        ch <- 1 // 1流入信道，堵塞当前线, 没人取走数据信道不会打开
+        fmt.Println("This line code wont run") //在此行执行之前Go就会报死锁
+    }
+    ```
 2. 如下也是一个死锁的例子:
+    ```golang
+    var ch1 chan int = make(chan int)
+    var ch2 chan int = make(chan int)
+    func say(s string) {
+        fmt.Println(s)
+        ch1 <- <- ch2 // ch1 等待 ch2流出的数据
+    }
+    func main() {
+        go say("hello")
+        <- ch1  // 堵塞主线
+    }
+    ```
+    其中主线等ch1中的数据流出，ch1等ch2的数据流出，但是ch2等待数据流入，两个goroutine都在等，也就是死锁。
+3. 其实，总结来看，为什么会死锁？非缓冲信道上如果发生了流入无流出，或者流出无流入，也就导致了死锁。或者这样理解 Go启动的所有goroutine里的非缓冲信道一定要一个线里存数据，一个线里取数据，要成对才行 。所以下面的示例一定死锁:
+    ```golang
+    c, quit := make(chan int), make(chan int)
+    go func() {
+       c <- 1  // c通道的数据没有被其他goroutine读取走，堵塞当前goroutine
+       quit <- 0 // quit始终没有办法写入数据
+    }()
+    <- quit // quit 等待数据的写
+    ```
+    仔细分析的话，是由于：主线等待quit信道的数据流出，quit等待数据写入，而func被c通道堵塞，所有goroutine都在等，所以死锁。
+
+    简单来看的话，一共两个线，func线中流入c通道的数据并没有在main线中流出，肯定死锁。
+但是，是否果真 所有不成对向信道存取数据的情况都是死锁?
+
+如下是个反例:
 ```golang
-var ch1 chan int = make(chan int)
-var ch2 chan int = make(chan int)
-
-func say(s string) {
-    fmt.Println(s)
-    ch1 <- <- ch2 // ch1 等待 ch2流出的数据
-}
-
 func main() {
-    go say("hello")
-    <- ch1  // 堵塞主线
+    c := make(chan int)
+
+    go func() {
+       c <- 1
+    }()
 }
 ```
-其中主线等ch1中的数据流出，ch1等ch2的数据流出，但是ch2等待数据流入，两个goroutine都在等，也就是死锁。
-3. 其实，总结来看，为什么会死锁？非缓冲信道上如果发生了流入无流出，或者流出无流入，也就导致了死锁。或者这样理解 Go启动的所有goroutine里的非缓冲信道一定要一个线里存数据，一个线里取数据，要成对才行 。所以下面的示例一定死锁:
+程序正常退出了，很简单，并不是我们那个总结不起作用了，还是因为一个让人很囧的原因，main又没等待其它goroutine，自己先跑完了， 所以没有数据流入c信道，一共执行了一个goroutine, 并且没有发生阻塞，所以没有死锁错误。
+
+那么死锁的解决办法呢？
+
+最简单的，把没取走的数据取走，没放入的数据放入， 因为无缓冲信道不能承载数据，那么就赶紧拿走！
+
+具体来讲，就死锁例子3中的情况，可以这么避免死锁:
 ```golang
 c, quit := make(chan int), make(chan int)
 
 go func() {
-   c <- 1  // c通道的数据没有被其他goroutine读取走，堵塞当前goroutine
-   quit <- 0 // quit始终没有办法写入数据
+    c <- 1
+    quit <- 0
 }()
-
-<- quit // quit 等待数据的写
+<- c // 取走c的数据！
+<-quit
 ```
-### 
+另一个解决办法是缓冲信道, 即设置c有一个数据的缓冲大小:
+```golang
+c := make(chan int, 1)
+```
+这样的话，c可以缓存一个数据。也就是说，放入一个数据，c并不会挂起当前线, 再放一个才会挂起当前线直到第一个数据被其他goroutine取走, 也就是只阻塞在容量一定的时候，不达容量不阻塞。
 
+这十分类似我们Python中的队列Queue不是吗？
 
+## 无缓冲信道的数据进出顺序
+我们已经知道，无缓冲信道从不存储数据，流入的数据必须要流出才可以。
+
+观察以下的程序:
+```golang
+var ch chan int = make(chan int)
+func foo(id int) { //id: 这个routine的标号
+    ch <- id
+}
+func main() {
+    // 开启5个routine
+    for i := 0; i < 5; i++ {
+        go foo(i)
+    }
+    // 取出信道中的数据
+    for i := 0; i < 5; i++ {
+        fmt.Print(<- ch)
+    }
+}
+```
+我们开了5个goroutine，然后又依次取数据。其实整个的执行过程细分的话，5个线的数据 依次流过信道ch, main打印之, 而宏观上我们看到的即 无缓冲信道的数据是先到先出，但是 无缓冲信道并不存储数据，只负责数据的流通
+
+## 缓冲信道
+终于到了这个话题了, 其实缓存信道用英文来讲更为达意: buffered channel.
+
+缓冲这个词意思是，缓冲信道不仅可以流通数据，还可以缓存数据。它是有容量的，存入一个数据的话 , 可以先放在信道里，不必阻塞当前线而等待该数据取走。
+
+当缓冲信道达到满的状态的时候，就会表现出阻塞了，因为这时再也不能承载更多的数据了，「你们必须把 数据拿走，才可以流入数据」。
+
+在声明一个信道的时候，我们给make以第二个参数来指明它的容量(默认为0，即无缓冲):
+```golang
+var ch chan int = make(chan int, 2) // 写入2个元素都不会阻塞当前goroutine, 存储个数达到2的时候会阻塞
+```
+如下的例子，缓冲信道ch可以无缓冲的流入3个元素:
+```golang
+func main() {
+    ch := make(chan int, 3)
+    ch <- 1
+    ch <- 2
+    ch <- 3
+}
+```
+如果你再试图流入一个数据的话，信道ch会阻塞main线, 报死锁。
+
+也就是说，缓冲信道会在满容量的时候加锁。
+
+其实，缓冲信道是先进先出的，我们可以把缓冲信道看作为一个线程安全的队列：
+```golang
+func main() {
+    ch := make(chan int, 3)
+    ch <- 1
+    ch <- 2
+    ch <- 3
+
+    fmt.Println(<-ch) // 1
+    fmt.Println(<-ch) // 2
+    fmt.Println(<-ch) // 3
+}
+```
+## 信道数据读取和信道关闭
+你也许发现，上面的代码一个一个地去读取信道简直太费事了，Go语言允许我们使用range来读取信道:
+```golang
+func main() {
+    ch := make(chan int, 3)
+    ch <- 1
+    ch <- 2
+    ch <- 3
+
+    for v := range ch {
+        fmt.Println(v)
+    }
+}
+```
+如果你执行了上面的代码，会报死锁错误的，原因是range不等到信道关闭是不会结束读取的。也就是如果 缓冲信道干涸了，那么range就会阻塞当前goroutine, 所以死锁咯。
+
+那么，我们试着避免这种情况，比较容易想到的是读到信道为空的时候就结束读取:
+```golang
+ch := make(chan int, 3)
+ch <- 1
+ch <- 2
+ch <- 3
+for v := range ch {
+    fmt.Println(v)
+    if len(ch) <= 0 { // 如果现有数据量为0，跳出循环
+        break
+    }
+}
+```
+以上的方法是可以正常输出的，但是注意检查信道大小的方法不能在信道存取都在发生的时候用于取出所有数据，这个例子 是因为我们只在ch中存了数据，现在一个一个往外取，信道大小是递减的。
+
+另一个方式是显式地关闭信道:
+```golang
+ch := make(chan int, 3)
+ch <- 1
+ch <- 2
+ch <- 3
+
+// 显式地关闭信道
+close(ch)
+
+for v := range ch {
+    fmt.Println(v)
+}
+```
+被关闭的信道会禁止数据流入, 是只读的。我们仍然可以从关闭的信道中取出数据，但是不能再写入数据了。
+
+## 等待多gorountine的方案
+那好，我们回到最初的一个问题，使用信道堵塞主线，等待开出去的所有goroutine跑完。
+
+这是一个模型，开出很多小goroutine, 它们各自跑各自的，最后跑完了向主线报告。
+
+我们讨论如下2个版本的方案:
+
+1. 只使用单个无缓冲信道阻塞主线
+
+2. 使用容量为goroutines数量的缓冲信道
+
+对于方案1, 示例的代码大概会是这个样子:
+```golang
+var quit chan int // 只开一个信道
+func foo(id int) {
+    fmt.Println(id)
+    quit <- 0 // ok, finished
+}
+func main() {
+    count := 1000
+    quit = make(chan int) // 无缓冲
+
+    for i := 0; i < count; i++ {
+        go foo(i)
+    }
+
+    for i := 0; i < count; i++ {
+        <- quit
+    }
+}
+```
+对于方案2, 把信道换成缓冲1000的:
+```golang
+quit = make(chan int, count) // 容量1000
+```
+其实区别仅仅在于一个是缓冲的，一个是非缓冲的。
+
+对于这个场景而言，两者都能完成任务, 都是可以的。
+
+* 无缓冲的信道是一批数据一个一个的「流进流出」
+
+* 缓冲信道则是一个一个存储，然后一起流出去
 
