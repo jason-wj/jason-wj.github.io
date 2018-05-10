@@ -206,7 +206,7 @@ func loop(id int) { // id: 该goroutine的标号
 }
 
 func main() {
-    runtime.GOMAXPROCS(2) // 最多同时使用2个核
+    runtime.GOMAXPROCS(2) // 最多同时使用2个核，在此可以理解成是开启了两个线程，goroutines可分到两个不同的线程
 
     for i := 0; i < 3; i++ { //开三个goroutine
         go loop(i)

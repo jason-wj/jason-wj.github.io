@@ -62,7 +62,7 @@ func main() {
 }
 ```
 这次确实输出了两趟，目的达到了。
-可是采用等待的办法并不好，如果goroutine在结束的时候，告诉下主线说“Hey, 我块要跑完了，等等我！”（`wj小编改了下，这样更好理解`）就好了， 即所谓阻塞主线的办法，回忆下我们`Python`里面等待所有线程执行完毕的写法:
+可是采用等待的办法并不好，如果goroutine在结束的时候，告诉下主线说“Hey, 我快要跑完了，等等我！”（`wj小编改了下，这样更好理解`）就好了， 即所谓阻塞主线的办法，回忆下我们`Python`里面等待所有线程执行完毕的写法:
 ```python
 for thread in threads:
     thread.join()
@@ -80,7 +80,7 @@ channel := make(chan int)
 那如何向信道存消息和取消息呢？ 一个例子:
 ```golang
 func main() {
-    var messages chan string = make(chan string)
+    var messages = make(chan string)
     go func(message string) {
         messages <- message // 存消息
     }("Ping!")
@@ -89,7 +89,7 @@ func main() {
 }
 ```
 默认的，信道的存消息和取消息都是阻塞的 (叫做无缓冲的信道，不过缓冲这个概念稍后了解，先说阻塞的问题)。
-也就是说, 无缓冲的信道在取消息和存消息的时候都会挂起当前的goroutine，除非另一端已经准备好。
+也就是说, 无缓冲的信道在取消息和存消息的时候都会挂起（挂起，也就是阻塞）当前的goroutine，除非另一端已经准备好（也就是说，取消息在阻塞中，只有存消息成功执行，取消息才会解除阻塞）。
 比如以下的main函数和foo函数:
 ```golang
 var ch chan int = make(chan int)

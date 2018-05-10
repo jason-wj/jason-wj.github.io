@@ -15,6 +15,7 @@ srcpath: https://blog.csdn.net/kjfcpua/article/details/18265475
 以下设计模式和应用场景来自Google IO上的关于Goroutine的PPT:https://talks.golang.org/2012/concurrency.slide
 <!--more-->
 本文的示例代码在: https://github.com/hit9/Go-patterns-with-channel
+本文主要是讲goroutine和channel的应用场景
 
 ## 生成器
 在Python中我们可以使用`yield`关键字来让一个函数成为生成器，在Go中我们可以使用信道来制造生成器(一种lazy load类似的东西)。
@@ -114,13 +115,9 @@ func foo(i int) chan int {
     go func () { c <- i }()
     return c
 }
-
-
 func main() {
     c1, c2, c3 := foo(1), foo(2), foo(3)
-
     c := make(chan int)
-
     go func() { // 开一个goroutine监视各个信道数据输出并收集数据到信道c
         for {
             select { // 监视c1, c2, c3的流出，并全部流入信道c
@@ -130,7 +127,6 @@ func main() {
             }
         }
     }()
-
     // 阻塞主线，取出信道c的数据
     for i := 0; i < 3; i++ {
         fmt.Println(<-c) // 从打印来看我们的数据输出并不是严格的1,2,3顺序
