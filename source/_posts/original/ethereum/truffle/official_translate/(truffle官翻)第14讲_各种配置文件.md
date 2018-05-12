@@ -8,6 +8,8 @@ tags: [ethereum,truffle]
 ---
 ## truffle.js配置
 ### 概述  
+当使用Windows的命令行时，默认的配置文件名与truffle冲突。这种情况下，我们推荐使用Windows的power Shell或Git BASH。你也可以将配置文件重命名为truffle-config.js来避免冲突。
+这也是为什么`truffle init`时候，项目里会生成一个`truffle.js`和`truffle_config.js`。
 1. 配置文件位置：
 它在项目根目录中，称为*truffle.js*
 2. 必须要配置这个文件，格式如下，默认是8545端口：  
