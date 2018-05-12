@@ -15,7 +15,8 @@ tags: [ethereum,truffle]
         mkdir testproject
         cd testproject
         truffle init
-        ```  
+        ``` 
+         
     2. 目录结构：  
         ```bash
         find . -print | sed -e 's;[^/]*/;|____;g;s;____|; |;g’ //mac环境

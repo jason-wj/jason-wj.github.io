@@ -14,6 +14,7 @@ tags: [ethereum,truffle]
     ```  
     * 使用npm安装到所有model都在这个路径路径：/usr/lib/node_modules
 <!-- more -->
+
 * 下载并安装truffle  
     ```bash
     npm install -g truffle  //其中-g参数指定将包安装到全局环境中。
