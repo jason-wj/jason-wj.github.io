@@ -1,5 +1,5 @@
 ---
-title: （Free项目）第1篇-token发布
+title: （自由大陆）第1篇-token发布
 mathjax: false
 copyright: true
 original: true
@@ -17,7 +17,7 @@ ERC223和ERC20多次考虑后，还是先用ERC20来搞事了。
 小编在此正式宣布，小编的这个区块链产品叫做：`Freedom Mainland`，中文名是`自由大陆`
 token的名称就是`FREE`，可不要理解成免费额，一点都不便宜。
 具体有哪些业务，小编还是那句话，没想好，总共就按1亿的发行量，永不增发：
-* 其中80%用于奖励`自由大陆`中，完成某些任务，达成某些条件的用户，直到币全部用完。
+* 其中80%用于奖励`自由大陆`中，完成某些任务、达成某些条件的用户，直到币全部用完。
 * 剩余20%没考虑好，先放着吧，目前打算一半用于后面的项目维护，一半用于项目成员的奖励（一个人也是算成员的额～\_～）
 
 ## token实现
@@ -29,7 +29,7 @@ token的名称就是`FREE`，可不要理解成免费额，一点都不便宜。
 ### 源码
 完整的truffle架构的项目发github上了[free-token](https://github.com/jason-wj/free-token)
 代码也不多，就先发出来了，就先这么发出来了，后面再根据需要改：
-```solidity
+```js
 pragma solidity ^0.4.0;
 
 import "openzeppelin-solidity/contracts/lifecycle/Pausable.sol";
