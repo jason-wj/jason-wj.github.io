@@ -12,12 +12,13 @@ tags: [ethereum,truffle]
 3. 该目录中都是javascript文件，用于将智能合约发布到以太坊网上
 4. 中文翻译migrate，叫做移植，或者是发布，后面就都这么称呼了
 5. 就是说，需要再该目录下，编辑一些发布文件，这样才能将合约部署到以太坊上
+
 ## 命令
 为了运行migrations目录，同样是在项目根目录下，输入如下命令：  
 ```bash
 truffle develop  //进入环境（若已经在项目根目录下进入该环境，则不需要执行该命令）
 migrate  //该环境中发布，migrate可以指定发布网络，网络在truffle.js中：migrate —live
-```  
+```
 运行后，在migrations中的所有文件都会被执行。
 如果你之前已经运行过，则将从上次运行的位置开始执行。
 若其中的文件没有改变，则该命令不生效。
@@ -55,8 +56,8 @@ migrate  //该环境中发布，migrate可以指定发布网络，网络在truff
         upgraded.setCompleted(last_completed_migration);
       }
     }
-    ```  
-3. 请注意！：  
+    ```
+3. 请注意！：
 你必须在你第一次发布时候，部署上面的Migrations合约，这样才能移植功能才能生效。为此，你必须创建一个移植文件，类似如下：
 **文件名：migrations/1_initial_migration.js**  
     ```js
@@ -66,7 +67,7 @@ migrate  //该环境中发布，migrate可以指定发布网络，网络在truff
       deployer.deploy(Migrations);
     };
     
-    ```  
+    ```
     **备注**：  
     1. 文件名需要以数字开头，之后的文件名随意。需要数字编号，才能知道记录迁移是否成功。
     2. artifacts.require(“MyContract”)：
@@ -88,8 +89,8 @@ migrate  //该环境中发布，migrate可以指定发布网络，网络在truff
     deployer.deploy(A).then(function() {
       return deployer.deploy(B, A.address);
     });
-    
     ```
+
 ## 网络考虑
 1. 根据网络条件部署，这是一项高级功能，请先参考：第15讲 网络和app发布
 2. 要考虑网络，则需要按如下编写迁移文件  
@@ -102,6 +103,7 @@ migrate  //该环境中发布，migrate可以指定发布网络，网络在truff
       }
     }
     ```
+
 ## 可用账户
 移植文件可以通过客户端或者web3返回一些账户列表如下：  
 ```js
@@ -109,6 +111,7 @@ module.exports = function(deployer, network, accounts) {
   // Use the accounts within your migrations.
 }
 ```
+
 ## API
 deployer中包含有很多可以简化移植的功能  
 1. deployer.deploy(合同，参数...选项)
@@ -144,7 +147,7 @@ deployer中包含有很多可以简化移植的功能
     // testing and development we need to deploy a version of our own. Instead of writing
     // a bunch of conditionals, we can simply use the `overwrite` key.
     deployer.deploy(SomeDependency, {overwrite: false});
-    ```  
+    ```
 4. deployer.link(library,destinations)用于将一个已经部署的library连接到一个或者多个合约。  
 destinations，目的地，可以是一个或者多个合约，如果目的地不含有效的库，则忽略  
     ```js
