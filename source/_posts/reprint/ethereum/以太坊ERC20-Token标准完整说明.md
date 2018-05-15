@@ -46,36 +46,47 @@ token的接口标准
     ```solidity
     //@return symbol：返回这个令牌的符号
     function symbol() constant returns (string symbol)
-    ```  
+    ```
 * 获取token使用的小数点的后几位，比如 8,表示分配token数量为100000000 
     ```solidity
     //@return decimals：返回这个小数点的后几位
     function decimals() constant returns (uint8 decimals)
-    ```  
+    ```
 * 获取token的供应总量 
     ```solidity
     //@return totalSupply：返回token的总供应量。
     function totalSupply() constant returns (uint256 totalSupply)
-    ```  
+    ```
 * 获取的地址是_owner的账户的账户余额 
     ```solidity
     //@param _owner: 用户地址
     //@return balance：返回token的总供应量。
     function balanceOf(address _owner) constant returns (uint256 balance)
-    ```  
+    ```
 * 转移token，也就是交易 
     ```solidity
     //@param _to 使用msg.sender发送代币给_to
     //@param _value token值
     //@return success：返回交易是否成功
     function transfer(address _to, uint256 _value) returns (bool success)
-    ``` 
+    ```
+* 允许最大转移
+    表示，当前账户`msg.sender`最大允许转移给`_spender`多少token
+    ```solidity
+    function approve(address _spender, uint256 _value) public returns (bool success)
+    ```
 
-#### 事件  
+* 增加最大转移数
+    表示增加当前账户`msg.sender`允许转移给`_spender`token的最大值
+    ```solidity
+    function increaseApproval(address _spender, uint _addedValue) public returns (bool success)
+    ```
+
+#### 事件
 * 当token被转移（包括0值），必须被触发。  
     ```solidity
     event Transfer(address indexed _from, address indexed _to, uint256 _value)
-    ```  
+    ```
 * 允许的最大交易  
     ```solidity
     event Approval(address indexed _owner, address indexed _spender, uint256 _val
