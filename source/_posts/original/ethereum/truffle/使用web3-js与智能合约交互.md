@@ -3,9 +3,15 @@ title: 使用web3.js与智能合约交互
 copyright: true
 original: true
 explain: 文中可能会根据需要做部分调整
+categories:
+  - 原创
+  - 以太坊
+  - truffle
+tags:
+  - truffle
+  - contracts
+abbrlink: 7a486277
 date: 2018-03-26 14:40:58
-categories: [原创,以太坊,truffle]
-tags: [truffle,contracts]
 ---
 使用truffle编译并发布智能合约到以太坊私有网络后，接下来，就该开放接口给前端使用了。这时会面临个问题，怎样和以太坊的智能合约进行交互？
 大体两种方式：

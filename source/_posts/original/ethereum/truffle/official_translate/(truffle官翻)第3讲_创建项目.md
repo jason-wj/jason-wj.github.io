@@ -2,9 +2,16 @@
 title: (truffle官翻)第3讲 创建项目
 copyright: true
 original: true
+categories:
+  - 原创
+  - 以太坊
+  - truffle
+  - 官翻
+tags:
+  - ethereum
+  - truffle
+abbrlink: 39ce2b06
 date: 2018-03-24 10:13:30
-categories: [原创,以太坊,truffle,官翻]
-tags: [ethereum,truffle]
 ---
 ## 概述  
 官方和社区已有项目应用地址：http://truffleframework.com/boxes/metacoin  

@@ -2,9 +2,14 @@
 title: (nodejs入门)第9讲-Session的使用
 copyright: true
 original: true
+categories:
+  - 原创
+  - nodejs
+  - 入门教程
+tags:
+  - nodejs
+abbrlink: ba8dfd60
 date: 2018-03-31 00:51:04
-categories: [原创,nodejs,入门教程]
-tags: [nodejs]
 ---
 ## 概述
 session 是另一种记录客户状态的机制，不同的是Cookie 保存在客户端浏览器中，而session 保存在服s务器上。

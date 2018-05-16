@@ -2,9 +2,16 @@
 title: (truffle官翻)第12讲 Truffle的develop环境和console环境
 copyright: true
 original: true
+categories:
+  - 原创
+  - 以太坊
+  - truffle
+  - 官翻
+tags:
+  - ethereum
+  - truffle
+abbrlink: 70e2cc7d
 date: 2018-03-24 10:17:26
-categories: [原创,以太坊,truffle,官翻]
-tags: [ethereum,truffle]
 ---
 ## 概述
 1. 总之是很叼的东西，有时候方便测试

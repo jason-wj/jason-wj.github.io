@@ -2,9 +2,14 @@
 title: (nodejs入门)第3讲-包、npm第三方安装、package.jso以及cnpm
 copyright: true
 original: true
+categories:
+  - 原创
+  - nodejs
+  - 入门教程
+tags:
+  - nodejs
+abbrlink: 227a0b07
 date: 2018-03-26 19:15:12
-categories: [原创,nodejs,入门教程]
-tags: [nodejs]
 ---
 ## 包与npm
 ### 包 概述

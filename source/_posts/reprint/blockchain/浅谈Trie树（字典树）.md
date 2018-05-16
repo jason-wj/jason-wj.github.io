@@ -4,11 +4,16 @@ mathjax: false
 copyright: true
 original: false
 explain: 文中可能会根据需要做部分调整
-date: 2018-04-16 12:51:01
-categories: [精品转载,区块链]
-tags: [区块链,数据结构]
+categories:
+  - 精品转载
+  - 区块链
+tags:
+  - 区块链
+  - 数据结构
 authorship: CSDN
-srcpath: https://www.cnblogs.com/TheRoadToTheGold/p/6290732.html
+srcpath: 'https://www.cnblogs.com/TheRoadToTheGold/p/6290732.html'
+abbrlink: 5f802b92
+date: 2018-04-16 12:51:01
 ---
 ## 引入
 字典是干啥的？查找字的。

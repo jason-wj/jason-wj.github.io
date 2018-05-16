@@ -2,9 +2,14 @@
 title: (nodejs入门)第8讲-Cookie的使用
 copyright: true
 original: true
+categories:
+  - 原创
+  - nodejs
+  - 入门教程
+tags:
+  - nodejs
+abbrlink: '8676e915'
 date: 2018-03-31 00:26:16
-categories: [原创,nodejs,入门教程]
-tags: [nodejs]
 ---
 ## cookie概述
 * cookie 是存储于访问者的计算机中的变量。可以让我们用同一个浏览器访问同一个域名的时候共享数据。

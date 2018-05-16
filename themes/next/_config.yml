@@ -413,9 +413,9 @@ gitment:
   count: true # Show comments count in post meta area
   lazy: false # Comments lazy loading with a button
   cleanly: true # Hide 'Powered by ...' on footer, and more
-  language: # Force language, or auto switch by theme
-  github_user: 13200618 # MUST HAVE, Your Github ID
-  github_repo: https://api.github.com/users/jason-wj/repos # MUST HAVE, The repo you use to store Gitment comments
+  language: zh-Hans # Force language, or auto switch by theme
+  github_user: jason-wj # MUST HAVE, Your Github ID
+  github_repo: wjblog # MUST HAVE, The repo you use to store Gitment comments
   client_id: 0aa1b86c59ed56c03def # MUST HAVE, Github client id for the Gitment
   client_secret: 92566ad8e06f4bf9d39f2e29fec021ab19a9927d # EITHER this or proxy_gateway, Github access secret token for the Gitment
   proxy_gateway:  # Address of api proxy, See: https://github.com/aimingoo/intersect

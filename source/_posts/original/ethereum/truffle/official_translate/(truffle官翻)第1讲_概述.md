@@ -2,9 +2,16 @@
 title: (truffle官翻)第1讲 概述
 copyright: true
 original: true
+categories:
+  - 原创
+  - 以太坊
+  - truffle
+  - 官翻
+tags:
+  - ethereum
+  - truffle
+abbrlink: 1e5b5f1
 date: 2018-03-24 10:10:01
-categories: [原创,以太坊,truffle,官翻]
-tags: [ethereum,truffle]
 ---
 * 参考官网文档：http://truffleframework.com/docs/
 * truffle的作用，基本一句话：是用来编译、测试、部署智能合约的工具，使用起来非常方便。

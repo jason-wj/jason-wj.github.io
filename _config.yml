@@ -1,4 +1,4 @@
-# Hexo Configuration
+# Hexo Con·
 ## Docs: https://hexo.io/docs/configuration.html
 ## Source: https://github.com/hexojs/hexo/
 
@@ -17,8 +17,13 @@ url: http://www.wjblog.top
 root: /
 # 会在跟路径按照年月日生成目录
 # permalink: :year/:month/:day/:title/
-permalink: articles/:title.html
+permalink: articles/:abbrlink/
 permalink_defaults:
+
+# abbrlink config
+abbrlink:
+  alg: crc32  # 算法：crc16(default) and crc32
+  rep: hex    # 进制：dec(default) and hex
 
 # Directory
 source_dir: source
@@ -28,7 +33,7 @@ archive_dir: archives
 category_dir: categories
 code_dir: downloads/code
 i18n_dir: :lang
-skip_render: README.md
+skip_render: ['README.*','*.html','CNAME',static/**,static/*]
 
 # Writing
 new_post_name: :title.md # File name of new posts

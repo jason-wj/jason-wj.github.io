@@ -3,9 +3,13 @@ title: Patricia树介绍
 mathjax: false
 copyright: true
 original: true
+categories:
+  - 原创
+  - 区块链
+tags:
+  - 区块链
+abbrlink: 12370dbd
 date: 2018-04-17 13:34:47
-categories: [原创,区块链]
-tags: [区块链]
 ---
 
 ## 概述

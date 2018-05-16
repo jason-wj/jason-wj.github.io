@@ -1,11 +1,16 @@
 ---
-title: （自由大陆）第1篇-token发布
+title: (自由大陆)第1篇-token发布
 mathjax: false
 copyright: true
 original: true
+categories:
+  - 原创
+  - 项目
+  - FREE
+tags:
+  - free
+abbrlink: 17324baa
 date: 2018-05-12 16:42:15
-categories: [原创,项目,FREE]
-tags: [free]
 ---
 ## 前言
 小编token大概写了一些，要问具体是怎么规划的，token将来是如何运转如何奖惩，这个小编也没想好。
@@ -32,10 +37,9 @@ token的名称就是`FREE`，可不要理解成免费额，一点都不便宜。
 ```js
 pragma solidity ^0.4.0;
 
-import "openzeppelin-solidity/contracts/lifecycle/Pausable.sol";
-import "openzeppelin-solidity/contracts/token/ERC20/StandardToken.sol";
+import "openzeppelin-solidity/contracts/token/ERC20/PausableToken.sol";
 
-contract FreeToken is StandardToken, Ownable, Pausable{
+contract FreeToken is PausableToken{
 
     string public constant name = "Free Token";
     string public constant symbol = "FREE";
@@ -47,9 +51,9 @@ contract FreeToken is StandardToken, Ownable, Pausable{
 
     event Mint(uint256 currentSupply, uint256 saleAmount, address indexed to, uint256 amount);
 
-    function FreeToken() public {
-        totalSupply_ = 1e8 * 10 ** decimals; //姑且发行一个亿吧
-        saleAmount = 8e7 * 10 ** decimals; //对合格用户奖励的总额度
+    constructor(uint256 _totalSupply, uint256 _saleAmount) public {
+        totalSupply_ = _totalSupply * 10 ** decimals; //姑且发行一个亿吧
+        saleAmount = _saleAmount * 10 ** decimals; //对合格用户奖励的总额度
         currentSupply = 0;
     }
 
@@ -63,28 +67,8 @@ contract FreeToken is StandardToken, Ownable, Pausable{
         require(currentSupply.add(_amount) <= saleAmount);
         currentSupply = currentSupply.add(_amount);
         balances[_to] = balances[_to].add(_amount);
-        Mint(currentSupply,saleAmount, _to, _amount);
+        emit Mint(currentSupply,saleAmount, _to, _amount);
         return true;
-    }
-
-    function transfer(address _to, uint256 _value) public whenNotPaused returns (bool) {
-        return super.transfer(_to, _value);
-    }
-
-    function transferFrom(address _from, address _to, uint256 _value) public whenNotPaused returns (bool) {
-        return super.transferFrom(_from, _to, _value);
-    }
-
-    function approve(address _spender, uint256 _value) public whenNotPaused returns (bool) {
-        return super.approve(_spender, _value);
-    }
-
-    function increaseApproval(address _spender, uint _addedValue) public whenNotPaused returns (bool success) {
-        return super.increaseApproval(_spender, _addedValue);
-    }
-
-    function decreaseApproval(address _spender, uint _subtractedValue) public whenNotPaused returns (bool success) {
-        return super.decreaseApproval(_spender, _subtractedValue);
     }
 }
 ```

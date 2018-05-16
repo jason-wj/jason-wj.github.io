@@ -2,9 +2,16 @@
 title: (truffle官翻)第4讲 选择一个以太坊客户端
 copyright: true
 original: true
+categories:
+  - 原创
+  - 以太坊
+  - truffle
+  - 官翻
+tags:
+  - ethereum
+  - truffle
+abbrlink: dbe1bf88
 date: 2018-03-24 10:13:30
-categories: [原创,以太坊,truffle,官翻]
-tags: [ethereum,truffle]
 ---
 # 第4讲_选择一个以太坊客户端  
 ## 概述  

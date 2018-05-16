@@ -2,9 +2,16 @@
 title: (truffle官翻)第13讲 编写外部脚本
 copyright: true
 original: true
+categories:
+  - 原创
+  - 以太坊
+  - truffle
+  - 官翻
+tags:
+  - ethereum
+  - truffle
+abbrlink: 712f35b3
 date: 2018-03-24 10:18:17
-categories: [原创,以太坊,truffle,官翻]
-tags: [ethereum,truffle]
 ---
 1. 有时候想写个外部脚本来和合约交互，Truffle已经替你想好了，你只要这么做就行
 2. truffle develop环境中运行：  

@@ -3,9 +3,14 @@ title: (nodejs入门)第2讲-CommonJS规范和NodeJS模块
 copyright: true
 original: true
 explain: 文中可能会根据需要做部分调整
+categories:
+  - 原创
+  - nodejs
+  - 入门教程
+tags:
+  - nodejs
+abbrlink: c9d8ac6b
 date: 2018-03-26 18:42:59
-categories: [原创,nodejs,入门教程]
-tags: [nodejs]
 ---
 ## CommonJS规范
 CommonJS规范的提出,主要是为了弥补当前JavaScript没有标准的缺陷。它的终极目标就是：提供一个类似Python，Ruby和Java语言的标准库,而不只是停留在小脚本程序的阶段。用CommonJS API编写出的应用，不仅可以利用 JavaScript开发客户端应用，而且还可以编写以下应：

@@ -1,10 +1,16 @@
 ---
 title: hexo添加背景动画
-date: 2018-03-21 09:44:05
-categories: [原创,Hexo,界面优化]
-tags: [Hexo,NexT]
+categories:
+  - 原创
+  - Hexo
+  - 界面优化
+tags:
+  - Hexo
+  - NexT
 copyright: true
 original: true
+abbrlink: ed4bdeee
+date: 2018-03-21 09:44:05
 ---
 # 2018-3-23 10:55更新  
 目前官方已经正式支持背景动画  

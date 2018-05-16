@@ -3,9 +3,14 @@ title: (nodejs入门)第1讲 开启并分析第一个应用
 copyright: true
 original: true
 explain: 文中可能会根据需要做部分调整
+categories:
+  - 原创
+  - nodejs
+  - 入门教程
+tags:
+  - nodejs
+abbrlink: 55f05783
 date: 2018-03-25 23:27:48
-categories: [原创,nodejs,入门教程]
-tags: [nodejs]
 ---
 ## 创建第一个应用
 NodeJS本身就实现了一个http服务器，不需要额外再部署类似tomcat等服务器。这个概念需要先明白。

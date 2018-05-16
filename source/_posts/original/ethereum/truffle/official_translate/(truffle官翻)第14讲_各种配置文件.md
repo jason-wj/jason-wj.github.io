@@ -2,9 +2,16 @@
 title: (truffle官翻)第14讲 各种配置文件（truffle.js、MochaJS、Solidity）
 copyright: true
 original: true
+categories:
+  - 原创
+  - 以太坊
+  - truffle
+  - 官翻
+tags:
+  - ethereum
+  - truffle
+abbrlink: c382f486
 date: 2018-03-24 10:19:08
-categories: [原创,以太坊,truffle,官翻]
-tags: [ethereum,truffle]
 ---
 ## truffle.js配置
 ### 概述  

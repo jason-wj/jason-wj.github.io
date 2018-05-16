@@ -2,9 +2,16 @@
 title: (truffle官翻)第2讲 安装
 copyright: true
 original: true
+categories:
+  - 原创
+  - 以太坊
+  - truffle
+  - 官翻
+tags:
+  - ethereum
+  - truffle
+abbrlink: 4926f4e0
 date: 2018-03-24 10:13:02
-categories: [原创,以太坊,truffle,官翻]
-tags: [ethereum,truffle]
 ---
 * 这是mac版安装方式，其余linux可参考
 <!-- more -->

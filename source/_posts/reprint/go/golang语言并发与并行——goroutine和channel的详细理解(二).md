@@ -1,14 +1,18 @@
 ---
-title: golang语言并发与并行——goroutine和channel的详细理解（二）
+title: golang语言并发与并行——goroutine和channel的详细理解(二)
 mathjax: false
 copyright: true
 original: false
 explain: 文中可能会根据需要做部分调整
-date: 2018-05-08 21:53:13
-categories: [精品转载,Golang]
-tags: [Golang]
+categories:
+  - 精品转载
+  - Golang
+tags:
+  - Golang
 authorship: CSDN-kjfcpua
-srcpath: https://blog.csdn.net/kjfcpua/article/details/18265461
+srcpath: 'https://blog.csdn.net/kjfcpua/article/details/18265461'
+abbrlink: f9c8cdb
+date: 2018-05-08 21:53:13
 ---
 ## 前言
 接上一部分文章[golang语言并发与并行——goroutine和channel的详细理解（一）](/articles/reprint/go/golang语言并发与并行——goroutine和channel的详细理解（一）.html)

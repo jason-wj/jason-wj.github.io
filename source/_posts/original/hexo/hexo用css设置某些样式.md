@@ -1,10 +1,16 @@
 ---
 title: hexo用css设置某些样式
-date: 2018-03-21 12:05:51
-categories: [原创,Hexo,界面优化]
-tags: [Hexo,NexT]
+categories:
+  - 原创
+  - Hexo
+  - 界面优化
+tags:
+  - Hexo
+  - NexT
 copyright: true
 original: true
+abbrlink: 45d6a351
+date: 2018-03-21 12:05:51
 ---
 在 `themes\next\source\css\_custom\custom.styl` 中，添加如下css：
 <!-- more -->  

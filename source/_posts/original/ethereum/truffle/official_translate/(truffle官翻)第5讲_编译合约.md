@@ -2,9 +2,16 @@
 title: (truffle官翻)第5讲 编译合约
 copyright: true
 original: true
+categories:
+  - 原创
+  - 以太坊
+  - truffle
+  - 官翻
+tags:
+  - ethereum
+  - truffle
+abbrlink: fad85707
 date: 2018-03-24 10:14:05
-categories: [原创,以太坊,truffle,官翻]
-tags: [ethereum,truffle]
 ---
 ## 概述
 小编使用的是Truffle Develope环境，因此，关于项目编译的命令，都没有加上前缀truffle，若使用Ganache环境，请加上该前缀，具体可参考其中的描述：第4讲 选择一个以太坊客户端

@@ -2,9 +2,14 @@
 title: (nodejs入门)第5讲-非阻塞I/O、异步、事件驱动
 copyright: true
 original: true
+categories:
+  - 原创
+  - nodejs
+  - 入门教程
+tags:
+  - nodejs
+abbrlink: 171b1bfc
 date: 2018-03-26 21:37:43
-categories: [原创,nodejs,入门教程]
-tags: [nodejs]
 ---
 ## 单线程 非阻塞I/O事件驱动
 在Java、PHP或者.net等服务器端语言中，会为每一个客户端连接创建一个新的线程。而每个线程需要耗费大约2MB内存。也就是说，理论上，一个8GB内存的服务器可以同时连接的最大用户数为4000个左右。要让Web应用程序支持更多的用户，就需要增加服务器的数量，而Web应用程序的硬件成本当然就上升了。

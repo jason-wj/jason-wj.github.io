@@ -4,11 +4,16 @@ mathjax: false
 copyright: true
 original: true
 explain: 文中可能会根据需要做部分调整
-date: 2018-04-17 15:33:16
-categories: [精品转载,区块链]
-tags: [区块链,数据结构]
+categories:
+  - 精品转载
+  - 区块链
+tags:
+  - 区块链
+  - 数据结构
 authorship: 博客园
-srcpath: http://www.cnblogs.com/fengzhiwu/p/5524324.html
+srcpath: 'http://www.cnblogs.com/fengzhiwu/p/5524324.html'
+abbrlink: b3334ff6
+date: 2018-04-17 15:33:16
 ---
 
 ## Merkle Tree概念

@@ -3,9 +3,14 @@ title: (nodejs入门)第6讲-路由、EJS模板引擎、GET、POST
 copyright: true
 original: true
 explain: 文中可能会根据需要做部分调整
+categories:
+  - 原创
+  - nodejs
+  - 入门教程
+tags:
+  - nodejs
+abbrlink: 6f0adc44
 date: 2018-03-26 22:43:49
-categories: [原创,nodejs,入门教程]
-tags: [nodejs]
 ---
 ## 路由
 1. 官方解释： 路由（Routing）是由一个 URI（或者叫路径）和一个特定的 HTTP 方法（GET、POST 等）组成的，涉及到应用如何响应客户端对某个网站节点的访问。 

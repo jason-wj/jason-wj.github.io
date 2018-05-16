@@ -1,10 +1,16 @@
 ---
 title: hexo常用属性设置
-date: 2018-03-21 13:33:34
-categories: [原创,Hexo,界面优化]
-tags: [Hexo,NexT]
+categories:
+  - 原创
+  - Hexo
+  - 界面优化
+tags:
+  - Hexo
+  - NexT
 copyright: true
 original: true
+abbrlink: fef4a063
+date: 2018-03-21 13:33:34
 ---
 ##  
 * 进入`themes/next`,打开`_config.yml`  

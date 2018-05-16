@@ -2,9 +2,16 @@
 title: (truffle官翻)第7.1讲 合约测试
 copyright: true
 original: true
+categories:
+  - 原创
+  - 以太坊
+  - truffle
+  - 官翻
+tags:
+  - ethereum
+  - truffle
+abbrlink: d97bcb06
 date: 2018-03-24 10:16:32
-categories: [原创,以太坊,truffle,官翻]
-tags: [ethereum,truffle]
 ---
 ## 框架
 1. 可以用两种不同的方式编写简单且容易管理的测试：

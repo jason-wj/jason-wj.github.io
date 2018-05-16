@@ -2,9 +2,16 @@
 title: (truffle官翻)第6讲 发布合约
 copyright: true
 original: true
+categories:
+  - 原创
+  - 以太坊
+  - truffle
+  - 官翻
+tags:
+  - ethereum
+  - truffle
+abbrlink: 615df6fa
 date: 2018-03-24 10:14:54
-categories: [原创,以太坊,truffle,官翻]
-tags: [ethereum,truffle]
 ---
 ## 概述
 1. migrations说白了就是将编译好的智能合约移到网上

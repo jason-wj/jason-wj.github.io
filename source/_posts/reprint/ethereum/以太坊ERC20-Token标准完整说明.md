@@ -1,13 +1,19 @@
 ---
 title: 以太坊ERC20_Token标准完整说明
-date: 2018-03-22 11:42:18
-categories: [精品转载,以太坊]
-tags: [ethereum,token]
+categories:
+  - 精品转载
+  - 以太坊
+tags:
+  - ethereum
+  - token
 copyright: true
 authorship: CSDN
 original: false
 explain: 文中可能会根据需要做部分调整
-srcpath: http://blog.csdn.net/diandianxiyu_geek/article/details/78082551?utm_source=gold_browser_extension
+srcpath: >-
+  http://blog.csdn.net/diandianxiyu_geek/article/details/78082551?utm_source=gold_browser_extension
+abbrlink: 854660d5
+date: 2018-03-22 11:42:18
 ---
 ## wj前言  
 * 本文涉及到了以太坊官方的翻译，但部分翻译原作者表述的不够明了，小编按自己理解改了一下。  

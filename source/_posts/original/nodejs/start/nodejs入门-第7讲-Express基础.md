@@ -2,9 +2,14 @@
 title: (nodejs入门)第7讲-Express基础
 copyright: true
 original: true
+categories:
+  - 原创
+  - nodejs
+  - 入门教程
+tags:
+  - nodejs
+abbrlink: 7b750cf6
 date: 2018-03-27 09:33:03
-categories: [原创,nodejs,入门教程]
-tags: [nodejs]
 ---
 ## 概述
 Express 是一个基于Node.js 平台，快速、开放、极简的 web 开发框架 Express框架是后台的Node框架，所以和jQuery、zepto、yui、bootstrap都不一个东西。 Express在后台的受欢迎的程度类似前端的jQuery，就是企业的事实上的标准。 

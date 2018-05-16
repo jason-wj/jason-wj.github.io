@@ -1,13 +1,18 @@
 ---
 title: 用GO语言实现比特币算法
-date: 2018-03-21 19:33:36
-categories: [精品转载,比特币]
-tags: [Go,bitCoin]
+categories:
+  - 精品转载
+  - 比特币
+tags:
+  - Go
+  - bitCoin
 copyright: true
 authorship: 巴比特
 original: false
 explain: 文中可能会根据需要做部分调整
-srcpath: http://www.8btc.com/go-bitcoin
+srcpath: 'http://www.8btc.com/go-bitcoin'
+abbrlink: 11d0fe4b
+date: 2018-03-21 19:33:36
 ---
 ## 概述
 本节的这个例子展示一点点高精度数学包一点点散列包hash一点点加密包还有一点点测试包的知识。这里不介绍协议和算法——尽管它们很有趣，而是试图指出，对多种操作系统的支持，是实现这种跨平台应用的理想语言。

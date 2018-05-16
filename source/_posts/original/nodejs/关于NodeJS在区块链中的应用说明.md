@@ -2,9 +2,14 @@
 title: 关于NodeJS在区块链中的应用说明
 copyright: true
 original: true
+categories:
+  - 原创
+  - nodejs
+tags:
+  - nodejs
+  - 区块链
+abbrlink: effa64cc
 date: 2018-03-25 22:51:45
-categories: [原创,nodejs]
-tags: [nodejs,区块链]
 ---
 `既然选择了远方 便只顾风雨兼程`
 翻阅过大量的区块链开源项目以及区块链工程师招聘岗位要求后，小编逐步发现了nodejs的重要性，典型的有以太坊和EOS,其中使用了大量的nodejs来开发合约接口、钱包等。nodejs的优点小编在此就不解释了。

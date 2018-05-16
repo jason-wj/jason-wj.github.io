@@ -2,9 +2,14 @@
 title: (nodejs入门)第4讲-fs模块
 copyright: true
 original: true
+categories:
+  - 原创
+  - nodejs
+  - 入门教程
+tags:
+  - nodejs
+abbrlink: dd92b0f0
 date: 2018-03-26 20:26:49
-categories: [原创,nodejs,入门教程]
-tags: [nodejs]
 ---
 ## fs.stat 检测是文件还是目录
 ```js

@@ -1,10 +1,16 @@
 ---
 title: hexo的next分享设置
-date: 2018-03-22 14:07:24
-categories: [原创,Hexo,界面优化]
-tags: [Hexo,NexT]
+categories:
+  - 原创
+  - Hexo
+  - 界面优化
+tags:
+  - Hexo
+  - NexT
 copyright: true
 original: true
+abbrlink: 9eebfb44
+date: 2018-03-22 14:07:24
 ---
 ## 2018-05-02 更新
 jiathis官方在2018.04.30宣布分享业务关闭，因此小编原先写的内容无法再使用。小编现在提供新的解决方案：
