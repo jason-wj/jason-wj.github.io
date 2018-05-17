@@ -296,11 +296,11 @@
 
       {% if is_index %}
         {% if post.top and post.notice and post.excerpt %}
-          <div style="width: 50%; box-shadow: 0 4px 8px 0 rgba(0, 0, 0, 0.2), 0 6px 20px 0 rgba(0, 0, 0, 0.19); margin: 0 auto;">
-              <div style=" padding: 10px; text-align: center;">
+          <div style="width: 60%; box-shadow: 0 4px 8px 0 rgba(0, 0, 0, 0.2), 0 6px 20px 0 rgba(0, 0, 0, 0.19); margin: 0 auto;">
+              <div style=" padding: 5px; text-align: center;">
                 <h1>{{ post.explain }}</h1>
               </div>
-              <div style="text-align: left; background-color: #555; color: white; padding: 10px; ">
+              <div style="text-align: left; background-color: #555; color: white; padding: 5px; ">
                 {{ post.excerpt }}
               </div>
           </div>
