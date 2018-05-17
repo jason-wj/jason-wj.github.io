@@ -27,7 +27,7 @@
       <meta itemprop="name" content="{{ config.title }}">
     </span>
 
-    {% if not headlessPost %}
+    {% if not headlessPost and not post.notice %}
       <header class="post-header">
 
         {# Not to show title for quote posts that do not have a title #}
@@ -61,6 +61,11 @@
         {% endif %}
 
         <div class="post-meta">
+          {% if post.top %}
+            <i class="fa fa-thumb-tack"></i>
+            <font color=7D26CD>置顶</font>
+            <span class="post-meta-divider">|</span>
+          {% endif %}
           <span class="post-time">
             {% if theme.post_meta.created_at %}
               <span class="post-meta-item-icon">
@@ -290,7 +295,19 @@
       {% endif %}
 
       {% if is_index %}
-        {% if post.description and theme.excerpt_description %}
+        {% if post.top and post.notice and post.excerpt %}
+          <div style="width: 50%; box-shadow: 0 4px 8px 0 rgba(0, 0, 0, 0.2), 0 6px 20px 0 rgba(0, 0, 0, 0.19); margin: 0 auto;">
+              <div style=" padding: 10px; text-align: center;">
+                <h1>{{ post.explain }}</h1>
+              </div>
+              <div style="text-align: left; background-color: #555; color: white; padding: 10px; ">
+                {{ post.excerpt }}
+              </div>
+          </div>
+          <!--noindex-->
+          
+          <!--/noindex-->
+        {% elif post.description and theme.excerpt_description %}
           {{ post.description }}
           <!--noindex-->
           <div class="post-button text-center">
