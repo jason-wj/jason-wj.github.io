@@ -300,7 +300,7 @@
               <div style=" padding: 5px; text-align: center;">
                 <h1>{{ post.explain }}</h1>
               </div>
-              <div style="text-align: left; background-color: #555; color: white; padding: 5px; ">
+              <div style="text-align: left; background-color: #555; color: white; padding: 0px; ">
                 {{ post.excerpt }}
               </div>
           </div>
