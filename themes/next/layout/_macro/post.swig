@@ -66,6 +66,15 @@
             <font color=7D26CD>置顶</font>
             <span class="post-meta-divider">|</span>
           {% endif %}
+          {% if post.original %}
+            <i class="fa fa-thumb-tack"></i>
+            <font color=7D26CD>原创</font>
+            <span class="post-meta-divider">|</span>
+          {% else %}
+            <i class="fa fa-thumb-tack"></i>
+            <font color=7D26CD>转载</font>
+            <span class="post-meta-divider">|</span>
+          {% endif %}
           <span class="post-time">
             {% if theme.post_meta.created_at %}
               <span class="post-meta-item-icon">
