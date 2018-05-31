@@ -5,13 +5,14 @@ copyright: true
 original: true
 top: false
 notice: false
-date: 2018-06-01 00:59:24
 categories:
   - 原创
   - 区块链
 tags:
   - 区块链
   - 共识算法
+abbrlink: bbe43e3f
+date: 2018-06-01 00:59:24
 ---
 ## 前言
 关于这个共识算法，小编其实有很多想说的，码了一个多小时的见解，考虑良久后，还是不打算把这见解发出来了，一千个人一千个哈姆雷特，
