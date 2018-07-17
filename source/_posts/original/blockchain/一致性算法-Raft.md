@@ -17,9 +17,14 @@ srcpath: 'http://liyuechun.org/2018/05/18/Consistency-algorithm-Raft/'
 abbrlink: abf4a6b7
 date: 2018-07-17 16:28:02
 ---
+## wj前言
+小编之所以要转载这篇文章，是因为Raft也是很重要的一个共识算法。小编看了很多白皮书，做公链的基本没有人提到Raft算法，但不能说它就不重要。
+<!--more-->
+共识机制不是什么新鲜东西，在大数据领域中，已经用的很成熟了，其中的Raft就是Zookeeper的核心。
+并且，在区块链的联盟链领域中，Raft也是举足轻重，目前比较火的`超级账本`项目，用的就是这一共识。
+
 ## Raft 状态
 一个 Raft 集群包含若干个服务器节点；通常是 5 个，这允许整个系统容忍 2 个节点的失效，每个节点处于以下三种状态之一：
-<!--more-->
 * `follower` ：所有结点都以`follower`的状态开始。如果没收到`leader`消息则会变成`candidate`状态。
 * `candidate`：会向其他结点“拉选票”，如果得到大部分的票则成为`leader`。这个过程就叫做Leader选举(Leader Election)。
 * `leader`：所有对系统的修改都会先经过`leader`。
@@ -64,6 +69,10 @@ raft的log replication保证以下性质(Log Matching Property)：
 如果follower没有发现与它一样的log entry，那么它会拒绝接受新的log entry 
 
 ## 动画演示 Raft
-http://thesecretlivesofdata.com/raft/
+http://thesecretlivesofdata.com/raft
 
+## Raft作为公链应用的不足之处
+* 选举共识节点未参考节点的区块高度，不能跟区块链有效结合；
+* 选举一个共识节点并由此节点持续记账，容错性较差；
+* 目前很多方案对共识节点的监管不够，不能实现共识节点的动态加入退出。
 
