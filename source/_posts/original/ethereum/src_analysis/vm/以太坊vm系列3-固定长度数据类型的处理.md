@@ -116,7 +116,7 @@ POP             //50，     丢弃栈顶数据。此时栈中数据stack[]，存
 上一篇文章：[`《以太坊vm系列2-基础篇》`](/articles/4b0172c1)中，对这一部分已经做了很详细的解释，很多位操作的技巧，终归一句话，Solidity编译器使用优化器（`optimize`）尽可能的将两个小规模的数打包到一个32字节的槽中，以便减少燃料费的使用。
 
 ## 干扰优化器（`optimize`）
-在这里尝试干扰一下编译器中的优化器（`optimize`）,看看优化器的效果如何。此处合约改为这样：
+这次干扰的做法是，我们将变量放在不同的方法下赋值。
 ```JavaScript
 pragma solidity ^0.4.11;
 contract Test {
@@ -141,17 +141,72 @@ contract Test {
 使用`optimize`优化编译，生成的关键`armasm`汇编指令如下：
 ```armasm
 tag1:                                            //结构体
-  JUMP [in]  setAB()                             //跳转到tag5的setAB()函数
+  JUMP [in]  setAB()                             //跳转到tag5的setAB()方法
 tag4:
   JUMP [in]  setCD()
-tag5:                                            //setAB()函数
-  JUMPDEST   function setAB() internal {\n ...   
+tag5:                                            //跳转到tag7的setAB()方法
+  JUMPDEST   function setAB() internal {\n ...
+  ...                                            //处理A，B
+  SSTORE                                         //将A，B保存在本地
+  JUMP [out]                                     //跳回到调用A，B的地方
 tag7:                                            //setCD()函数
   JUMPDEST   function setCD() internal {\n ...   
-  ...                                             
+  ...                                            //保存C，D
+  SSTORE                                         //将C，D保存在本地
+  JUMP [out]                                     //跳回到调用C，D的地方
+```
+`ps：每个tag代表一个不同的模块`
+指令非常的长，小编只列出一些。这里我们主要能看到里面有两个`sstore`就行。
+要知道，正常的优化中4个变量a、b、c、d加起来总共是32个字节，根据我们对[`《以太坊vm系列2-基础篇》`](/articles/4b0172c1)中`打包`的理解，应该是一次性写入存储器中的，也就是只调用一次`sstore`。
+但是，这里`sstroe`却调用了两次。也就是说说，Solidity目前并不能优化垮方法的变量。
+
+也就是说，为了减少`sstore`方法的调用，降低成本，我们目前最合适的做法就是将变量的赋值都写在同一个方法中：
+```JavaScript
+a = 0xaaaa;
+b = 0xbbbb;
+c = 0xcccc;
+d = 0xdddd;
 ```
 
-`明天再写`
+## 再次干扰优化器（`optimize`）
+这次的干扰我们的做法是，为定长数组中的每个变量赋值：
+```JavaScript
+pragma solidity ^0.4.11;
+contract C {
+    uint64[4] numbers;
+    constructor () public {
+      numbers[0] = 0x0;
+      numbers[1] = 0x1111;
+      numbers[2] = 0x2222;
+      numbers[3] = 0x3333;
+    }
+}
+```
+使用`optimize`优化编译，生成的关键`armasm`汇编指令如下：
+```
+...armasm
+SSTORE      //保存数组到存储器
+...
+```
+ok，这里出现意外了，只调用了一次`SSTORE`。小编是参考的[Howard原文](https://medium.com/@hayeah/diving-into-the-ethereum-vm-part-2-storage-layout-bc5349cb11b7)，可能是Solidity的优化器升级的缘故，其中提到的调用4次`sstore`的情况并没有发生。
+这次干扰在此算是被优化器抵御了。
+好吧，这是一件好事，说明Solidity也在不断进步。也不影响我们继续探索，这里我们去掉`optimize`优化，重新编译下代码，再来看指令：
+```armasm
+SLOAD
+SSTORE      //保存numbers[0]到存储器
+SLOAD
+SSTORE      //保存numbers[1]到存储器
+SLOAD
+SSTORE      //保存numbers[2]到存储器
+SLOAD
+SSTORE      //保存numbers[3]到存储器
+```
+呵呵，看出来了吧，优化和不优化，手续费差异蛮大的。
+
+## 总结
+1. Solidity会尽可能的打包将数据存在一个32字节的槽中
+2. Solidity不能对跨方法对赋值进行优化。
+3. 相信Solidity会越走越好。
 
 >量子链-Howard英文原文：https://medium.com/@hayeah/diving-into-the-ethereum-vm-part-2-storage-layout-bc5349cb11b7
 >xuli中文翻译：https://lilymoana.github.io/evm_part2.html
