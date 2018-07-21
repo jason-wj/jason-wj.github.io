@@ -5,7 +5,6 @@ copyright: true
 original: true
 top: false
 notice: false
-date: 2018-07-20 11:40:28
 categories:
   - 原创
   - 以太坊
@@ -13,6 +12,8 @@ categories:
 tags:
   - ethereum
   - EVM
+abbrlink: 639ef287
+date: 2018-07-20 11:40:28
 ---
 ## 前言
 本文主要是讲Solidity以及EVM对动态数据的复杂的数据类型的处理方式，了解了这些基本情况，对我们编写经济的合约或者设计新的vm，都有极大的帮助。
