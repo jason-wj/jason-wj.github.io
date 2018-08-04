@@ -8,7 +8,7 @@ notice: false
 categories:
   - 原创
   - 以太坊
-  - 源码解读
+  - 综合
 tags:
   - ethereum
   - 智能合约
@@ -86,21 +86,9 @@ contract FreeAirToken is PausableToken {
         return balances[_owner];  //呵呵，返回的这个数据只是方法内存临时返回的结果，
     }
 
-    function mintByOwner(address _to, uint256 _amount) whenNotPaused onlyOwner external returns (bool) {
-        return mint(_to, _amount);
-    }
-
-    function mint(address _to, uint256 _amount) internal whenNotPaused returns (bool) {
-        require(currentSupply.add(_amount) <= totalSupply_);
-        currentSupply = currentSupply.add(_amount);
-        balances[_to] = balances[_to].add(_amount);
-        emit Mint(currentSupply, _to, _amount);
-        return true;
-    }
 }
 ```
-ok，整个ERC20合约token就是这么简单，上面合约的大意是：通过whenNotPaused来控制整个合约是否可以使用。通过mintByOwner来让合约发布人手动分发token给其他人。
-其中关于空投重要的一点方法是，重写了erc20标准方法中的`balanceOf()`,这就是空投实现的秘密，`小编只是演示`，因此,任何只要调用该方法的账户，都会收到指定数量的token。
+ok，整个ERC20合约token就是这么简单，上面合约的大意是：重写了erc20标准方法中的`balanceOf()`,这就是空投实现的秘密，因此,任何只要调用该方法的账户，都会显示你这个账户有真么多token，注意只是显示！！！。
 
 ### 合约编译
 根目录使用truffle编译
@@ -154,39 +142,18 @@ module.exports = {
 ```
 truffle migrate
 ```
-正常发布成功的话，命令框里会有如下信息：
-```
-#xxx$ truffle migrate --network ropsten
-Using network 'ropsten'.
 
-Running migration: 1_initial_migration.js
-  Deploying Migrations...
-  ... 0x61a257d0552e61aa8c4f21d9f72aafdfd33c593ed05ed3bb5720e5d33e5f99e9
-  Migrations: 0x64f6ad826cf24708217c5061150036c830cb85af
-Saving successful migration to network...
-  ... 0x925b1c389a871f3c914f69217369b3fb3eebe2233e431dcc4f61c2ca2911c73c
-Saving artifacts...
-Running migration: 2_deploy_contracts.js
-  Deploying FreeAirToken...
-  ... 0x105a310dba4fd217300c038fbce6c4a76d2c406d8d3347369a06977840bf1a99
-  FreeAirToken: 0xd1cc0f89502c289b1d74c3d5d9ecf22d1b45d716
-Saving successful migration to network...
-  ... 0x285ce2d29e11d2a573bdff7350a189c241a686cb884fdc89f5ffaf02642680a0
-Saving artifacts...
-```
 5. 记着合约的地址：
-就是小编上面列出来的信息里的这一行：
+就是小编上面列出来的信息里的这一行，这就是这个token合约的地址：
 FreeAirToken: 0xd1cc0f89502c289b1d74c3d5d9ecf22d1b45d716
 
-ok，至此，能够纷发免费token的合约已经实现。接下来我们进入测试阶段
+接下来我们进入测试阶段
 
 ## 测试
-本来小编想使用imtoken的钱包来测试，虽然能进入infura环境，但是输入合约地址的那个功能，imtoken本质上还是调用的公网的，并没进infura。
-只好使用metamask来测了。
 直接看测试结果:
 {% asset_img 1.png  空投领token %}
 {% asset_img 2.png  空投领token %}
-ok，测试成功，至此，本文目的已完全实现。
+ok，呵呵，账户多了token了，眼睛也是会欺骗人的。。。从底层来看，你账户依然一分没有，只是这些页面调用了小编说的那个方法而已，那个方法本身是不会真把token转给你的。
 
 ## 为何说这个空投币是无效的？
 合约中，我们设置了每个调用balanceOf的人，都能拿到1000个币，但是，这个balanceOf方法是view级别的，按照规范，这里面是不能进行磁盘存储类操作的，
