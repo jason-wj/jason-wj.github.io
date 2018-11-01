@@ -2,7 +2,7 @@
 title: keccak算法及实现
 mathjax: false
 copyright: true
-original: true
+original: false
 top: false
 notice: false
 explain: 文中可能会根据需要做部分调整
@@ -17,7 +17,11 @@ abbrlink: d7792efc
 date: 2018-07-31 17:14:32
 ---
 ## 前言
+SHA3采用Keccak算法，在很多场合下Keccak和SHA3是同义词，但在2015年8月SHA3最终完成标准化时，NIST调整了填充算法，标准的SHA3和原先的Keccak算法就有所区别了。在早期的Ethereum相关代码中，普遍使用SHA3代指Keccak256，为了避免和NIST标准的SHA3混淆，现在的代码直接使用Keccak256作为函数名。
+总结为一句话：Ethereum和Solidity智能合约代码中的SHA3是指Keccak256，而不是标准的NIST-SHA3，为了避免混淆，直接在合约代码中写成Keccak256是最清晰的。
+
 现在社会中hash算法的应用越来越广泛，因为hash 算法可以用于保证文件不被篡改，可以保证消息正确有效，同时还可以做数字签名，在http协议的开发中，还可以验证某个文件是否被修改过以做到断点续传。而传统的hash函数受到的攻击也越来越多，攻击方法也越来越有效，旧的算法变得不安全，那么就要推行新的标准，而keccak作为SHA- 3算法中的最终的优胜者，当然是有他的优势所在的，所以这里将讨论keccak算法的原理，同时封装一个计算文件hash值的函数。
+<!-- more -->
 
 ## keccak算法介绍
 完整的描述keccak算法是比较复杂的，这里只讨论这个算法的特征。首先他是采用了海绵结构， 
