@@ -24,8 +24,9 @@ date: 2018-12-16 20:00:47
  Header相对轻量，涵盖了Block的所有属性，包括特征标示，前向指针，和内部数据集的验证哈希值等；body相对重量，持有内部数据集。每个Block的Header部分，Body部分，以及一些特征属性，都以[k,v]形式单独存储在底层数据库中。
 
 ## Block
-上面大概提到Body中有两部分内容，但真实的实现中，还有一些别的内容。
-如下是一个完整块的描述，我们来看看一个块中具体到底有哪些内容：
+上面大概提到Body中有两部分内容，但真实的实现中，还有一些别的内容，如下结构。
+{% asset_img 2.jpg  一个块的整体结构 %}
+下面是一个完整块的结构体描述，我们来看看一个块中具体到底有哪些内容：
 ```go
 type Block struct {
 	//头部
@@ -49,6 +50,7 @@ type Block struct {
 ```
 ### 第一种生成块的方式
 根据传入信息生成一个完整块，
+这里会看到交易树和收据树的处理，而状态树是在header中生成一个roothash，这个有兴趣可以单独去看，后面涉及到再专门去讲
 ```go
 func NewBlock(header *Header, txs []*Transaction, uncles []*Header, receipts []*Receipt) *Block {
 	//可以看出此处是复制的一个header，而td直接为0
