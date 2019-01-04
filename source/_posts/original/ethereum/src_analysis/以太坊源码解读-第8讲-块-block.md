@@ -50,10 +50,11 @@ type Block struct {
 ```
 ### 第一种生成块的方式
 根据传入信息生成一个完整块，
-这里会看到交易树和收据树的处理，而状态树是在header中生成一个roothash，这个有兴趣可以单独去看，后面涉及到再专门去讲
+这里会看到交易树和收据树的处理，而状态树是在header中生成一个roothash，这个有兴趣可以单独去看，后面涉及到再专门去讲。
 ```go
+//传入的header信息会随着传入的txs和receipts发生改变
 func NewBlock(header *Header, txs []*Transaction, uncles []*Header, receipts []*Receipt) *Block {
-	//可以看出此处是复制的一个header，而td直接为0
+	//可以看出此处是拷贝的一个header，而td直接为0
 	b := &Block{header: CopyHeader(header), td: new(big.Int)}
 
 	if len(txs) == 0 {
@@ -66,7 +67,7 @@ func NewBlock(header *Header, txs []*Transaction, uncles []*Header, receipts []*
 	}
 
 	if len(receipts) == 0 {
-		b.header.ReceiptHash = EmptyRootHash //空的hash,rlp空的时候生成的
+		b.header.ReceiptHash = EmptyRootHash //收据树，空的hash,rlp空的时候生成的
 	} else {
 		b.header.ReceiptHash = DeriveSha(Receipts(receipts)) //收据树列表hash
 		b.header.Bloom = CreateBloom(receipts) //根据收据树生成一个布隆过滤器
@@ -86,9 +87,163 @@ func NewBlock(header *Header, txs []*Transaction, uncles []*Header, receipts []*
 ```
 
 ### 第二种生成块的方式
+这种方式只是传入了header信息，区别于第一种：第一种会传入txs,receipts，会随着这些信息的变化，header发生变换。
+```go
+func NewBlockWithHeader(header *Header) *Block {
+	return &Block{header: CopyHeader(header)}
+}
+```
+
+### block的相关方法
+列出目前还没被废弃的方法。
+#### 序列化相关的两个方法：DecodeRLP和EncodeRLP
+该方法将解码rlp字节流，
+```go
+func (b *Block) DecodeRLP(s *rlp.Stream) error {
+	//extblock结构体是用来存储解析结果的，其中包括header、uncles、transacitions
+	var eb extblock 
+	_, size, _ := s.Kind()
+	if err := s.Decode(&eb); err != nil {
+		return err
+	}
+	b.header, b.uncles, b.transactions = eb.Header, eb.Uncles, eb.Txs
+	b.size.Store(common.StorageSize(rlp.ListSize(size)))
+	return nil
+}
+```
+该方法将一个block进行rlp序列化，不解释
+```go
+func (b *Block) EncodeRLP(w io.Writer) error {
+	return rlp.Encode(w, extblock{
+		Header: b.header,
+		Txs:    b.transactions,
+		Uncles: b.uncles,
+	})
+}
+```
+
+#### 其余方法
+主要都是用来对外展示块信息，都是比较基础的方法，很好理解，先不要太过深的考虑每个方法什么地方使用，当梳理完这些内容后，心里自然会有底。
+```go
+//返回叔块信息
+func (b *Block) Uncles() []*Header          { return b.uncles }
+
+// 展示交易信息
+func (b *Block) Transactions() Transactions { return b.transactions }
+
+//根据传入的hash返回其对应的交易信息，这个就是用来展示某交易是否在当前块中
+func (b *Block) Transaction(hash common.Hash) *Transaction {
+	for _, transaction := range b.transactions {
+		if transaction.Hash() == hash {
+			return transaction
+		}
+	}
+	return nil
+}
+
+//返回当前块所在高度（*big.Int形式返回）
+func (b *Block) Number() *big.Int     { return new(big.Int).Set(b.header.Number) }
+
+//返回当前块所在高度（uint64形式返回）
+func (b *Block) NumberU64() uint64        { return b.header.Number.Uint64() }
+
+//获取当前块的总gas上限
+func (b *Block) GasLimit() uint64     { return b.header.GasLimit }
+
+//当前实际使用了的gas
+func (b *Block) GasUsed() uint64      { return b.header.GasUsed }
+
+//获取当前块的难度值
+func (b *Block) Difficulty() *big.Int { return new(big.Int).Set(b.header.Difficulty) }
+
+//当前块的时间戳
+func (b *Block) Time() *big.Int       { return new(big.Int).Set(b.header.Time) }
+
+//用来计算难度值
+func (b *Block) MixDigest() common.Hash   { return b.header.MixDigest }
+
+//用来计算难度值
+func (b *Block) Nonce() uint64            { return binary.BigEndian.Uint64(b.header.Nonce[:]) }
+
+//布隆过滤器
+func (b *Block) Bloom() Bloom             { return b.header.Bloom }
+
+//挖出当前块的账户地址
+func (b *Block) Coinbase() common.Address { return b.header.Coinbase }
+
+//状态树的根hash
+func (b *Block) Root() common.Hash        { return b.header.Root }
+
+//父块的hash
+func (b *Block) ParentHash() common.Hash  { return b.header.ParentHash }
+
+//交易树的根hash
+func (b *Block) TxHash() common.Hash      { return b.header.TxHash }
+
+//收据树的根hash
+func (b *Block) ReceiptHash() common.Hash { return b.header.ReceiptHash }
+
+//叔块的hash，这是由两个叔块数据生成的
+func (b *Block) UncleHash() common.Hash   { return b.header.UncleHash }
+
+//额外的一些数据
+func (b *Block) Extra() []byte            { return common.CopyBytes(b.header.Extra) }
+
+//当前块头部
+func (b *Block) Header() *Header { return CopyHeader(b.header) }
+
+//返回当前块的body，body主要就是交易和叔块
+func (b *Block) Body() *Body { return &Body{b.transactions, b.uncles} }
+
+//返回当前块的大小
+func (b *Block) Size() common.StorageSize {
+	if size := b.size.Load(); size != nil {
+		return size.(common.StorageSize)
+	}
+	c := writeCounter(0)
+	rlp.Encode(&c, b)
+	b.size.Store(common.StorageSize(c))
+	return common.StorageSize(c)
+}
+
+//共识算法校验一个块的时候会用到
+func (b *Block) WithSeal(header *Header) *Block {
+	cpy := *header
+
+	return &Block{
+		header:       &cpy,
+		transactions: b.transactions,
+		uncles:       b.uncles,
+	}
+}
+// 返回一个块
+func (b *Block) WithBody(transactions []*Transaction, uncles []*Header) *Block {
+	block := &Block{
+		header:       CopyHeader(b.header),
+		transactions: make([]*Transaction, len(transactions)),
+		uncles:       make([]*Header, len(uncles)),
+	}
+	copy(block.transactions, transactions)
+	for i := range uncles {
+		block.uncles[i] = CopyHeader(uncles[i])
+	}
+	return block
+}
+
+//返回一个块的hash
+//第一次调用时候计算，之后会被缓存
+func (b *Block) Hash() common.Hash {
+	if hash := b.hash.Load(); hash != nil {
+		return hash.(common.Hash)
+	}
+	v := b.header.Hash()
+	b.hash.Store(v)
+	return v
+}
+```
 
 ## Header
-这是一个块的头部
+介绍完整个块的大体情况后，接着来详细看看块内部的内容，先来看header
 
 ### 结构体
 来看看一个块的head中都有哪些：
@@ -142,8 +297,7 @@ type Header struct {
 ```
 其中的`gencodec`不是本文重点，有兴趣的可以单独去了解下这是什么，其实它主要就是扩展json的使用。
 
-Root，TxHash和ReceiptHash，分别取自三个MPT类型对象：stateTrie, txTrie, 和receiptTrie的根节点哈希值。 
-分别理解为是：`账户状态树`、`交易树`、`收据树`
+`Root`，`TxHash`和`ReceiptHash`，分别取自三个MPT对象：`stateTrie`, `txTrie`, 和`receiptTrie`的根节点哈希值。 分别理解为是：`账户状态树`、`交易树`、`收据树`
 receiptTrie 必须在Block的所有交易执行完成才能生成；txTrie 理论上只需tx数组transactions即可，不过依然被限制在所有交易执行完后才生成；最有趣的是stateTrie，由于它存储了所有账户的信息，比如余额，发起交易次数，虚拟机指令数组等等，所以随着每次交易的执行，stateTrie 其实一直在变化，这就使得Root值也在变化中
 > [以太坊系列---Block核心数据结构](https://blog.csdn.net/niyuelin1990/article/details/80423823)
 
@@ -167,7 +321,7 @@ func (h *Header) Size() common.StorageSize {
 
 ## Body
 body是一个简单的(可变的、不安全的)数据容器，用于存储和移动区块的数据内容(交易列表和叔块)在一起
-可以理解成是一个中间载体，但不是块的一部分。
+可以理解成是一个中间载体，通过前面的描述应该可以理解，这是一个块的核心部分。
 ```go
 type Body struct {
 	//交易记录
@@ -176,3 +330,36 @@ type Body struct {
 	Uncles       []*Header
 }
 ```
+
+## 块的排序
+block.go中的最后一部分内容就是这个块排序了，代码写的有点绕，但细看以下还是很容易理解的，主要就是根据块号的大小进行排序：
+```go
+type Blocks []*Block
+type BlockBy func(b1, b2 *Block) bool
+
+func (self BlockBy) Sort(blocks Blocks) {
+	bs := blockSorter{
+		blocks: blocks,
+		by:     self,
+	}
+	sort.Sort(bs)
+}
+
+type blockSorter struct {
+	blocks Blocks
+	by     func(b1, b2 *Block) bool //使用哪种方式进行拍讯
+}
+
+//重写了排序的接口
+func (self blockSorter) Len() int { return len(self.blocks) }
+func (self blockSorter) Swap(i, j int) {
+	self.blocks[i], self.blocks[j] = self.blocks[j], self.blocks[i]
+}
+
+func (self blockSorter) Less(i, j int) bool { return self.by(self.blocks[i], self.blocks[j]) }
+func Number(b1, b2 *Block) bool { return b1.header.Number.Cmp(b2.header.Number) < 0 }
+```
+
+## 总结
+本章一个目的，了解一个块里到底有什么东西啊，这个块是怎么划分的，了解了这些，我们才能进一步往下走。
+最起码要知道，一个块里有三种类型的MPT，一个交易树、一个收据树、一个状态树（具体干嘛，前面都有解释）。
