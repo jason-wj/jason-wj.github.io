@@ -26,7 +26,7 @@ date: 2019-01-04 17:25:20
 type BlockChain struct {
 	//硬分叉的一些配置
 	chainConfig *params.ChainConfig
-	//主要是trie节点的缓存配置，其中包括是否允许缓存、trie最多允许缓存的容量(MB)、缓存flush超时时间
+	//主要是trie节点的缓存配置，其中包括是否允许缓存、trie最多允许缓存的容量(MB)、缓存刷新到磁盘的时间
 	cacheConfig *CacheConfig       
 	//用来存储最终数据的地方
 	db     ethdb.Database 
@@ -94,7 +94,7 @@ type BlockChain struct {
 }
 ```
 
-## 链的初始化
+## 链的构建过程
 生成一个全节点的链的入口，这是使用数据库里面的信息来构造的，来看看这个方法具体做了哪些内容：
 ```go
 func NewBlockChain(db ethdb.Database, cacheConfig *CacheConfig, chainConfig *params.ChainConfig, engine consensus.Engine, vmConfig vm.Config, shouldPreserve func(block *types.Block) bool) (*BlockChain, error) {
@@ -103,16 +103,18 @@ func NewBlockChain(db ethdb.Database, cacheConfig *CacheConfig, chainConfig *par
 		cacheConfig = &CacheConfig{
 			//默认节点256T
 			TrieNodeLimit: 256 * 1024 * 1024,
+			//将缓存刷新到磁盘的时间
 			TrieTimeLimit: 5 * time.Minute,
 		}
 	}
+	//初始化缓存
 	bodyCache, _ := lru.New(bodyCacheLimit)
 	bodyRLPCache, _ := lru.New(bodyCacheLimit)
 	receiptsCache, _ := lru.New(receiptsCacheLimit)
 	blockCache, _ := lru.New(blockCacheLimit)
 	futureBlocks, _ := lru.New(maxFutureBlocks)
 	badBlocks, _ := lru.New(badBlockLimit)
-
+	//链结构体赋值
 	bc := &BlockChain{
 		chainConfig:    chainConfig,
 		cacheConfig:    cacheConfig,
@@ -130,36 +132,313 @@ func NewBlockChain(db ethdb.Database, cacheConfig *CacheConfig, chainConfig *par
 		vmConfig:       vmConfig,
 		badBlocks:      badBlocks,
 	}
+	//设置验证机制，这里会调用block_validator.go文件中的内容
 	bc.SetValidator(NewBlockValidator(chainConfig, bc, engine))
+	//设置处理块机制，这里会调用state_processor.go文件中的内容
 	bc.SetProcessor(NewStateProcessor(chainConfig, bc, engine))
 
 	var err error
+	//链的头部，这块牵涉到headerchain.go文件
 	bc.hc, err = NewHeaderChain(db, chainConfig, engine, bc.getProcInterrupt)
 	if err != nil {
 		return nil, err
 	}
+	//创世块的设置
 	bc.genesisBlock = bc.GetBlockByNumber(0)
 	if bc.genesisBlock == nil {
 		return nil, ErrNoGenesis
 	}
+	//加载最新状态
 	if err := bc.loadLastState(); err != nil {
 		return nil, err
 	}
-	// Check the current state of the block hashes and make sure that we do not have any of the bad blocks in our chain
+	// 手动检查链中是否有坏块，BadHashes中手动存入一些坏块地址，一般硬分叉使用
 	for hash := range BadHashes {
 		if header := bc.GetHeaderByHash(hash); header != nil {
-			// get the canonical block corresponding to the offending header's number
+			//获取规范的区块链上面同样高度的区块头,
+			//如果这个区块头确实是在我们的规范的区块链上的话,我们需要回滚到这个区块头的高度 - 1，此时高度为最新块
+			//要确保规范块里没有坏块（硬分叉的块、非法块）
+			//header.Number指向当前最新块
 			headerByNumber := bc.GetHeaderByNumber(header.Number.Uint64())
-			// make sure the headerByNumber (if present) is in our current canonical chain
 			if headerByNumber != nil && headerByNumber.Hash() == header.Hash() {
 				log.Error("Found bad hash, rewinding chain", "number", header.Number, "hash", header.ParentHash)
-				bc.SetHead(header.Number.Uint64() - 1)
+				//会一直往上一个块回滚，直到稳定
+				bc.SetHead(header.Number.Uint64() - 1) 
 				log.Error("Chain rewind was successful, resuming normal operation")
 			}
 		}
 	}
-	// Take ownership of this particular state
-	go bc.update()
+	//异步，将未来块（就是还在缓存中暂时没加入的块）加入到规范链中
+	//其中会涉及到一个块的插入概念
+	go bc.update() 
 	return bc, nil
 }
 ```
+这里面最重要的几个部分：
+1. 坏块的检查，
+2. 是从db中加载最新状态的过程，也就是`bc.loadLastState()`这个方法，
+3. 块的插入，`InsertChain()`方法
+
+接下来一一介绍这几部分内容
+
+### 坏块的检查
+BadHashes 可以手工禁止接受一些区块的hash值.在blocks.go里面.
+可以避免一些硬分叉问题，保证链的正统性。
+
+### bc.loadLastState()加载最新状态
+从db中加载链的最新状态，这部分代码量也非常大，如下：
+```go
+func (bc *BlockChain) loadLastState() error {
+	// 获取最新一个块的hash头部
+	head := rawdb.ReadHeadBlockHash(bc.db)
+	if head == (common.Hash{}) {
+		log.Warn("Empty database, resetting chain")
+		return bc.Reset() //使用创世块初始化链
+	}
+	// 根据块的hash获取当前块
+	currentBlock := bc.GetBlockByHash(head)
+	if currentBlock == nil {
+		log.Warn("Head block missing, resetting chain", "hash", head)
+		return bc.Reset() //使用创世块初始化链
+	}
+	// 看当前块的hash和db中记录能否联系上，不能则一直回滚
+	if _, err := state.New(currentBlock.Root(), bc.stateCache); err != nil {
+		log.Warn("Head state missing, repairing chain", "number", currentBlock.Number(), "hash", currentBlock.Hash())
+		//repair，会一直回滚，直到能够获取到状态的树
+		if err := bc.repair(&currentBlock); err != nil {
+			return err
+		}
+	}
+	// 设置最新块
+	bc.currentBlock.Store(currentBlock)
+
+	// 设置当前链head
+	currentHeader := currentBlock.Header()
+	if head := rawdb.ReadHeadHeaderHash(bc.db); head != (common.Hash{}) {
+		if header := bc.GetHeaderByHash(head); header != nil {
+			currentHeader = header
+		}
+	}
+	bc.hc.SetCurrentHeader(currentHeader)
+
+	// 设置轻量级的块
+	bc.currentFastBlock.Store(currentBlock)
+	if head := rawdb.ReadHeadFastBlockHash(bc.db); head != (common.Hash{}) {
+		if block := bc.GetBlockByHash(head); block != nil {
+			bc.currentFastBlock.Store(block)
+		}
+	}
+
+	// 日志展示
+	...
+	return nil
+}
+```
+
+### InsertChain()，块的插入
+插入区块链尝试把给定的区块插入到规范的链条,或者是创建一个分叉. 如果发生错误,那么会返回错误发生时候的index和具体的错误信息.
+先来看插入块的入口：
+```go
+//这是一个总的方法，分为两部分，一部分用于插入多个块，
+//另一部分属于累计的事件，将会被触发
+func (bc *BlockChain) InsertChain(chain types.Blocks) (int, error) {
+	n, events, logs, err := bc.insertChain(chain)
+	bc.PostChainEvents(events, logs)
+	return n, err
+}
+```
+插入部分的实现，这部分代码量有点大，但必须理解：
+```go
+//insertChain方法会执行区块链插入,并收集事件信息. 因为需要使用defer来处理解锁,所以把这个方法作为一个单独的方法.
+func (bc *BlockChain) insertChain(chain types.Blocks) (int, []interface{}, []*types.Log, error) {
+	if len(chain) == 0 {
+		return 0, nil, nil, nil
+	}
+	// 做一个完整性检查，提供的链实际上是有序的和相互链接的
+	for i := 1; i < len(chain); i++ {
+		if chain[i].NumberU64() != chain[i-1].NumberU64()+1 || chain[i].ParentHash() != chain[i-1].Hash() {
+			//不满足基本规范，直接返回
+			...
+			return 0, nil, nil, fmt.Errorf("为节省篇幅，这个描述改动。表示：链不规范")
+		}
+	}
+	// 锁机制
+	bc.wg.Add(1)
+	defer bc.wg.Done()
+
+	bc.chainmu.Lock()
+	defer bc.chainmu.Unlock()
+
+	//使用队列来处理事件，这效果通常比用互斥锁的机制要快很多
+	var (
+		//起始时间，以太坊使用mclock.Now()来计算程序执行时间，这个更加精确
+		stats         = insertStats{startTime: mclock.Now()}  
+		//事件长度和待加入的块数一致
+		events        = make([]interface{}, 0, len(chain))
+		lastCanon     *types.Block
+		coalescedLogs []*types.Log
+	)
+	//先检测这些块的合法性
+	headers := make([]*types.Header, len(chain))
+	seals := make([]bool, len(chain))
+
+	for i, block := range chain {
+		headers[i] = block.Header()
+		seals[i] = true
+	}
+	abort, results := bc.engine.VerifyHeaders(bc, headers, seals)
+	defer close(abort)
+
+	// 这段不太理解，暂时认为是对待插入的块中的每笔交易签名检测，让交易数据中加入签名信息
+	senderCacher.recoverFromBlocks(types.MakeSigner(bc.chainConfig, chain[0].Number()), chain)
+
+	// 处理每个块
+	for i, block := range chain {
+		// 如果这些块正在终止，则停止往后执行
+		if atomic.LoadInt32(&bc.procInterrupt) == 1 {
+			log.Debug("Premature abort during blocks processing")
+			break
+		}
+		// If the header is a banned one, straight out abort
+		if BadHashes[block.Hash()] {
+			bc.reportBlock(block, nil, ErrBlacklistedHash)
+			return i, events, coalescedLogs, ErrBlacklistedHash
+		}
+		// Wait for the block's verification to complete
+		bstart := time.Now()
+
+		err := <-results
+		if err == nil {
+			err = bc.Validator().ValidateBody(block)
+		}
+		switch {
+		case err == ErrKnownBlock:
+			// Block and state both already known. However if the current block is below
+			// this number we did a rollback and we should reimport it nonetheless.
+			if bc.CurrentBlock().NumberU64() >= block.NumberU64() {
+				stats.ignored++
+				continue
+			}
+
+		case err == consensus.ErrFutureBlock:
+			// Allow up to MaxFuture second in the future blocks. If this limit is exceeded
+			// the chain is discarded and processed at a later time if given.
+			max := big.NewInt(time.Now().Unix() + maxTimeFutureBlocks)
+			if block.Time().Cmp(max) > 0 {
+				return i, events, coalescedLogs, fmt.Errorf("future block: %v > %v", block.Time(), max)
+			}
+			bc.futureBlocks.Add(block.Hash(), block)
+			stats.queued++
+			continue
+
+		case err == consensus.ErrUnknownAncestor && bc.futureBlocks.Contains(block.ParentHash()):
+			bc.futureBlocks.Add(block.Hash(), block)
+			stats.queued++
+			continue
+
+		case err == consensus.ErrPrunedAncestor:
+			// Block competing with the canonical chain, store in the db, but don't process
+			// until the competitor TD goes above the canonical TD
+			currentBlock := bc.CurrentBlock()
+			localTd := bc.GetTd(currentBlock.Hash(), currentBlock.NumberU64())
+			externTd := new(big.Int).Add(bc.GetTd(block.ParentHash(), block.NumberU64()-1), block.Difficulty())
+			if localTd.Cmp(externTd) > 0 {
+				if err = bc.WriteBlockWithoutState(block, externTd); err != nil {
+					return i, events, coalescedLogs, err
+				}
+				continue
+			}
+			// Competitor chain beat canonical, gather all blocks from the common ancestor
+			var winner []*types.Block
+
+			parent := bc.GetBlock(block.ParentHash(), block.NumberU64()-1)
+			for !bc.HasState(parent.Root()) {
+				winner = append(winner, parent)
+				parent = bc.GetBlock(parent.ParentHash(), parent.NumberU64()-1)
+			}
+			for j := 0; j < len(winner)/2; j++ {
+				winner[j], winner[len(winner)-1-j] = winner[len(winner)-1-j], winner[j]
+			}
+			// Import all the pruned blocks to make the state available
+			bc.chainmu.Unlock()
+			_, evs, logs, err := bc.insertChain(winner)
+			bc.chainmu.Lock()
+			events, coalescedLogs = evs, logs
+
+			if err != nil {
+				return i, events, coalescedLogs, err
+			}
+
+		case err != nil:
+			bc.reportBlock(block, nil, err)
+			return i, events, coalescedLogs, err
+		}
+		// Create a new statedb using the parent block and report an
+		// error if it fails.
+		var parent *types.Block
+		if i == 0 {
+			parent = bc.GetBlock(block.ParentHash(), block.NumberU64()-1)
+		} else {
+			parent = chain[i-1]
+		}
+		state, err := state.New(parent.Root(), bc.stateCache)
+		if err != nil {
+			return i, events, coalescedLogs, err
+		}
+		// Process block using the parent state as reference point.
+		receipts, logs, usedGas, err := bc.processor.Process(block, state, bc.vmConfig)
+		if err != nil {
+			bc.reportBlock(block, receipts, err)
+			return i, events, coalescedLogs, err
+		}
+		// Validate the state using the default validator
+		err = bc.Validator().ValidateState(block, parent, state, receipts, usedGas)
+		if err != nil {
+			bc.reportBlock(block, receipts, err)
+			return i, events, coalescedLogs, err
+		}
+		proctime := time.Since(bstart)
+
+		// Write the block to the chain and get the status.
+		status, err := bc.WriteBlockWithState(block, receipts, state)
+		if err != nil {
+			return i, events, coalescedLogs, err
+		}
+		switch status {
+		case CanonStatTy:
+			log.Debug("Inserted new block", "number", block.Number(), "hash", block.Hash(), "uncles", len(block.Uncles()),
+				"txs", len(block.Transactions()), "gas", block.GasUsed(), "elapsed", common.PrettyDuration(time.Since(bstart)))
+
+			coalescedLogs = append(coalescedLogs, logs...)
+			blockInsertTimer.UpdateSince(bstart)
+			events = append(events, ChainEvent{block, block.Hash(), logs})
+			lastCanon = block
+
+			// Only count canonical blocks for GC processing time
+			bc.gcproc += proctime
+
+		case SideStatTy:
+			log.Debug("Inserted forked block", "number", block.Number(), "hash", block.Hash(), "diff", block.Difficulty(), "elapsed",
+				common.PrettyDuration(time.Since(bstart)), "txs", len(block.Transactions()), "gas", block.GasUsed(), "uncles", len(block.Uncles()))
+
+			blockInsertTimer.UpdateSince(bstart)
+			events = append(events, ChainSideEvent{block})
+		}
+		stats.processed++
+		stats.usedGas += usedGas
+
+		cache, _ := bc.stateCache.TrieDB().Size()
+		stats.report(chain, i, cache)
+	}
+	// Append a single chain head event if we've progressed the chain
+	if lastCanon != nil && bc.CurrentBlock().Hash() == lastCanon.Hash() {
+		events = append(events, ChainHeadEvent{lastCanon})
+	}
+	return 0, events, coalescedLogs, nil
+}
+```
+
+### 总结
+这一部分，链的初始化，其中加入了大量的检测，最终目的就是要有一个规范的链生成，当出现异常块时，会一直往前回滚，直到找到正常的块为止。也就是找一个最新的正常块。
+
+
