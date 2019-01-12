@@ -452,5 +452,3 @@ func (bc *BlockChain) insertChain(chain types.Blocks) (int, []interface{}, []*ty
 
 ## 总结
 这一部分，链的初始化，其中加入了大量的检测，最终目的就是要有一个规范的链生成，当出现异常块时，会一直往前回滚，直到找到正常的块为止。也就是找一个最新的正常块。
-
-
