@@ -138,9 +138,8 @@ func (d *DposContext) RevertToSnapShot(snapshot *DposContext) {
 2. 整体的数据操作方法没问题，但美图并没有做太大约束，比如成为候选人的条件等。
 
 ### 总结
-定义了db中要存储的前缀和具体数据，
-
-
+定义了db中要存储的前缀和具体数据。这部分内容还是很容易理解的。
+trie由于新增了前缀操作，为此做了一些改动，这个改动在本文最后给出。
 
 ## epoch_context
 
