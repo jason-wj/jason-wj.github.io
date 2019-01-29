@@ -14,7 +14,7 @@ tags:
 abbrlink: 2092aa9f
 date: 2019-01-29 15:00:53
 ---
-dpos是什么，为什么要改造成dpos，这些问题小编就不解释了。可参考：[委托股权证明原理(DPOS)--翻译及解读(/articles/bbe43e3f)]
+dpos是什么，为什么要改造成dpos，这些问题小编就不解释了。可参考：[委托股权证明原理(DPOS)--翻译及解读](/articles/bbe43e3f)
 对以太坊做dpos共识改造，从0开始是不可能的，这里小编参考了[美图以太坊dpos改造](https://github.com/meitu/go-ethereum)。美图实验室的改造相比较来说更加直观，网上这方面对信息不多，为此，小编参考该项目重头敲了一遍这个共识。收益颇多，也发现了很多不足的地方。
 <!-- more -->
 美图官方发布的改造教程解说并不多，讲述的内容也很简洁。为此，小编通过这篇文章详细解释下dpos在以太坊中的改造细节。自我总结的同时，希望能对大家有所帮助。
@@ -292,8 +292,174 @@ func (d *Dpos) SealHash(header *types.Header) (hash common.Hash) {
 ### 小节
 这一部分主要就是实现共识引擎的接口，相比较于pow，dpos的实现要容易很多
 
+## trie数据存储
+以太坊的trie是什么东西，小编原先讲解过，并对其源码也做过深入分析
+前面小编说过，dpos的五个trie是需要保存在db，以太坊原先的方式并不能满足这一需要，为此需要对现有的trie做一些改造。在现有trie模块的基础上，加入了如下两个文件：
+1. prefix_trie.go
+2. prefix_trie_iterator.go
+
+### prefix_trie.go
+这个文件中是对Trie结构体方法的扩充，加入了前缀后，trie的更新插入等操作有了些许变化，代码不多，都贴出来了，这里就不做注释，很简单：
+```go
+func NewTrieWithPrefix(root common.Hash, prefix []byte, db ethdb.Database) (*Trie, error) {
+	trie, err := New(root, NewDatabase(db))
+	if err != nil {
+		return nil, err
+	}
+	trie.prefix = prefix
+	return trie, nil
+}
+
+func (t *Trie) NodeIteratorWithPrefix(start []byte) NodeIterator {
+	if t.prefix != nil {
+		start = append(t.prefix, start...)
+	}
+	return newNodeIterator(t, start)
+}
+
+func (t *Trie) PrefixIterator(prefix []byte) NodeIterator {
+	if t.prefix != nil {
+		prefix = append(t.prefix, prefix...)
+	}
+	return newPrefixIterator(t, prefix)
+}
+
+func (t *Trie) UpdateWithPrefix(key, value []byte) {
+	if err := t.TryUpdateWithPrefix(key, value); err != nil {
+		log.Error(fmt.Sprintf("Unhandled trie error: %v", err))
+	}
+}
+
+func (t *Trie) TryUpdateWithPrefix(key, value []byte) error {
+	if t.prefix != nil {
+		key = append(t.prefix, key...)
+	}
+	k := keybytesToHex(key)
+	if len(value) != 0 {
+		_, n, err := t.insert(t.root, nil, k, valueNode(value))
+		if err != nil {
+			return err
+		}
+		t.root = n
+	} else {
+		_, n, err := t.delete(t.root, nil, k)
+		if err != nil {
+			return err
+		}
+		t.root = n
+	}
+	return nil
+}
+
+func (t *Trie) GetWithPrefix(key []byte) []byte {
+	res, err := t.TryGetWithPrefix(key)
+	if err != nil {
+		log.Error(fmt.Sprintf("Unhandled trie error: %v", err))
+	}
+	return res
+}
+
+func (t *Trie) TryGetWithPrefix(key []byte) ([]byte, error) {
+	if t.prefix != nil {
+		key = append(t.prefix, key...)
+	}
+	key = keybytesToHex(key)
+	value, newroot, didResolve, err := t.tryGet(t.root, key, 0)
+	if err == nil && didResolve {
+		t.root = newroot
+	}
+	return value, err
+}
+
+func (t *Trie) TryDeleteWithPrefix(key []byte) error {
+	if t.prefix != nil {
+		key = append(t.prefix, key...)
+	}
+	k := keybytesToHex(key)
+	_, n, err := t.delete(t.root, nil, k)
+	if err != nil {
+		return err
+	}
+	t.root = n
+	return nil
+}
+```
+
+### prefix_trie_iterator.go
+对dpos各种trie需要进行遍历，而这个文件就是用来解决这一问题的。整个过程就是根据前缀来查找结果的。代码本身也不复杂，并且也不多，直接上代码：
+```go
+type prefixIterator struct {
+	prefix       []byte
+	nodeIterator NodeIterator
+}
+func newPrefixIterator(trie *Trie, prefix []byte) NodeIterator {
+	if trie.Hash() == emptyState {
+		return new(prefixIterator)
+	}
+	nodeIt := newNodeIterator(trie, prefix)
+	prefix = keybytesToHex(prefix)
+	return &prefixIterator{
+		nodeIterator: nodeIt,
+		prefix:       prefix[:len(prefix)-1],
+	}
+}
+func (it *prefixIterator) hasPrefix() bool {
+	return bytes.HasPrefix(it.nodeIterator.Path(), it.prefix)
+}
+func (it *prefixIterator) Next(descend bool) bool {
+	if it.nodeIterator.Next(descend) {
+		if it.hasPrefix() {
+			return true
+		}
+	}
+	return false
+}
+func (it *prefixIterator) Error() error {
+	return it.nodeIterator.Error()
+}
+func (it *prefixIterator) Hash() common.Hash {
+	if it.hasPrefix() {
+		return it.nodeIterator.Hash()
+	}
+	return common.Hash{}
+}
+func (it *prefixIterator) Parent() common.Hash {
+	if it.hasPrefix() {
+		it.nodeIterator.Parent()
+	}
+	return common.Hash{}
+}
+func (it *prefixIterator) Path() []byte {
+	if it.hasPrefix() {
+		return it.nodeIterator.Path()
+	}
+	return nil
+}
+func (it *prefixIterator) Leaf() bool {
+	if it.hasPrefix() {
+		return it.nodeIterator.Leaf()
+	}
+	return false
+}
+func (it *prefixIterator) LeafKey() []byte {
+	if it.hasPrefix() {
+		return it.nodeIterator.LeafKey()
+	}
+	return nil
+}
+func (it *prefixIterator) LeafBlob() []byte {
+	if it.hasPrefix() {
+		return it.nodeIterator.LeafBlob()
+	}
+	return nil
+}
+func (it *prefixIterator) LeafProof() [][]byte {
+	//TODO 该方法暂时未用到
+	panic("implement me")
+}
+```
+
 ## 总结
 1. 以太坊的理念是，每个功能都模块化，但是dpos的改造，将其中的内容都被扩散到不同的模块，耦合度过高。
 2. 本文中，更多描述的是dpos在以太坊共识模块中的实现，这个过程相对来说要好理解，但是，如果将以太坊切换为dpos，这才是工程中的难点，这个过程小编也正在验证，后续会发出新的文章来专门讲解这一过程。
 3. 补充一下，上面提到的每个模块，都有对应的单元测试，可以快速验证每个方法。
-
