@@ -1,0 +1,631 @@
+<!DOCTYPE html>
+
+
+<html lang="zh-Hans">
+
+
+<head>
+  <meta charset="utf-8" />
+    
+  <meta name="description" content="谈天谈地，谈古谈今，一起谈谈我们的未来。" />
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
+  <title>
+    以太坊源码解读-第6.1讲-共识模块入口设计 |  Jason漫谈区块链
+  </title>
+  <meta name="generator" content="hexo-theme-ayer">
+  
+  <link rel="shortcut icon" href="/images/my_head-16x16-next.ico" />
+  
+  
+<link rel="stylesheet" href="/dist/main.css">
+
+  
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/Shen-Yu/cdn/css/remixicon.min.css">
+
+  
+<link rel="stylesheet" href="/css/custom.css">
+
+  
+  
+<script src="https://cdn.jsdelivr.net/npm/pace-js@1.0.2/pace.min.js"></script>
+
+  
+  
+
+  
+
+</head>
+
+</html>
+
+<body>
+  <div id="app">
+    
+      
+    <main class="content on">
+      <section class="outer">
+  <article
+  id="post-ethereum/src_analysis/以太坊源码解读-第6.1讲-共识模块入口设计"
+  class="article article-type-post"
+  itemscope
+  itemprop="blogPost"
+  data-scroll-reveal
+>
+  <div class="article-inner">
+    
+    <header class="article-header">
+       
+<h1 class="article-title sea-center" style="border-left:0" itemprop="name">
+  以太坊源码解读-第6.1讲-共识模块入口设计
+</h1>
+ 
+
+    </header>
+     
+    <div class="article-meta">
+      <a href="/articles/3673b530/" class="article-date">
+  <time datetime="2018-11-15T03:24:03.000Z" itemprop="datePublished">2018-11-15</time>
+</a> 
+  <div class="article-category">
+    <a class="article-category-link" href="/categories/%E4%BB%A5%E5%A4%AA%E5%9D%8A/">以太坊</a> / <a class="article-category-link" href="/categories/%E4%BB%A5%E5%A4%AA%E5%9D%8A/%E6%BA%90%E7%A0%81%E8%A7%A3%E8%AF%BB/">源码解读</a>
+  </div>
+  
+<div class="word_count">
+    <span class="post-time">
+        <span class="post-meta-item-icon">
+            <i class="ri-quill-pen-line"></i>
+            <span class="post-meta-item-text"> Word count:</span>
+            <span class="post-count">1.3k</span>
+        </span>
+    </span>
+
+    <span class="post-time">
+        &nbsp; | &nbsp;
+        <span class="post-meta-item-icon">
+            <i class="ri-book-open-line"></i>
+            <span class="post-meta-item-text"> Reading time≈</span>
+            <span class="post-count">4 min</span>
+        </span>
+    </span>
+</div>
+ 
+    </div>
+      
+    <div class="tocbot"></div>
+
+
+
+
+  
+    <div class="article-entry" itemprop="articleBody">
+       
+  <h2 id="前言"><a href="#前言" class="headerlink" title="前言"></a>前言</h2><p>主要是先梳理一下<code>consensus</code>模块的入口文件<code>consensus.go</code>，这里体现了以太坊共识设计的整个设计思路。为后面进一步分析共识算法做好基础工作。</p>
+<a id="more"></a>
+
+<h2 id="模块文件结构"><a href="#模块文件结构" class="headerlink" title="模块文件结构"></a>模块文件结构</h2><p>先来看下<code>consensus</code>模块的文件目录：</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br></pre></td><td class="code"><pre><span class="line">.</span><br><span class="line">|____misc                <span class="comment">## 貌似是硬分叉相关的处理，还没研究，先这么认为</span></span><br><span class="line">| |____forks.go    </span><br><span class="line">| |____dao.go</span><br><span class="line">|____consensus.go        <span class="comment">## 共识的通用规则设计，pow的入口设计就在这里</span></span><br><span class="line">|____ethash              <span class="comment">## pow共识算法的具体实现</span></span><br><span class="line">| |____sealer.go</span><br><span class="line">| |____algorithm.go</span><br><span class="line">| |____sealer_test.go</span><br><span class="line">| |____ethash_test.go</span><br><span class="line">| |____consensus.go</span><br><span class="line">| |____algorithm_test.go</span><br><span class="line">| |____api.go</span><br><span class="line">| |____ethash.go</span><br><span class="line">| |____consensus_test.go</span><br><span class="line">|____clique             <span class="comment">## poa共识算法的具体实现，这个主要是供私链使用。</span></span><br><span class="line">| |____clique.go</span><br><span class="line">| |____snapshot_test.go</span><br><span class="line">| |____api.go</span><br><span class="line">| |____snapshot.go</span><br><span class="line">|____errors.go</span><br></pre></td></tr></table></figure>
+<p>从中可以大概看出，以太坊目前实现了pow和poa两种共识算法。<br>其中poa是是一种POW与POS(proof of stake股权证明)混合的算法，主要是针对私有链使用的，以太坊测试网（Kovan）便是采用PoA算法，貌似将以太坊部署为联盟链也是用的这种共识，具体还没有研究。<br>这里我们主要关注的是pow，poa等以后有空了再来考虑。</p>
+<h2 id="consensus-go文件简介"><a href="#consensus-go文件简介" class="headerlink" title="consensus.go文件简介"></a><code>consensus.go</code>文件简介</h2><p>这个文件中，主要分为3部分：</p>
+<ol>
+<li>pow算法入口</li>
+<li>共识通用引擎接口</li>
+<li>读取链信息的部分接口</li>
+</ol>
+<h2 id="Pow算法入口"><a href="#Pow算法入口" class="headerlink" title="Pow算法入口"></a>Pow算法入口</h2><p>这是对pow的一个封装，<br>先来看代码结构：</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">type</span> PoW <span class="keyword">interface</span> &#123;</span><br><span class="line">	Engine</span><br><span class="line">	Hashrate() <span class="keyword">float64</span> <span class="comment">//返回当前节点的算力</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>从中可以看出，pow算法，只要满足<code>Engine接口</code>，就可以完成自己对整个共识过程。这也给了我们一个思路，如果我们要自己实现共识，同样需要继承了<code>Engine</code>。</p>
+<h2 id="共识通用引擎接口Engine"><a href="#共识通用引擎接口Engine" class="headerlink" title="共识通用引擎接口Engine"></a>共识通用引擎接口Engine</h2><p>这也是整个共识的核心，一个通用的共识引擎接口，如果要在不改变以太坊整体运转的前提下，设计新的共识规则，那就必须要实现以下的接口，具体的内容都在注释中表明了：</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">type</span> Engine <span class="keyword">interface</span> &#123;</span><br><span class="line">	<span class="comment">// 获取当前挖矿矿工的以太坊地址</span></span><br><span class="line">    Author(header *types.Header) (common.Address, error)</span><br><span class="line">    </span><br><span class="line">    <span class="comment">// 校验块头部信息是否符合共识规则，是否封印</span></span><br><span class="line">	VerifyHeader(chain ChainReader, header *types.Header, seal <span class="keyword">bool</span>) error</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 批量校验块头部，这个方法返回一个退出信号用于终止操作，用于异步校验。</span></span><br><span class="line">    VerifyHeaders(chain ChainReader, headers []*types.Header, seals []<span class="keyword">bool</span>) (<span class="keyword">chan</span>&lt;- <span class="keyword">struct</span>&#123;&#125;, &lt;-<span class="keyword">chan</span> error)</span><br><span class="line">    </span><br><span class="line">    <span class="comment">// 较验叔块是否满足规则</span></span><br><span class="line">	VerifyUncles(chain ChainReader, block *types.Block) error</span><br><span class="line"></span><br><span class="line">	<span class="comment">// VerifySeal()函数基于跟Seal()完全一样的算法原理，通过验证区块的某些属性(Header.Nonce，Header.MixDigest等)是否正确，来确定该区块是否已经经过Seal操作。</span></span><br><span class="line">	VerifySeal(chain ChainReader, header *types.Header) error</span><br><span class="line"></span><br><span class="line">	<span class="comment">// 用于初始化区块头的共识字段根据共识引擎。这些改变都是内联执行的。</span></span><br><span class="line">	Prepare(chain ChainReader, header *types.Header) error</span><br><span class="line"></span><br><span class="line">	<span class="comment">// 完成所有的状态修改，并最终组装成块。</span></span><br><span class="line">	<span class="comment">// 区块头和状态数据库在最终确认的时候可以被更新使之符合共识规则。</span></span><br><span class="line">	<span class="comment">// receipts表示返回显示交易结果</span></span><br><span class="line">	Finalize(chain ChainReader, header *types.Header, state *state.StateDB, txs []*types.Transaction,</span><br><span class="line">		uncles []*types.Header, receipts []*types.Receipt) (*types.Block, error)</span><br><span class="line"></span><br><span class="line">	<span class="comment">// Seal()函数可对一个调用过Finalize()的区块进行授权或封印，并将封印过程产生的一些值赋予区块中剩余尚未赋值的成员(Header.Nonce, Header.MixDigest)。Seal()成功时返回的区块全部成员齐整，可视为一个正常区块，可被广播到整个网络中，也可以被插入区块链等。</span></span><br><span class="line">	Seal(chain ChainReader, block *types.Block, results <span class="keyword">chan</span>&lt;- *types.Block, stop &lt;-<span class="keyword">chan</span> <span class="keyword">struct</span>&#123;&#125;) error</span><br><span class="line"></span><br><span class="line">	<span class="comment">// 返回前一个块的hash</span></span><br><span class="line">	SealHash(header *types.Header) common.Hash</span><br><span class="line"></span><br><span class="line">	<span class="comment">// 计算下一个块的难度</span></span><br><span class="line">	CalcDifficulty(chain ChainReader, time <span class="keyword">uint64</span>, parent *types.Header) *big.Int</span><br><span class="line"></span><br><span class="line">	<span class="comment">// 返回由共识引擎提供的RPC APIs </span></span><br><span class="line">	APIs(chain ChainReader) []rpc.API</span><br><span class="line"></span><br><span class="line">	<span class="comment">// 关闭共识，就是关闭挖矿的线程相关</span></span><br><span class="line">	Close() error</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>这里我们大致了解了共识需要实现的规则，先不做详细探讨，心里先有个底，具体内容会在后续文章中进一步分析</p>
+<h2 id="读取链信息的部分接口"><a href="#读取链信息的部分接口" class="headerlink" title="读取链信息的部分接口"></a>读取链信息的部分接口</h2><p>共识毕竟是要涉及到链相关内容的操作的，在这个共识入口处，以太坊提供了一些访问本地链中<code>块</code>或者<code>块头部</code>的接口。</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">type</span> ChainReader <span class="keyword">interface</span> &#123;</span><br><span class="line">	<span class="comment">// 获取本地链的配置信息</span></span><br><span class="line">	Config() *params.ChainConfig</span><br><span class="line"></span><br><span class="line">	<span class="comment">// 返回本地链当前块</span></span><br><span class="line">	CurrentHeader() *types.Header</span><br><span class="line"></span><br><span class="line">	<span class="comment">// 根据输入内容（块hash和块号），从链中返回一个块的头部信息</span></span><br><span class="line">	GetHeader(hash common.Hash, number <span class="keyword">uint64</span>) *types.Header</span><br><span class="line"></span><br><span class="line">	<span class="comment">// 通过块号从db中返回块</span></span><br><span class="line">	GetHeaderByNumber(number <span class="keyword">uint64</span>) *types.Header</span><br><span class="line"></span><br><span class="line">	<span class="comment">// 通过块hash返回块</span></span><br><span class="line">	GetHeaderByHash(hash common.Hash) *types.Header</span><br><span class="line"></span><br><span class="line">	<span class="comment">// 根据输入内容（块hash和块号），从db中返回一个块</span></span><br><span class="line">	GetBlock(hash common.Hash, number <span class="keyword">uint64</span>) *types.Block</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<h2 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h2><p><code>consensus.go</code>这个文件告诉了我们，要实现一个公式算法需要实现特定引擎，为我们设计自己共识算法提供了一个比较好的思路。</p>
+ 
+      <!-- reward -->
+      
+    </div>
+    
+
+    <!-- copyright -->
+    
+    <div class="declare">
+      <ul class="post-copyright">
+        <li>
+          <i class="ri-copyright-line"></i>
+          <strong>Copyright： </strong>
+          
+          Copyright is owned by the author. For commercial reprints, please contact the author for authorization. For non-commercial reprints, please indicate the source.
+          
+        </li>
+      </ul>
+    </div>
+    
+    <footer class="article-footer">
+       
+<div class="share-btn">
+      <span class="share-sns share-outer">
+        <i class="ri-share-forward-line"></i>
+        分享
+      </span>
+      <div class="share-wrap">
+        <i class="arrow"></i>
+        <div class="share-icons">
+          
+          <a class="weibo share-sns" href="javascript:;" data-type="weibo">
+            <i class="ri-weibo-fill"></i>
+          </a>
+          <a class="weixin share-sns wxFab" href="javascript:;" data-type="weixin">
+            <i class="ri-wechat-fill"></i>
+          </a>
+          <a class="qq share-sns" href="javascript:;" data-type="qq">
+            <i class="ri-qq-fill"></i>
+          </a>
+          <a class="douban share-sns" href="javascript:;" data-type="douban">
+            <i class="ri-douban-line"></i>
+          </a>
+          <!-- <a class="qzone share-sns" href="javascript:;" data-type="qzone">
+            <i class="icon icon-qzone"></i>
+          </a> -->
+          
+          <a class="facebook share-sns" href="javascript:;" data-type="facebook">
+            <i class="ri-facebook-circle-fill"></i>
+          </a>
+          <a class="twitter share-sns" href="javascript:;" data-type="twitter">
+            <i class="ri-twitter-fill"></i>
+          </a>
+          <a class="google share-sns" href="javascript:;" data-type="google">
+            <i class="ri-google-fill"></i>
+          </a>
+        </div>
+      </div>
+</div>
+
+<div class="wx-share-modal">
+    <a class="modal-close" href="javascript:;"><i class="ri-close-circle-line"></i></a>
+    <p>扫一扫，分享到微信</p>
+    <div class="wx-qrcode">
+      <img src="//api.qrserver.com/v1/create-qr-code/?size=150x150&data=http://jason-wj.gitee.io/articles/3673b530/" alt="微信分享二维码">
+    </div>
+</div>
+
+<div id="share-mask"></div>  
+  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/ethereum/" rel="tag">ethereum</a></li></ul>
+
+    </footer>
+  </div>
+
+   
+  <nav class="article-nav">
+    
+      <a href="/articles/231042d1/" class="article-nav-link">
+        <strong class="article-nav-caption">上一篇</strong>
+        <div class="article-nav-title">
+          
+            以太坊源码解读-第6.2讲-pow共识算法实现
+          
+        </div>
+      </a>
+    
+    
+      <a href="/articles/eafc7a8a/" class="article-nav-link">
+        <strong class="article-nav-caption">下一篇</strong>
+        <div class="article-nav-title">以太坊源码解读-第5.5讲-rpc 订阅模块解读</div>
+      </a>
+    
+  </nav>
+
+   
+<!-- valine评论 -->
+<div id="vcomments-box">
+  <div id="vcomments"></div>
+</div>
+<script src="//cdn1.lncld.net/static/js/3.0.4/av-min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/valine@1.4.14/dist/Valine.min.js"></script>
+<script>
+  new Valine({
+    el: "#vcomments",
+    app_id: "gdw0hVSwW3l6KgEMulSAc9Rx-gzGzoHsz",
+    app_key: "M4iiVXe0CuXWQEKuyIzWWDMh",
+    path: window.location.pathname,
+    avatar: "monsterid",
+    placeholder: "给我的文章加点评论吧~",
+    recordIP: true,
+  });
+  const infoEle = document.querySelector("#vcomments .info");
+  if (infoEle && infoEle.childNodes && infoEle.childNodes.length > 0) {
+    infoEle.childNodes.forEach(function (item) {
+      item.parentNode.removeChild(item);
+    });
+  }
+</script>
+<style>
+  #vcomments-box {
+    padding: 5px 30px;
+  }
+
+  @media screen and (max-width: 800px) {
+    #vcomments-box {
+      padding: 5px 0px;
+    }
+  }
+
+  #vcomments-box #vcomments {
+    background-color: #fff;
+  }
+
+  .v .vlist .vcard .vh {
+    padding-right: 20px;
+  }
+
+  .v .vlist .vcard {
+    padding-left: 10px;
+  }
+</style>
+
+ 
+   
+     
+</article>
+
+</section>
+      <footer class="footer">
+  <div class="outer">
+    <ul>
+      <li>
+        Copyrights &copy;
+        2017-2021
+        <i class="ri-heart-fill heart_icon"></i> Jason
+      </li>
+    </ul>
+    <ul>
+      <li>
+        
+      </li>
+    </ul>
+    <ul>
+      <li>
+        
+        
+        <span>
+  <span><i class="ri-user-3-fill"></i>Visitors:<span id="busuanzi_value_site_uv"></span></s>
+  <span class="division">|</span>
+  <span><i class="ri-eye-fill"></i>Views:<span id="busuanzi_value_page_pv"></span></span>
+</span>
+        
+      </li>
+    </ul>
+    <ul>
+      
+    </ul>
+    <ul>
+      
+    </ul>
+    <ul>
+      <li>
+        <!-- cnzz统计 -->
+        
+        <script type="text/javascript" src='https://s4.cnzz.com/z_stat.php?id=1279593399&amp;web_id=1279593399'></script>
+        
+      </li>
+    </ul>
+  </div>
+</footer>
+      <div class="float_btns">
+        <div class="totop" id="totop">
+  <i class="ri-arrow-up-line"></i>
+</div>
+
+<div class="todark" id="todark">
+  <i class="ri-moon-line"></i>
+</div>
+
+      </div>
+    </main>
+    <aside class="sidebar on">
+      <button class="navbar-toggle"></button>
+<nav class="navbar">
+  
+  <div class="logo">
+    <a href="/"><img src="/images/my_head-touch-icon-next.png" alt="Jason漫谈区块链"></a>
+  </div>
+  
+  <ul class="nav nav-main">
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/">主页</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/archives">归档</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/categories">分类</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/tags">标签</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/friends">友链</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/about">关于我</a>
+    </li>
+    
+  </ul>
+</nav>
+<nav class="navbar navbar-bottom">
+  <ul class="nav">
+    <li class="nav-item">
+      
+      <a class="nav-item-link nav-item-search"  title="Search">
+        <i class="ri-search-line"></i>
+      </a>
+      
+      
+    </li>
+  </ul>
+</nav>
+<div class="search-form-wrap">
+  <div class="local-search local-search-plugin">
+  <input type="search" id="local-search-input" class="local-search-input" placeholder="Search...">
+  <div id="local-search-result" class="local-search-result"></div>
+</div>
+</div>
+    </aside>
+    <script>
+      if (window.matchMedia("(max-width: 768px)").matches) {
+        document.querySelector('.content').classList.remove('on');
+        document.querySelector('.sidebar').classList.remove('on');
+      }
+    </script>
+    <div id="mask"></div>
+
+<!-- #reward -->
+<div id="reward">
+  <span class="close"><i class="ri-close-line"></i></span>
+  <p class="reward-p"><i class="ri-cup-line"></i>请我喝杯咖啡吧~</p>
+  <div class="reward-box">
+    
+    <div class="reward-item">
+      <img class="reward-img" src="/images/pay_ali.jpg">
+      <span class="reward-type">支付宝</span>
+    </div>
+    
+    
+    <div class="reward-item">
+      <img class="reward-img" src="/images/pay_wechat.jpg">
+      <span class="reward-type">微信</span>
+    </div>
+    
+  </div>
+</div>
+    
+<script src="/js/jquery-2.0.3.min.js"></script>
+
+
+<script src="/js/lazyload.min.js"></script>
+
+<!-- Tocbot -->
+
+
+<script src="/js/tocbot.min.js"></script>
+
+<script>
+  tocbot.init({
+    tocSelector: '.tocbot',
+    contentSelector: '.article-entry',
+    headingSelector: 'h1, h2, h3, h4, h5, h6',
+    hasInnerContainers: true,
+    scrollSmooth: true,
+    scrollContainer: 'main',
+    positionFixedSelector: '.tocbot',
+    positionFixedClass: 'is-position-fixed',
+    fixedSidebarOffset: 'auto'
+  });
+</script>
+
+<script src="https://cdn.jsdelivr.net/npm/jquery-modal@0.9.2/jquery.modal.min.js"></script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/jquery-modal@0.9.2/jquery.modal.min.css">
+<script src="https://cdn.jsdelivr.net/npm/justifiedGallery@3.7.0/dist/js/jquery.justifiedGallery.min.js"></script>
+
+<script src="/dist/main.js"></script>
+
+<!-- ImageViewer -->
+
+<!-- Root element of PhotoSwipe. Must have class pswp. -->
+<div class="pswp" tabindex="-1" role="dialog" aria-hidden="true">
+
+    <!-- Background of PhotoSwipe. 
+         It's a separate element as animating opacity is faster than rgba(). -->
+    <div class="pswp__bg"></div>
+
+    <!-- Slides wrapper with overflow:hidden. -->
+    <div class="pswp__scroll-wrap">
+
+        <!-- Container that holds slides. 
+            PhotoSwipe keeps only 3 of them in the DOM to save memory.
+            Don't modify these 3 pswp__item elements, data is added later on. -->
+        <div class="pswp__container">
+            <div class="pswp__item"></div>
+            <div class="pswp__item"></div>
+            <div class="pswp__item"></div>
+        </div>
+
+        <!-- Default (PhotoSwipeUI_Default) interface on top of sliding area. Can be changed. -->
+        <div class="pswp__ui pswp__ui--hidden">
+
+            <div class="pswp__top-bar">
+
+                <!--  Controls are self-explanatory. Order can be changed. -->
+
+                <div class="pswp__counter"></div>
+
+                <button class="pswp__button pswp__button--close" title="Close (Esc)"></button>
+
+                <button class="pswp__button pswp__button--share" style="display:none" title="Share"></button>
+
+                <button class="pswp__button pswp__button--fs" title="Toggle fullscreen"></button>
+
+                <button class="pswp__button pswp__button--zoom" title="Zoom in/out"></button>
+
+                <!-- Preloader demo http://codepen.io/dimsemenov/pen/yyBWoR -->
+                <!-- element will get class pswp__preloader--active when preloader is running -->
+                <div class="pswp__preloader">
+                    <div class="pswp__preloader__icn">
+                        <div class="pswp__preloader__cut">
+                            <div class="pswp__preloader__donut"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="pswp__share-modal pswp__share-modal--hidden pswp__single-tap">
+                <div class="pswp__share-tooltip"></div>
+            </div>
+
+            <button class="pswp__button pswp__button--arrow--left" title="Previous (arrow left)">
+            </button>
+
+            <button class="pswp__button pswp__button--arrow--right" title="Next (arrow right)">
+            </button>
+
+            <div class="pswp__caption">
+                <div class="pswp__caption__center"></div>
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe.min.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/default-skin/default-skin.min.css">
+<script src="https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe-ui-default.min.js"></script>
+
+<script>
+    function viewer_init() {
+        let pswpElement = document.querySelectorAll('.pswp')[0];
+        let $imgArr = document.querySelectorAll(('.article-entry img:not(.reward-img)'))
+
+        $imgArr.forEach(($em, i) => {
+            $em.onclick = () => {
+                // slider展开状态
+                // todo: 这样不好，后面改成状态
+                if (document.querySelector('.left-col.show')) return
+                let items = []
+                $imgArr.forEach(($em2, i2) => {
+                    let img = $em2.getAttribute('data-idx', i2)
+                    let src = $em2.getAttribute('data-target') || $em2.getAttribute('src')
+                    let title = $em2.getAttribute('alt')
+                    // 获得原图尺寸
+                    const image = new Image()
+                    image.src = src
+                    items.push({
+                        src: src,
+                        w: image.width || $em2.width,
+                        h: image.height || $em2.height,
+                        title: title
+                    })
+                })
+                var gallery = new PhotoSwipe(pswpElement, PhotoSwipeUI_Default, items, {
+                    index: parseInt(i)
+                });
+                gallery.init()
+            }
+        })
+    }
+    viewer_init()
+</script>
+
+<!-- MathJax -->
+
+<!-- Katex -->
+
+<!-- busuanzi  -->
+
+
+<script src="/js/busuanzi-2.3.pure.min.js"></script>
+
+
+<!-- ClickLove -->
+
+<!-- ClickBoom1 -->
+
+<!-- ClickBoom2 -->
+
+<!-- CodeCopy -->
+
+
+<link rel="stylesheet" href="/css/clipboard.css">
+
+<script src="https://cdn.jsdelivr.net/npm/clipboard@2/dist/clipboard.min.js"></script>
+<script>
+  function wait(callback, seconds) {
+    var timelag = null;
+    timelag = window.setTimeout(callback, seconds);
+  }
+  !function (e, t, a) {
+    var initCopyCode = function(){
+      var copyHtml = '';
+      copyHtml += '<button class="btn-copy" data-clipboard-snippet="">';
+      copyHtml += '<i class="ri-file-copy-2-line"></i><span>COPY</span>';
+      copyHtml += '</button>';
+      $(".highlight .code pre").before(copyHtml);
+      $(".article pre code").before(copyHtml);
+      var clipboard = new ClipboardJS('.btn-copy', {
+        target: function(trigger) {
+          return trigger.nextElementSibling;
+        }
+      });
+      clipboard.on('success', function(e) {
+        let $btn = $(e.trigger);
+        $btn.addClass('copied');
+        let $icon = $($btn.find('i'));
+        $icon.removeClass('ri-file-copy-2-line');
+        $icon.addClass('ri-checkbox-circle-line');
+        let $span = $($btn.find('span'));
+        $span[0].innerText = 'COPIED';
+        
+        wait(function () { // 等待两秒钟后恢复
+          $icon.removeClass('ri-checkbox-circle-line');
+          $icon.addClass('ri-file-copy-2-line');
+          $span[0].innerText = 'COPY';
+        }, 2000);
+      });
+      clipboard.on('error', function(e) {
+        e.clearSelection();
+        let $btn = $(e.trigger);
+        $btn.addClass('copy-failed');
+        let $icon = $($btn.find('i'));
+        $icon.removeClass('ri-file-copy-2-line');
+        $icon.addClass('ri-time-line');
+        let $span = $($btn.find('span'));
+        $span[0].innerText = 'COPY FAILED';
+        
+        wait(function () { // 等待两秒钟后恢复
+          $icon.removeClass('ri-time-line');
+          $icon.addClass('ri-file-copy-2-line');
+          $span[0].innerText = 'COPY';
+        }, 2000);
+      });
+    }
+    initCopyCode();
+  }(window, document);
+</script>
+
+
+<!-- CanvasBackground -->
+
+
+    
+  </div>
+</body>
+
+</html>

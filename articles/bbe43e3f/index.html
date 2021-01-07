@@ -1,0 +1,655 @@
+<!DOCTYPE html>
+
+
+<html lang="zh-Hans">
+
+
+<head>
+  <meta charset="utf-8" />
+    
+  <meta name="description" content="谈天谈地，谈古谈今，一起谈谈我们的未来。" />
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
+  <title>
+    委托股权证明原理(DPOS)--翻译及解读 |  Jason漫谈区块链
+  </title>
+  <meta name="generator" content="hexo-theme-ayer">
+  
+  <link rel="shortcut icon" href="/images/my_head-16x16-next.ico" />
+  
+  
+<link rel="stylesheet" href="/dist/main.css">
+
+  
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/Shen-Yu/cdn/css/remixicon.min.css">
+
+  
+<link rel="stylesheet" href="/css/custom.css">
+
+  
+  
+<script src="https://cdn.jsdelivr.net/npm/pace-js@1.0.2/pace.min.js"></script>
+
+  
+  
+
+  
+
+</head>
+
+</html>
+
+<body>
+  <div id="app">
+    
+      
+    <main class="content on">
+      <section class="outer">
+  <article
+  id="post-blockchain/委托股权证明原理-DPOS-翻译及解读"
+  class="article article-type-post"
+  itemscope
+  itemprop="blogPost"
+  data-scroll-reveal
+>
+  <div class="article-inner">
+    
+    <header class="article-header">
+       
+<h1 class="article-title sea-center" style="border-left:0" itemprop="name">
+  委托股权证明原理(DPOS)--翻译及解读
+</h1>
+ 
+
+    </header>
+     
+    <div class="article-meta">
+      <a href="/articles/bbe43e3f/" class="article-date">
+  <time datetime="2018-05-31T16:59:24.000Z" itemprop="datePublished">2018-06-01</time>
+</a> 
+  <div class="article-category">
+    <a class="article-category-link" href="/categories/%E5%8C%BA%E5%9D%97%E9%93%BE/">区块链</a>
+  </div>
+  
+<div class="word_count">
+    <span class="post-time">
+        <span class="post-meta-item-icon">
+            <i class="ri-quill-pen-line"></i>
+            <span class="post-meta-item-text"> Word count:</span>
+            <span class="post-count">4.3k</span>
+        </span>
+    </span>
+
+    <span class="post-time">
+        &nbsp; | &nbsp;
+        <span class="post-meta-item-icon">
+            <i class="ri-book-open-line"></i>
+            <span class="post-meta-item-text"> Reading time≈</span>
+            <span class="post-count">15 min</span>
+        </span>
+    </span>
+</div>
+ 
+    </div>
+      
+    <div class="tocbot"></div>
+
+
+
+
+  
+    <div class="article-entry" itemprop="articleBody">
+       
+  <h2 id="自述"><a href="#自述" class="headerlink" title="自述"></a>自述</h2><p>关于这个共识算法，小编其实有很多想说的，码了一个多小时的见解，考虑良久后，还是不打算把这见解发出来了，一千个人一千个哈姆雷特，<br>数十种共识算法中，它能被众人所知，那它必然是有它的优势。哲学上来说，存在即是合理。</p>
+<a id="more"></a>
+<p>DPOS最初是石墨烯提出来的，国内外也有几个基于石墨烯的区块链已经落地很久，运转也良好。<br>这个算法小编再三考虑后，还是打算讲一下它的原理，当然，小编不会从头讲。eos白皮书里引用了一个讲解dpos原理的英文论坛地址，小编会将其翻译成中文，并加入自己的见解。<br>虽然国内已经有人翻译过了，但为了自己能更好的走下去，小编还是打算自己再翻译一遍吧。</p>
+<p>以下正文</p>
+<h2 id="前言"><a href="#前言" class="headerlink" title="前言"></a>前言</h2><p>英文原文地址：<a target="_blank" rel="noopener" href="https://steemit.com/dpos/@dantheman/dpos-consensus-algorithm-this-missing-white-paper">https://steemit.com/dpos/@dantheman/dpos-consensus-algorithm-this-missing-white-paper</a><br>这是EOS白皮书中缺失的关于讲解DPOS原理的部分内容。本文主要是讲DPOS怎样运行以及它的鲁棒性为什么很强。早期也写了<a target="_blank" rel="noopener" href="https://bitshares.org/technology/delegated-proof-of-stake-consensus/">一篇关于描述DPOS机制的文章</a>;然而，那篇文章中还包含了许多不是关于共识机制的内容（<code>wj备注：那篇文章写的冗长，看的心累，然并卵，我只需要知道DPOS是什么就行</code>）<br>所有的区块链本质上是由交易驱动的确定性状态机。共识的过程是用来确定被认可的交易顺序以及过滤无效的交易。目前已经有很多共识算法已经可以产生类似的有效交易排序，然而DPOS通过在不同的区块链项目中多年运转，已经证明了它拥有强鲁棒、高安全、高效率等特性。<br>就像所有的其它共识算法一样，块生产者能够引起的最大的危害审查。所有的块在基于<code>确定性的开源状态机逻辑</code>中必须是有效的。</p>
+<h2 id="DPOS算法综述"><a href="#DPOS算法综述" class="headerlink" title="DPOS算法综述"></a>DPOS算法综述</h2><p>DPOS算法被分为两部分：<code>选取一组块生产者</code>以及<code>生产调度</code>。选举过程要确保最终是由利益相关者来控制的（<code>小编的理解，也就是token持有者来控制选举过程</code>），因为网络不流畅时候，利益相关者的损失是最大的。人们是如何选举的，对于每时每刻的共识达成来说影响很小。因此，本文主要是聚焦在<code>当块生产者被选出来后共识是如何达成的</code>这一问题上。<br>为了更好的解释这个算法，我想假设三个块生产者：<code>A</code>、<code>B</code>、<code>C</code>，因为共识的达成是需要2/3+1比例数量的生产者来解决期间遇到的所有情况。在这个简化的模型中会假设<code>C</code>是一个打破平衡的生产者。在真实的场景中，一般会有21个或者更多的生产者。就比如工作量证明(POW)，一般规定最长链为被认可的链（<code>小编理解就是，这个规则作为打破平衡的条件，就类似前面提到的生产者C，当A、B各作出一个不同选择而达到平衡时，C必须选择跟A或者跟B，无论结果怎样，都会打包当前的平衡</code>），任何时候，一个诚实的对等节点，看到一条有效的更长的链，自己都会从当前分支切换到最长链上。<br>我将会在任何能够想象到的网络状态下，通过例子展示DPOS是如何运行的。这些例子将会帮助你更清楚的认识，为什么DPOS鲁棒性强并且难以破坏。<br>（<code>注意：以下描述的案例，都是以3个节点为标准的</code>）</p>
+<h3 id="一般操作"><a href="#一般操作" class="headerlink" title="一般操作"></a>一般操作</h3><p>在一般情况下，块生产者轮流每3秒钟生产一个块（<code>小编补充一句，EOS将这一机制压缩到0.5秒了，公信宝还是3秒钟</code>）。假设每轮中，每个生产者都没有错过生产块的机会，那么就会产生一条最长链。在被正常调度轮次之外，块生产者生产的块是无效的。</p>
+<img src="/articles/bbe43e3f/1.png" class="" title="每个生产者都是规规矩矩的">
+
+<h3 id="少数分叉"><a href="#少数分叉" class="headerlink" title="少数分叉"></a>少数分叉</h3><p>不超过1/3的节点是恶意的或者是故障的，并且它们有可能会制造少量的分叉。这种情况下（<code>小编备注：这里是假设1/3的节点制造了一条分叉，也就是案例中3个节点中的1个节点</code>），该分叉链每9秒钟产生一个块，而未分叉的2/3的节点所在链（<code>案例中的2个节点</code>），每9秒钟会产生2个块（<code>这块小编按自己的理解翻译的，原文直译过来很晦涩</code>）,如此，拥有2/3节点的链始终比1/3节点的链长（<code>也就是说，拥有2/3节点的链是被认可的诚实链</code>）。</p>
+<img src="/articles/bbe43e3f/2.png" class="" title="前两轮中，恶意生产者B搞分叉">
+
+<h3 id="少数离线节点进行多重生产"><a href="#少数离线节点进行多重生产" class="headerlink" title="少数离线节点进行多重生产"></a>少数离线节点进行多重生产</h3><p>少数离线的节点试图产生无限多的分支，但是它们每个分支都会比拥有多数节点的主链短。因为，拥有少量节点的分支，出块的速度始终比拥有多数节点的分支产生块的速度慢。</p>
+<img src="/articles/bbe43e3f/3.png" class="" title="离线的节点自己产生多个分叉">
+
+<h3 id="网络碎片化"><a href="#网络碎片化" class="headerlink" title="网络碎片化"></a>网络碎片化</h3><p>网络碎片化（<code>就是各种网络不稳定</code>）完全有可能导致没有一个分支拥有较多的块生产者（<code>就是每个分支都有相差不大的块生产者</code>）。这种情况下，生产者数量最多的那个分支将会被认为是主链。当网络状况恢复正常时，拥有较小数量生产者的分支将会倒向最大的那个分支，明确的共识也将会恢复。</p>
+<img src="/articles/bbe43e3f/4.png" class="" title="每个分叉的生产者数都差不多">
+<p>完全有可能会有这样一种情况：有3条分支，而其中最长的2条分支的长度是一样的。此时，较短分支中的块生产者切换回这两条较长分支中的任意一条，平衡都会被打破，就是说其中一条变成了最长链（<code>好吧，这块小编按自己的理解解释了，原文翻译过来看的会很心累的</code>）。随后我们将讨论块生产者的洗牌机制，如此将会使得生产块的顺序是随机化的，这样就能保证即使两个分支分别拥有相同数量的块生产者，生产块的步长也是不一样的，最终导致其中一条分支长度比另一条长。</p>
+<h3 id="少数在线节点进行多重生产"><a href="#少数在线节点进行多重生产" class="headerlink" title="少数在线节点进行多重生产"></a>少数在线节点进行多重生产</h3><p>在这种情况下，少数节点<code>B</code>同时生产了2个或者更多的块（<code>正常生产者是只能生产一个块的</code>），下一个正常生产者<code>C</code>生产出的一个块，要选择B生产的其中一个块作为父类块（<code>这块小编也是按中文理解重新组织了语义，原文直译不好理解</code>），一旦<code>C</code>选择了其中一个作为父类块，那逻辑上可判断出，<code>C</code>当前所在的链是最长链，<code>B</code>产生的其它块都是短链，如此一来，后面所有的节点都会以最长链为标准。主链上少数的不良生产者即使企图同时生产多个块也不会影响全局，每轮中，即使它们每个能生产的块再多，也最多只有一个能被认可。</p>
+<img src="/articles/bbe43e3f/5.png" class="" title="个别节点B生成了多个分叉">
+
+<h3 id="最终不可逆转块（后半部分不知道是什么意思，求教）"><a href="#最终不可逆转块（后半部分不知道是什么意思，求教）" class="headerlink" title="最终不可逆转块（后半部分不知道是什么意思，求教）"></a>最终不可逆转块（后半部分不知道是什么意思，求教）</h3><p>在网络碎片的情况下，很有可能多个分叉同时增长相当长的时间。长远来看，最终还是会有一条最长的链胜出的。但是观察者需要一种准确的手段来知道，一个块绝对是在增长最快的那条链中。这个可以通过<code>2/3+1</code>多数块生产者的确认来决定。<br>在下面图中，块<code>B</code>已经被<code>C</code>和<code>A</code>确认，这代表了<code>2/3+1</code>数量的确认。从中也可以知道，若<code>2/3+1</code>的生产者是诚实的，就不会有其它分叉链会比这条链长。</p>
+<img src="/articles/bbe43e3f/6.png" class="" title="2&#x2F;3+1确认机制">
+<p>需要注意，这个<code>规则</code>类似于比特币中6个块的确认机制。一些聪明的人会设法促成一系列的事件，使得两个节点出现在不同的最后的不可逆块上，这种极端情况，需要攻击者能够完全的控制网络通信的延迟，同时在几分钟的时间内两次使用这个控制。但是，即便这种事发生，最长分支胜出的规则仍然是适用的。<br>我们评估后认为，这种估计成功的概率几乎为0，经济后果也不足为虑，因此也没必要担心。（<code>然并卵，这一段话小编没看懂是在说什么，讲的太含糊了</code>）</p>
+<h3 id="生产者的法定人数不足"><a href="#生产者的法定人数不足" class="headerlink" title="生产者的法定人数不足"></a>生产者的法定人数不足</h3><p>在某些情况下，块生产者的法定人数有可能不足，这种情况下这些生产者也是可以继续出块的（<code>就是说生产者参与人数不是100%</code>）。在这些块中的利益相关者，是可以包括更改投票的交易（<code>小编理解：这句话的意思是，每一次投票也属于一个交易，这个交易信息被包含在这些块利益相关者之中了</code>），这些投票可以选出一组新的生产者，并将块生产者参与率恢复为100%。这样一来，不久之后，短链（<code>假设短链块生产者人数逐步由不足100变为了100%%</code>）终将会超过长的链（<code>假设长链块生产者人数不足100%</code>）。<br>在这一个过程中所有的观察者都会明白，在一条链的块生产者参与率达到67%以前，整个网络状态是不稳定的。在这种状况下进行交易的风险（<code>就是生产者的法定人数不足</code>），类似于在比特币中块的确认不足6个。他们之所以愿意冒这个风险，是因为他们知道存在这样一种可能，最终会在不同的分叉中，各自建立共识。实践检验得知，dpos生产者的法定人数不足时候的问题，相比于比特币中少于3个块的确认问题安全很多。</p>
+<h3 id="多数生产者腐败（就是作弊）"><a href="#多数生产者腐败（就是作弊）" class="headerlink" title="多数生产者腐败（就是作弊）"></a>多数生产者腐败（就是作弊）</h3><p>如果大多数生产者作弊，这样就会产生无限数量的分叉，每个分叉看着都像是2/3确认的机制进行的。这种情况下，最终的不可篡改块的算法变成了最长链算法。最长链就是大多数生产者所认可的那条链，而这条链也是诚实节点所认可的链。这种行为不会长时间存在，因为最终会被利益相关者投票替换生产者。</p>
+<img src="/articles/bbe43e3f/7.png" class="" title="多数生产者不诚实">
+
+<h2 id="基于交易的股权证明机制（TaPOS）"><a href="#基于交易的股权证明机制（TaPOS）" class="headerlink" title="基于交易的股权证明机制（TaPOS）"></a>基于交易的股权证明机制（TaPOS）</h2><p>当用户对交易进行签名时，他的这个行为是在一定条件下假设的区块链状态中执行的。这个假设是基于最近几个块来预测的。如果最长链的共识发生了改变，潜在的会使得签名者根据先前的假设所认可的交易失效（<code>小编觉得有点拗口，就是说，你先前根据当前链的状态判断自己的交易没问题，但是最终链的共识发生了变化，那你的交易就没能被记录进去，那就失效了</code>）。<br>在TaPOS机制中，所有交易都包含最近一个块的hash，如果在链已有块中没有发现这个块，那这个块所包含的交易都会被认为是无效的（那这个块就被孤立了）。任何人在被孤立的块上进行交易都会发现交易是无效的，并且无法迁移到主链。<br>这个过程的另一个作用是，可以抵御意图通过长期攻击来形成另外一条链的行为。每个利益相关者在每次交易时，都会直接对交易作出确认。随着时间的推移，所有的块都是由所有的利益相关者确认，这也是无法伪造链的原因。</p>
+<h2 id="确定的对生产者洗牌（就是说公平的洗牌规则）"><a href="#确定的对生产者洗牌（就是说公平的洗牌规则）" class="headerlink" title="确定的对生产者洗牌（就是说公平的洗牌规则）"></a>确定的对生产者洗牌（<code>就是说公平的洗牌规则</code>）</h2><p>在前面讲的所有例子中，我们展示的都是按顺序调度块生产者。实际上，每N个块之后就会对所有块生产者进行一次洗牌（N表示块生产者的人数）。这种随机方式确保了每个生产者都能公平的参与到块生产中来，全员参与，一个也不会被忽略（<code>这句话小编换了一种说法</code>），并且当形成拥有相同数量的块生产者的多个分叉时，这种僵局总会被打破。</p>
+<h2 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h2><p>在我们能够想象到的自然网络异常或者大量生产者作弊的情况下，DPOS的鲁棒性都是很强的。不像别的共识算法，当大多数生产者不合格时，DPOS仍可以正常运转。这种时候，社区会通过选举来替换这些不合格的生产者，直到恢复为100%的参与度为止。我还没有发现别的还有哪个算法在高强度和多种异常变化的条件下依旧能够有如此好的鲁棒性(<code>怎么说吧，小编觉得，要满足市场所需，又要满足安全可靠，DPOS是个合适的选择，就看怎么具体设计了</code>)。<br>总的来说，DPOS引人注目的安全性来自它的选择块生产者和验证高质量节点的算法，使用这样一个投票方式，确保了即使某个人拥有50%的投票权，也不能光靠自己就选出一个生产者。DPOS通过优化确保拥有健壮网络连接的诚实节点都能够100%的参与到投票中来，这使得DPOS能够在平均1.5秒内准确的确认99.9%的交易，同时也可以通过优雅和可检测的方式很容易的实现降级(<code>就是恢复</code>)。<br>别的共识算法在网络条件差的不诚实节点的条件下进行设计，设计的结果结果导致网络性能低、高延迟、高开销，并且如果33%的节点失效，则整个网络将瘫痪。<br>Bitshares三年的成功运行以及Steem的一年运行期间，我们经历了各种各样的网络问题以及软件bug。DPOS在期间成功运转，并且它能比别的区块链处理更多的交易。</p>
+<h2 id="小编补充"><a href="#小编补充" class="headerlink" title="小编补充"></a>小编补充</h2><h3 id="优缺点"><a href="#优缺点" class="headerlink" title="优缺点"></a>优缺点</h3><h4 id="优点"><a href="#优点" class="headerlink" title="优点"></a>优点</h4><ol>
+<li>能耗更低。DPoS机制将节点数量进一步减少到101个，在保证网络安全的前提下，整个网络的能耗进一步降低，网络运行成本最低。</li>
+<li>更加去中心化。目前，对于比特币而言，个人挖矿已经不现实了，比特币的算力都集中在几个大的矿池手里，每个矿池都是中心化的，就像DPoS的一个受托人，因此DPoS机制的加密货币更加去中心化。PoS机制的加密货币（比如未来币），要求用户开着客户端，事实上用户并不会天天开着电脑，因此真正的网络节点是由几个股东保持的，去中心化程度也不能与DPoS机制的加密货币相比。</li>
+<li>更快的确认速度。每个块的时间为10秒，一笔交易（在得到6-10个确认后）大概1分钟，一个完整的101个块的周期大概仅仅需要16分钟。而比特币（PoW机制）产生一个区块需要10分钟，一笔交易完成（6个区块确认后）需要1个小时。点点币（PoS机制）确认一笔交易大概也需要1小时。</li>
+</ol>
+<h4 id="缺点"><a href="#缺点" class="headerlink" title="缺点"></a>缺点</h4><ol>
+<li>投票的积极性并不高。绝大多数持股人（90％+）从未参与投票。这是因为投票需要时间、精力以及技能，而这恰恰是大多数投资者所缺乏的。</li>
+<li>对于坏节点的处理存在诸多困难。社区选举不能及时有效的阻止一些破坏节点的出现，给网络造成安全隐患。</li>
+</ol>
+<h3 id="伪代码实现"><a href="#伪代码实现" class="headerlink" title="伪代码实现"></a>伪代码实现</h3><figure class="highlight golang"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">for</span> round i <span class="comment">//分成很多个round，round无限持续</span></span><br><span class="line">   dlist_i = get N delegates sort by votes <span class="comment">//根据投票结果选出得票率最高的N个受托人</span></span><br><span class="line">   dlist_i = shuffle(dlist_i) <span class="comment">//随机改变顺序</span></span><br><span class="line">   loop <span class="comment">//round完了，退出循环</span></span><br><span class="line">       slot = global_time_offset / block_interval</span><br><span class="line">       pos = slot % N</span><br><span class="line">       <span class="keyword">if</span> dlist_i[pos] exists in this node <span class="comment">//delegate在这个节点</span></span><br><span class="line">           generateBlock(keypair of dlist_i[pos]) <span class="comment">//产生block</span></span><br><span class="line">       <span class="keyword">else</span></span><br><span class="line">           skip</span><br></pre></td></tr></table></figure>
+<h3 id="go代码实现"><a href="#go代码实现" class="headerlink" title="go代码实现"></a>go代码实现</h3><p>请参考：<a target="_blank" rel="noopener" href="https://github.com/jason-wj/blockchain-demo/tree/master/src/github.com/jason/blockchain-demo/dpos">https://github.com/jason-wj/blockchain-demo/tree/master/src/github.com/jason/blockchain-demo/dpos</a></p>
+<blockquote>
+<p>除翻译外，剩余内容参考自：<a target="_blank" rel="noopener" href="http://liyuechun.org/">http://liyuechun.org/</a></p>
+</blockquote>
+ 
+      <!-- reward -->
+      
+    </div>
+    
+
+    <!-- copyright -->
+    
+    <div class="declare">
+      <ul class="post-copyright">
+        <li>
+          <i class="ri-copyright-line"></i>
+          <strong>Copyright： </strong>
+          
+          Copyright is owned by the author. For commercial reprints, please contact the author for authorization. For non-commercial reprints, please indicate the source.
+          
+        </li>
+      </ul>
+    </div>
+    
+    <footer class="article-footer">
+       
+<div class="share-btn">
+      <span class="share-sns share-outer">
+        <i class="ri-share-forward-line"></i>
+        分享
+      </span>
+      <div class="share-wrap">
+        <i class="arrow"></i>
+        <div class="share-icons">
+          
+          <a class="weibo share-sns" href="javascript:;" data-type="weibo">
+            <i class="ri-weibo-fill"></i>
+          </a>
+          <a class="weixin share-sns wxFab" href="javascript:;" data-type="weixin">
+            <i class="ri-wechat-fill"></i>
+          </a>
+          <a class="qq share-sns" href="javascript:;" data-type="qq">
+            <i class="ri-qq-fill"></i>
+          </a>
+          <a class="douban share-sns" href="javascript:;" data-type="douban">
+            <i class="ri-douban-line"></i>
+          </a>
+          <!-- <a class="qzone share-sns" href="javascript:;" data-type="qzone">
+            <i class="icon icon-qzone"></i>
+          </a> -->
+          
+          <a class="facebook share-sns" href="javascript:;" data-type="facebook">
+            <i class="ri-facebook-circle-fill"></i>
+          </a>
+          <a class="twitter share-sns" href="javascript:;" data-type="twitter">
+            <i class="ri-twitter-fill"></i>
+          </a>
+          <a class="google share-sns" href="javascript:;" data-type="google">
+            <i class="ri-google-fill"></i>
+          </a>
+        </div>
+      </div>
+</div>
+
+<div class="wx-share-modal">
+    <a class="modal-close" href="javascript:;"><i class="ri-close-circle-line"></i></a>
+    <p>扫一扫，分享到微信</p>
+    <div class="wx-qrcode">
+      <img src="//api.qrserver.com/v1/create-qr-code/?size=150x150&data=http://jason-wj.gitee.io/articles/bbe43e3f/" alt="微信分享二维码">
+    </div>
+</div>
+
+<div id="share-mask"></div>  
+  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/%E5%85%B1%E8%AF%86%E7%AE%97%E6%B3%95/" rel="tag">共识算法</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/%E5%8C%BA%E5%9D%97%E9%93%BE/" rel="tag">区块链</a></li></ul>
+
+    </footer>
+  </div>
+
+   
+  <nav class="article-nav">
+    
+      <a href="/articles/b35eb8c3/" class="article-nav-link">
+        <strong class="article-nav-caption">上一篇</strong>
+        <div class="article-nav-title">
+          
+            区块链术语汇总
+          
+        </div>
+      </a>
+    
+    
+      <a href="/articles/e10014d8/" class="article-nav-link">
+        <strong class="article-nav-caption">下一篇</strong>
+        <div class="article-nav-title">以太坊源码解读-第5.2讲-rpc源码解读</div>
+      </a>
+    
+  </nav>
+
+   
+<!-- valine评论 -->
+<div id="vcomments-box">
+  <div id="vcomments"></div>
+</div>
+<script src="//cdn1.lncld.net/static/js/3.0.4/av-min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/valine@1.4.14/dist/Valine.min.js"></script>
+<script>
+  new Valine({
+    el: "#vcomments",
+    app_id: "gdw0hVSwW3l6KgEMulSAc9Rx-gzGzoHsz",
+    app_key: "M4iiVXe0CuXWQEKuyIzWWDMh",
+    path: window.location.pathname,
+    avatar: "monsterid",
+    placeholder: "给我的文章加点评论吧~",
+    recordIP: true,
+  });
+  const infoEle = document.querySelector("#vcomments .info");
+  if (infoEle && infoEle.childNodes && infoEle.childNodes.length > 0) {
+    infoEle.childNodes.forEach(function (item) {
+      item.parentNode.removeChild(item);
+    });
+  }
+</script>
+<style>
+  #vcomments-box {
+    padding: 5px 30px;
+  }
+
+  @media screen and (max-width: 800px) {
+    #vcomments-box {
+      padding: 5px 0px;
+    }
+  }
+
+  #vcomments-box #vcomments {
+    background-color: #fff;
+  }
+
+  .v .vlist .vcard .vh {
+    padding-right: 20px;
+  }
+
+  .v .vlist .vcard {
+    padding-left: 10px;
+  }
+</style>
+
+ 
+   
+     
+</article>
+
+</section>
+      <footer class="footer">
+  <div class="outer">
+    <ul>
+      <li>
+        Copyrights &copy;
+        2017-2021
+        <i class="ri-heart-fill heart_icon"></i> Jason
+      </li>
+    </ul>
+    <ul>
+      <li>
+        
+      </li>
+    </ul>
+    <ul>
+      <li>
+        
+        
+        <span>
+  <span><i class="ri-user-3-fill"></i>Visitors:<span id="busuanzi_value_site_uv"></span></s>
+  <span class="division">|</span>
+  <span><i class="ri-eye-fill"></i>Views:<span id="busuanzi_value_page_pv"></span></span>
+</span>
+        
+      </li>
+    </ul>
+    <ul>
+      
+    </ul>
+    <ul>
+      
+    </ul>
+    <ul>
+      <li>
+        <!-- cnzz统计 -->
+        
+        <script type="text/javascript" src='https://s4.cnzz.com/z_stat.php?id=1279593399&amp;web_id=1279593399'></script>
+        
+      </li>
+    </ul>
+  </div>
+</footer>
+      <div class="float_btns">
+        <div class="totop" id="totop">
+  <i class="ri-arrow-up-line"></i>
+</div>
+
+<div class="todark" id="todark">
+  <i class="ri-moon-line"></i>
+</div>
+
+      </div>
+    </main>
+    <aside class="sidebar on">
+      <button class="navbar-toggle"></button>
+<nav class="navbar">
+  
+  <div class="logo">
+    <a href="/"><img src="/images/my_head-touch-icon-next.png" alt="Jason漫谈区块链"></a>
+  </div>
+  
+  <ul class="nav nav-main">
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/">主页</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/archives">归档</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/categories">分类</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/tags">标签</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/friends">友链</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/about">关于我</a>
+    </li>
+    
+  </ul>
+</nav>
+<nav class="navbar navbar-bottom">
+  <ul class="nav">
+    <li class="nav-item">
+      
+      <a class="nav-item-link nav-item-search"  title="Search">
+        <i class="ri-search-line"></i>
+      </a>
+      
+      
+    </li>
+  </ul>
+</nav>
+<div class="search-form-wrap">
+  <div class="local-search local-search-plugin">
+  <input type="search" id="local-search-input" class="local-search-input" placeholder="Search...">
+  <div id="local-search-result" class="local-search-result"></div>
+</div>
+</div>
+    </aside>
+    <script>
+      if (window.matchMedia("(max-width: 768px)").matches) {
+        document.querySelector('.content').classList.remove('on');
+        document.querySelector('.sidebar').classList.remove('on');
+      }
+    </script>
+    <div id="mask"></div>
+
+<!-- #reward -->
+<div id="reward">
+  <span class="close"><i class="ri-close-line"></i></span>
+  <p class="reward-p"><i class="ri-cup-line"></i>请我喝杯咖啡吧~</p>
+  <div class="reward-box">
+    
+    <div class="reward-item">
+      <img class="reward-img" src="/images/pay_ali.jpg">
+      <span class="reward-type">支付宝</span>
+    </div>
+    
+    
+    <div class="reward-item">
+      <img class="reward-img" src="/images/pay_wechat.jpg">
+      <span class="reward-type">微信</span>
+    </div>
+    
+  </div>
+</div>
+    
+<script src="/js/jquery-2.0.3.min.js"></script>
+
+
+<script src="/js/lazyload.min.js"></script>
+
+<!-- Tocbot -->
+
+
+<script src="/js/tocbot.min.js"></script>
+
+<script>
+  tocbot.init({
+    tocSelector: '.tocbot',
+    contentSelector: '.article-entry',
+    headingSelector: 'h1, h2, h3, h4, h5, h6',
+    hasInnerContainers: true,
+    scrollSmooth: true,
+    scrollContainer: 'main',
+    positionFixedSelector: '.tocbot',
+    positionFixedClass: 'is-position-fixed',
+    fixedSidebarOffset: 'auto'
+  });
+</script>
+
+<script src="https://cdn.jsdelivr.net/npm/jquery-modal@0.9.2/jquery.modal.min.js"></script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/jquery-modal@0.9.2/jquery.modal.min.css">
+<script src="https://cdn.jsdelivr.net/npm/justifiedGallery@3.7.0/dist/js/jquery.justifiedGallery.min.js"></script>
+
+<script src="/dist/main.js"></script>
+
+<!-- ImageViewer -->
+
+<!-- Root element of PhotoSwipe. Must have class pswp. -->
+<div class="pswp" tabindex="-1" role="dialog" aria-hidden="true">
+
+    <!-- Background of PhotoSwipe. 
+         It's a separate element as animating opacity is faster than rgba(). -->
+    <div class="pswp__bg"></div>
+
+    <!-- Slides wrapper with overflow:hidden. -->
+    <div class="pswp__scroll-wrap">
+
+        <!-- Container that holds slides. 
+            PhotoSwipe keeps only 3 of them in the DOM to save memory.
+            Don't modify these 3 pswp__item elements, data is added later on. -->
+        <div class="pswp__container">
+            <div class="pswp__item"></div>
+            <div class="pswp__item"></div>
+            <div class="pswp__item"></div>
+        </div>
+
+        <!-- Default (PhotoSwipeUI_Default) interface on top of sliding area. Can be changed. -->
+        <div class="pswp__ui pswp__ui--hidden">
+
+            <div class="pswp__top-bar">
+
+                <!--  Controls are self-explanatory. Order can be changed. -->
+
+                <div class="pswp__counter"></div>
+
+                <button class="pswp__button pswp__button--close" title="Close (Esc)"></button>
+
+                <button class="pswp__button pswp__button--share" style="display:none" title="Share"></button>
+
+                <button class="pswp__button pswp__button--fs" title="Toggle fullscreen"></button>
+
+                <button class="pswp__button pswp__button--zoom" title="Zoom in/out"></button>
+
+                <!-- Preloader demo http://codepen.io/dimsemenov/pen/yyBWoR -->
+                <!-- element will get class pswp__preloader--active when preloader is running -->
+                <div class="pswp__preloader">
+                    <div class="pswp__preloader__icn">
+                        <div class="pswp__preloader__cut">
+                            <div class="pswp__preloader__donut"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="pswp__share-modal pswp__share-modal--hidden pswp__single-tap">
+                <div class="pswp__share-tooltip"></div>
+            </div>
+
+            <button class="pswp__button pswp__button--arrow--left" title="Previous (arrow left)">
+            </button>
+
+            <button class="pswp__button pswp__button--arrow--right" title="Next (arrow right)">
+            </button>
+
+            <div class="pswp__caption">
+                <div class="pswp__caption__center"></div>
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe.min.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/default-skin/default-skin.min.css">
+<script src="https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe-ui-default.min.js"></script>
+
+<script>
+    function viewer_init() {
+        let pswpElement = document.querySelectorAll('.pswp')[0];
+        let $imgArr = document.querySelectorAll(('.article-entry img:not(.reward-img)'))
+
+        $imgArr.forEach(($em, i) => {
+            $em.onclick = () => {
+                // slider展开状态
+                // todo: 这样不好，后面改成状态
+                if (document.querySelector('.left-col.show')) return
+                let items = []
+                $imgArr.forEach(($em2, i2) => {
+                    let img = $em2.getAttribute('data-idx', i2)
+                    let src = $em2.getAttribute('data-target') || $em2.getAttribute('src')
+                    let title = $em2.getAttribute('alt')
+                    // 获得原图尺寸
+                    const image = new Image()
+                    image.src = src
+                    items.push({
+                        src: src,
+                        w: image.width || $em2.width,
+                        h: image.height || $em2.height,
+                        title: title
+                    })
+                })
+                var gallery = new PhotoSwipe(pswpElement, PhotoSwipeUI_Default, items, {
+                    index: parseInt(i)
+                });
+                gallery.init()
+            }
+        })
+    }
+    viewer_init()
+</script>
+
+<!-- MathJax -->
+
+<!-- Katex -->
+
+<!-- busuanzi  -->
+
+
+<script src="/js/busuanzi-2.3.pure.min.js"></script>
+
+
+<!-- ClickLove -->
+
+<!-- ClickBoom1 -->
+
+<!-- ClickBoom2 -->
+
+<!-- CodeCopy -->
+
+
+<link rel="stylesheet" href="/css/clipboard.css">
+
+<script src="https://cdn.jsdelivr.net/npm/clipboard@2/dist/clipboard.min.js"></script>
+<script>
+  function wait(callback, seconds) {
+    var timelag = null;
+    timelag = window.setTimeout(callback, seconds);
+  }
+  !function (e, t, a) {
+    var initCopyCode = function(){
+      var copyHtml = '';
+      copyHtml += '<button class="btn-copy" data-clipboard-snippet="">';
+      copyHtml += '<i class="ri-file-copy-2-line"></i><span>COPY</span>';
+      copyHtml += '</button>';
+      $(".highlight .code pre").before(copyHtml);
+      $(".article pre code").before(copyHtml);
+      var clipboard = new ClipboardJS('.btn-copy', {
+        target: function(trigger) {
+          return trigger.nextElementSibling;
+        }
+      });
+      clipboard.on('success', function(e) {
+        let $btn = $(e.trigger);
+        $btn.addClass('copied');
+        let $icon = $($btn.find('i'));
+        $icon.removeClass('ri-file-copy-2-line');
+        $icon.addClass('ri-checkbox-circle-line');
+        let $span = $($btn.find('span'));
+        $span[0].innerText = 'COPIED';
+        
+        wait(function () { // 等待两秒钟后恢复
+          $icon.removeClass('ri-checkbox-circle-line');
+          $icon.addClass('ri-file-copy-2-line');
+          $span[0].innerText = 'COPY';
+        }, 2000);
+      });
+      clipboard.on('error', function(e) {
+        e.clearSelection();
+        let $btn = $(e.trigger);
+        $btn.addClass('copy-failed');
+        let $icon = $($btn.find('i'));
+        $icon.removeClass('ri-file-copy-2-line');
+        $icon.addClass('ri-time-line');
+        let $span = $($btn.find('span'));
+        $span[0].innerText = 'COPY FAILED';
+        
+        wait(function () { // 等待两秒钟后恢复
+          $icon.removeClass('ri-time-line');
+          $icon.addClass('ri-file-copy-2-line');
+          $span[0].innerText = 'COPY';
+        }, 2000);
+      });
+    }
+    initCopyCode();
+  }(window, document);
+</script>
+
+
+<!-- CanvasBackground -->
+
+
+    
+  </div>
+</body>
+
+</html>

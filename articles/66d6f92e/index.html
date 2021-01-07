@@ -1,0 +1,651 @@
+<!DOCTYPE html>
+
+
+<html lang="zh-Hans">
+
+
+<head>
+  <meta charset="utf-8" />
+    
+  <meta name="description" content="谈天谈地，谈古谈今，一起谈谈我们的未来。" />
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
+  <title>
+    以太坊crypto模块的概览 |  Jason漫谈区块链
+  </title>
+  <meta name="generator" content="hexo-theme-ayer">
+  
+  <link rel="shortcut icon" href="/images/my_head-16x16-next.ico" />
+  
+  
+<link rel="stylesheet" href="/dist/main.css">
+
+  
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/Shen-Yu/cdn/css/remixicon.min.css">
+
+  
+<link rel="stylesheet" href="/css/custom.css">
+
+  
+  
+<script src="https://cdn.jsdelivr.net/npm/pace-js@1.0.2/pace.min.js"></script>
+
+  
+  
+
+  
+
+</head>
+
+</html>
+
+<body>
+  <div id="app">
+    
+      
+    <main class="content on">
+      <section class="outer">
+  <article
+  id="post-ethereum/src_analysis/以太坊crypto模块的概览"
+  class="article article-type-post"
+  itemscope
+  itemprop="blogPost"
+  data-scroll-reveal
+>
+  <div class="article-inner">
+    
+    <header class="article-header">
+       
+<h1 class="article-title sea-center" style="border-left:0" itemprop="name">
+  以太坊crypto模块的概览
+</h1>
+ 
+
+    </header>
+     
+    <div class="article-meta">
+      <a href="/articles/66d6f92e/" class="article-date">
+  <time datetime="2018-11-01T10:10:07.000Z" itemprop="datePublished">2018-11-01</time>
+</a> 
+  <div class="article-category">
+    <a class="article-category-link" href="/categories/%E4%BB%A5%E5%A4%AA%E5%9D%8A/">以太坊</a> / <a class="article-category-link" href="/categories/%E4%BB%A5%E5%A4%AA%E5%9D%8A/%E6%BA%90%E7%A0%81%E8%A7%A3%E8%AF%BB/">源码解读</a>
+  </div>
+  
+<div class="word_count">
+    <span class="post-time">
+        <span class="post-meta-item-icon">
+            <i class="ri-quill-pen-line"></i>
+            <span class="post-meta-item-text"> Word count:</span>
+            <span class="post-count">2.2k</span>
+        </span>
+    </span>
+
+    <span class="post-time">
+        &nbsp; | &nbsp;
+        <span class="post-meta-item-icon">
+            <i class="ri-book-open-line"></i>
+            <span class="post-meta-item-text"> Reading time≈</span>
+            <span class="post-count">8 min</span>
+        </span>
+    </span>
+</div>
+ 
+    </div>
+      
+    <div class="tocbot"></div>
+
+
+
+
+  
+    <div class="article-entry" itemprop="articleBody">
+       
+  <p>小编只敢说概览，密码学这片海洋，只是沾了沾脚。。。了解一下这个模块，对以太坊账户以及验证机制心里也就有个底了。了解后，有个好处就是，可以把它用在自己想用的地方。</p>
+<a id="more"></a>
+
+<h2 id="综述"><a href="#综述" class="headerlink" title="综述"></a>综述</h2><p>以太坊中，对于数据的安全操作，都在以太坊官方的<code>crypto</code>代码中（要和golang官方提供的<code>crypto</code>区分），大致可以分为2部分：</p>
+<ol>
+<li>散列(sha3-Keccak算法)<br>对块的验证、pow中的hash碰撞、签名等等，都是使用<code>Keccak算法</code>来生成hash的，严格意义上讲，Keccak算法和标准的sha3算法并不一样，因此，这个安全散列算法应该称为Keccak算法。</li>
+<li>签名（secp256k1算法）<br>该算法是一种椭圆曲线数字签名算法(ECDSA)，在比特币中已经得以应用，在以太坊中，是通过它来进行密钥生成、签名、验证、公钥账户地址转换）。在整个以太坊生态中，有举足轻重的作用。</li>
+</ol>
+<h2 id="Keccak算法"><a href="#Keccak算法" class="headerlink" title="Keccak算法"></a>Keccak算法</h2><ol>
+<li>2015年以前,sha3的标准就是keccak，但后来，sha3标准修改了其中的“海绵算法”，导致之后两者没有太大关系。因此，为了更明确的区分，需要知道以太坊生成hash用的是<code>keccak安全散列算法</code>。</li>
+<li>需要知道，该算法生成的散列长度是<code>32字节</code>，也就是<code>256位</code></li>
+</ol>
+<h3 id="算法原理"><a href="#算法原理" class="headerlink" title="算法原理"></a>算法原理</h3><p>请参考这篇文章，原先转载的，里面很通俗的讲了keccak的原理：<a target="_blank" rel="noopener" href="http://www.wjblog.top/articles/d7792efc">http://www.wjblog.top/articles/d7792efc</a></p>
+<h3 id="以太坊中Keccak的操作"><a href="#以太坊中Keccak的操作" class="headerlink" title="以太坊中Keccak的操作"></a>以太坊中Keccak的操作</h3><p>下面是以太坊提供的一个单元测试用例：<br>其中：<br><code>abc</code>为用来生成hash的原文<br><code>4e03657aea45a94fc7d47ba826c8d667c0d1e6e33a64a036ec44f58fa12d6c45</code>为<code>abc</code>生成的hash<br>程序的大意就是，将<code>abc</code>生成hash，然后和预先设置的<code>abc</code>的hash做比较，看结果是否一致。<br>真正调用到<code>Keccak</code>的地方，只有这么一处：<code>Keccak256Hash(in)</code>，传入原文，返回hash结果</p>
+<figure class="highlight golang"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">TestKeccak256Hash</span><span class="params">(t *testing.T)</span></span> &#123;</span><br><span class="line">	<span class="comment">//原文转为字节数组</span></span><br><span class="line">	msg := []<span class="keyword">byte</span>(<span class="string">&quot;abc&quot;</span>)</span><br><span class="line">	<span class="comment">//将16进制的hash结果，转为2进制。用于稍后和原文生成的hash做比较</span></span><br><span class="line">	exp, _ := hex.DecodeString(<span class="string">&quot;4e03657aea45a94fc7d47ba826c8d667c0d1e6e33a64a036ec44f58fa12d6c45&quot;</span>)</span><br><span class="line">	<span class="comment">//Keccak256Hash(in)，原文生成hash</span></span><br><span class="line">	checkhash(t, <span class="string">&quot;Sha3-256-array&quot;</span>, <span class="function"><span class="keyword">func</span><span class="params">(in []<span class="keyword">byte</span>)</span> []<span class="title">byte</span></span> &#123; h := Keccak256Hash(in); <span class="keyword">return</span> h[:] &#125;, msg, exp)</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">checkhash</span><span class="params">(t *testing.T, name <span class="keyword">string</span>, f <span class="keyword">func</span>([]<span class="keyword">byte</span>)</span> []<span class="title">byte</span>, <span class="title">msg</span>, <span class="title">exp</span> []<span class="title">byte</span>)</span> &#123;</span><br><span class="line">	sum := f(msg)</span><br><span class="line">	<span class="comment">//判断二者是否一致</span></span><br><span class="line">	<span class="keyword">if</span> !bytes.Equal(exp, sum) &#123;</span><br><span class="line">		t.Fatalf(<span class="string">&quot;hash %s mismatch: want: %x have: %x&quot;</span>, name, exp, sum)</span><br><span class="line">	&#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<h2 id="secp256k1签名"><a href="#secp256k1签名" class="headerlink" title="secp256k1签名"></a>secp256k1签名</h2><ol>
+<li>这个签名算法需要比较深的密码学背景才能吃透，我根据自己掌握的密码学基础讲一下为什么选择椭圆曲线的算法作为以太坊密钥生成算法，<br>在密码学中，会有一个安全等级的划分。</li>
+<li>通常，需要<code>2^n</code>次才能破解的算法，我们称为该算法拥有<code>n位安全等级</code>，通常分为四个等级：80位、128位、192位和256位四个等级，<br>这个模块比较复杂,如果要细度源码,需要对密码学有比较深入的理解,但是使用起来其实比较简单.不同算法为了保证某安全等级，所要使用的密钥长度如下：<table><tr><th>算法家族</th><th>密码体制</th><th colspan="4">安全级别（位）</th></tr><tr><td></td><td></td><td>80</td><td>128</td><td>192</td><td>256</td></tr><tr><td>离散分解<br>离散对数<br>椭圆曲线</td><td>RSA<br>DH、DSA、Elgamal<br>ECDH、ECDSA</td><td>1024位<br>1024位<br>160位</td><td>3072位<br>3072位<br>256位</td><td>7680位<br>7680位<br>384位</td><td>15360位<br>15360位<br>512位</td></tr><tr><td>对称密钥</td><td>AES、3DES</td><td>80位</td><td>128位</td><td>192位</td><td>256位</td></tr></table>
+从对称与否、密钥长度和对应安全级别参考，综合考虑下来，椭圆曲线是不二之选。这是我个人的想法，不一定符合以太坊官方的考虑规则。</li>
+<li>该算法主要就是密钥生成、签名,验证,以及公钥与以太坊地址转换</li>
+<li>密钥长度是<code>256位</code>，需要切记。</li>
+<li><code>2018-11-13补充</code>：常见的非对称加密算法除了椭圆加密算法之外，还有著名的RSA。椭圆加密相比RSA的区别是：<ol>
+<li>椭圆加密的密钥更短</li>
+<li>椭圆加密计算更快而安全性相当</li>
+<li>RSA的私钥和公钥是何以互换加解密的，但椭圆加密只能私钥加密公钥解密。</li>
+</ol>
+</li>
+<li>公钥、私钥<ol>
+<li>私钥<br> 以太坊的私钥是一个32字节的数，取值范围从1~0xFFFF FFFF FFFF FFFF FFFF FFFF FFFF FFFE BAAE DCE6 AF48 A03B BFD2 5E8C D036 4140。这个数可以由伪随机算法(PRNG)产生。其实0也是一个合法的私钥，只不过这是一个特殊私钥，以太坊的创世区块就是这个私钥生成的</li>
+<li>公钥<br> 以太坊的非压缩公钥是一个65字节的数，这个是继承至比特币的。但以太坊只使用了其中64个字节，有一个字节这64个字节中，32字节表示椭圆曲线的X坐标，32字节表示椭圆曲线的Y坐标。这个XY坐标是私钥通过ECDSA-secp256k1推导出来的。所以说，椭圆曲线算法的公钥是通过私钥计算出来的。而反过来，用公钥推导私钥，以现有计算机的计算几乎是不可能的，这也是以太坊和比特币存在的基础。如果哪天计算机技术出现大飞跃，比如量子计算机普及，现有链上所有账户的私钥都会曝光。当然，区块链技术本身也会一定会持续演进的。</li>
+</ol>
+</li>
+</ol>
+<h3 id="公钥、私钥生成"><a href="#公钥、私钥生成" class="headerlink" title="公钥、私钥生成"></a>公钥、私钥生成</h3><p>crypto提供了随机生成私钥的方法，私钥是可以推导出公钥的：<br>私钥随机生成的随机数，使用golang自己的 crypto/rand.reader生成的<br>通过对以太坊中<code>cmd/geth/accountcmd.go</code>的源码分析（accountCreate方法中调用的keystore.StoreKey），发现就是通过下面这段代码来生成私钥地址的</p>
+<p><code>备注：</code>私钥本质上就是一个 256 个二进制位的随机数字（2^256 ~ 10^77，目前可见宇宙中估计只含有 10^80 个原子）<br><em>这里遗留一个问题是，为什么这样生成不会出现重复的私钥？暂时还不明白。</em></p>
+<figure class="highlight golang"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">TestGenerateKey</span><span class="params">(t *testing.T)</span></span> &#123;</span><br><span class="line">	privateKey, _ := GenerateKey()</span><br><span class="line">	publicKey := privateKey.Public()</span><br><span class="line">	fmt.Printf(<span class="string">&quot;privateKey:%v,\npublicKey:%x\v&quot;</span>, privateKey, publicKey)</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<h3 id="签名、验证"><a href="#签名、验证" class="headerlink" title="签名、验证"></a>签名、验证</h3><h4 id="1-签名"><a href="#1-签名" class="headerlink" title="1. 签名"></a>1. 签名</h4><p>secp256k1的私钥地址长度是<code>32字节256位</code>,公钥地址长度是65字节。<br>其中，需要注意的是，被签名的必须是32字节的hash；二签名后的数据，长度和公钥一样长。</p>
+<figure class="highlight golang"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">//16进制，256位的私钥，这个可以理解为是secp256k1的私钥，为方便测试，预先生成</span></span><br><span class="line"><span class="keyword">var</span> testPrivHex = <span class="string">&quot;289c2857d4598e37fb9647507e47a309d6133539bf21a8b9cb6df88fd5232032&quot;</span></span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">TestSign</span><span class="params">(t *testing.T)</span></span> &#123;</span><br><span class="line">	<span class="comment">//根据这个随机数来生成密钥</span></span><br><span class="line">	key, _ := HexToECDSA(testPrivHex)</span><br><span class="line">	<span class="comment">//使用keccak生成原文&quot;foo&quot;的hash</span></span><br><span class="line">	msg := Keccak256([]<span class="keyword">byte</span>(<span class="string">&quot;foo&quot;</span>))</span><br><span class="line"></span><br><span class="line">	<span class="comment">//使用密钥对原文对hash进行签名，该msg必须是32位的hash</span></span><br><span class="line">    <span class="comment">//生成的sign</span></span><br><span class="line">	sig, err := Sign(msg, key)</span><br><span class="line">	<span class="keyword">if</span> err != <span class="literal">nil</span> &#123;</span><br><span class="line">		t.Errorf(<span class="string">&quot;Sign error: %s&quot;</span>, err)</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<h4 id="2-验证"><a href="#2-验证" class="headerlink" title="2. 验证"></a>2. 验证</h4><p>为了方便，将上一步骤的代码也加入了下方，形成签名-&gt;验证两个环节<br>该过程主要就是从签名文件中拿到公钥，转换成以太坊地址，然后和测试提供的地址比较，是否一致。</p>
+<figure class="highlight golang"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">//这个是测试用的账户地址，验证时候使用</span></span><br><span class="line"><span class="keyword">var</span> testAddrHex = <span class="string">&quot;970e8128ab834e8eac17ab8e3812f010678cf791&quot;</span></span><br><span class="line"><span class="comment">//一个256位的随机数，16进制，这个随机数是如何生成的，暂时还没研究，也是密码学里真随机和伪随机的概念</span></span><br><span class="line"><span class="comment">//根据这个随机数来生成密钥</span></span><br><span class="line"><span class="keyword">var</span> testPrivHex = <span class="string">&quot;289c2857d4598e37fb9647507e47a309d6133539bf21a8b9cb6df88fd5232032&quot;</span></span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">TestVerify</span><span class="params">(t *testing.T)</span></span> &#123;</span><br><span class="line">	<span class="comment">//根据这个随机数来生成密钥</span></span><br><span class="line">	key, _ := HexToECDSA(testPrivHex)</span><br><span class="line">	addr := common.HexToAddress(testAddrHex)</span><br><span class="line"></span><br><span class="line">	<span class="comment">//使用keccak生成原文&quot;foo&quot;的hash</span></span><br><span class="line">	msg := Keccak256([]<span class="keyword">byte</span>(<span class="string">&quot;foo&quot;</span>))</span><br><span class="line"></span><br><span class="line">	<span class="comment">//使用密钥对原文对hash进行签名，该msg必须是32位的hash</span></span><br><span class="line">	sig, err := Sign(msg, key)</span><br><span class="line">	fmt.Printf(<span class="string">&quot;签名结果：%v\n&quot;</span>, sig)</span><br><span class="line"></span><br><span class="line">	<span class="keyword">if</span> err != <span class="literal">nil</span> &#123;</span><br><span class="line">		t.Errorf(<span class="string">&quot;Sign error: %s&quot;</span>, err)</span><br><span class="line">	&#125;</span><br><span class="line">	<span class="comment">//根据签名和原文内容，提取出二进制公钥</span></span><br><span class="line">	recoveredPub, err := Ecrecover(msg, sig)</span><br><span class="line">	<span class="keyword">if</span> err != <span class="literal">nil</span> &#123;</span><br><span class="line">		t.Errorf(<span class="string">&quot;ECRecover error: %s&quot;</span>, err)</span><br><span class="line">	&#125;</span><br><span class="line">	<span class="comment">//将2机制公钥转换成16进制（65字节）的公钥序列</span></span><br><span class="line">	pubKey := ToECDSAPub(recoveredPub)</span><br><span class="line">	<span class="comment">//将公钥序列转换成账户地址，其实就是取公钥hash处理后的后20位作为地址</span></span><br><span class="line">	recoveredAddr := PubkeyToAddress(*pubKey)</span><br><span class="line">	<span class="comment">//验证生成的公钥地址和测试提供的地址是否一致</span></span><br><span class="line">	<span class="keyword">if</span> addr != recoveredAddr &#123;</span><br><span class="line">		t.Errorf(<span class="string">&quot;Address mismatch: want: %x have: %x&quot;</span>, addr, recoveredAddr)</span><br><span class="line">	&#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<h3 id="公钥与地址的转换"><a href="#公钥与地址的转换" class="headerlink" title="公钥与地址的转换"></a>公钥与地址的转换</h3><p>上一步骤中已经提到了，我们说的以太坊账户地址并不是公钥地址，而是取的<code>公钥地址hash运算</code>后的后20位作为账户。<br>具体可以深入到代码中去理解。大概位置是：crypto.go中的PubkeyToAddress函数，调用的<code>common.BytesToAddress(Keccak256(pubBytes[1:])[12:])</code></p>
+ 
+      <!-- reward -->
+      
+    </div>
+    
+
+    <!-- copyright -->
+    
+    <div class="declare">
+      <ul class="post-copyright">
+        <li>
+          <i class="ri-copyright-line"></i>
+          <strong>Copyright： </strong>
+          
+          Copyright is owned by the author. For commercial reprints, please contact the author for authorization. For non-commercial reprints, please indicate the source.
+          
+        </li>
+      </ul>
+    </div>
+    
+    <footer class="article-footer">
+       
+<div class="share-btn">
+      <span class="share-sns share-outer">
+        <i class="ri-share-forward-line"></i>
+        分享
+      </span>
+      <div class="share-wrap">
+        <i class="arrow"></i>
+        <div class="share-icons">
+          
+          <a class="weibo share-sns" href="javascript:;" data-type="weibo">
+            <i class="ri-weibo-fill"></i>
+          </a>
+          <a class="weixin share-sns wxFab" href="javascript:;" data-type="weixin">
+            <i class="ri-wechat-fill"></i>
+          </a>
+          <a class="qq share-sns" href="javascript:;" data-type="qq">
+            <i class="ri-qq-fill"></i>
+          </a>
+          <a class="douban share-sns" href="javascript:;" data-type="douban">
+            <i class="ri-douban-line"></i>
+          </a>
+          <!-- <a class="qzone share-sns" href="javascript:;" data-type="qzone">
+            <i class="icon icon-qzone"></i>
+          </a> -->
+          
+          <a class="facebook share-sns" href="javascript:;" data-type="facebook">
+            <i class="ri-facebook-circle-fill"></i>
+          </a>
+          <a class="twitter share-sns" href="javascript:;" data-type="twitter">
+            <i class="ri-twitter-fill"></i>
+          </a>
+          <a class="google share-sns" href="javascript:;" data-type="google">
+            <i class="ri-google-fill"></i>
+          </a>
+        </div>
+      </div>
+</div>
+
+<div class="wx-share-modal">
+    <a class="modal-close" href="javascript:;"><i class="ri-close-circle-line"></i></a>
+    <p>扫一扫，分享到微信</p>
+    <div class="wx-qrcode">
+      <img src="//api.qrserver.com/v1/create-qr-code/?size=150x150&data=http://jason-wj.gitee.io/articles/66d6f92e/" alt="微信分享二维码">
+    </div>
+</div>
+
+<div id="share-mask"></div>  
+  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/ethereum/" rel="tag">ethereum</a></li></ul>
+
+    </footer>
+  </div>
+
+   
+  <nav class="article-nav">
+    
+      <a href="/articles/5e9143bf/" class="article-nav-link">
+        <strong class="article-nav-caption">上一篇</strong>
+        <div class="article-nav-title">
+          
+            以太坊源码解读-第5.3讲-http rpc的启动流程分析
+          
+        </div>
+      </a>
+    
+    
+      <a href="/articles/ccf3d056/" class="article-nav-link">
+        <strong class="article-nav-caption">下一篇</strong>
+        <div class="article-nav-title">ipfs集群客户端操作</div>
+      </a>
+    
+  </nav>
+
+   
+<!-- valine评论 -->
+<div id="vcomments-box">
+  <div id="vcomments"></div>
+</div>
+<script src="//cdn1.lncld.net/static/js/3.0.4/av-min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/valine@1.4.14/dist/Valine.min.js"></script>
+<script>
+  new Valine({
+    el: "#vcomments",
+    app_id: "gdw0hVSwW3l6KgEMulSAc9Rx-gzGzoHsz",
+    app_key: "M4iiVXe0CuXWQEKuyIzWWDMh",
+    path: window.location.pathname,
+    avatar: "monsterid",
+    placeholder: "给我的文章加点评论吧~",
+    recordIP: true,
+  });
+  const infoEle = document.querySelector("#vcomments .info");
+  if (infoEle && infoEle.childNodes && infoEle.childNodes.length > 0) {
+    infoEle.childNodes.forEach(function (item) {
+      item.parentNode.removeChild(item);
+    });
+  }
+</script>
+<style>
+  #vcomments-box {
+    padding: 5px 30px;
+  }
+
+  @media screen and (max-width: 800px) {
+    #vcomments-box {
+      padding: 5px 0px;
+    }
+  }
+
+  #vcomments-box #vcomments {
+    background-color: #fff;
+  }
+
+  .v .vlist .vcard .vh {
+    padding-right: 20px;
+  }
+
+  .v .vlist .vcard {
+    padding-left: 10px;
+  }
+</style>
+
+ 
+   
+     
+</article>
+
+</section>
+      <footer class="footer">
+  <div class="outer">
+    <ul>
+      <li>
+        Copyrights &copy;
+        2017-2021
+        <i class="ri-heart-fill heart_icon"></i> Jason
+      </li>
+    </ul>
+    <ul>
+      <li>
+        
+      </li>
+    </ul>
+    <ul>
+      <li>
+        
+        
+        <span>
+  <span><i class="ri-user-3-fill"></i>Visitors:<span id="busuanzi_value_site_uv"></span></s>
+  <span class="division">|</span>
+  <span><i class="ri-eye-fill"></i>Views:<span id="busuanzi_value_page_pv"></span></span>
+</span>
+        
+      </li>
+    </ul>
+    <ul>
+      
+    </ul>
+    <ul>
+      
+    </ul>
+    <ul>
+      <li>
+        <!-- cnzz统计 -->
+        
+        <script type="text/javascript" src='https://s4.cnzz.com/z_stat.php?id=1279593399&amp;web_id=1279593399'></script>
+        
+      </li>
+    </ul>
+  </div>
+</footer>
+      <div class="float_btns">
+        <div class="totop" id="totop">
+  <i class="ri-arrow-up-line"></i>
+</div>
+
+<div class="todark" id="todark">
+  <i class="ri-moon-line"></i>
+</div>
+
+      </div>
+    </main>
+    <aside class="sidebar on">
+      <button class="navbar-toggle"></button>
+<nav class="navbar">
+  
+  <div class="logo">
+    <a href="/"><img src="/images/my_head-touch-icon-next.png" alt="Jason漫谈区块链"></a>
+  </div>
+  
+  <ul class="nav nav-main">
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/">主页</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/archives">归档</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/categories">分类</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/tags">标签</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/friends">友链</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/about">关于我</a>
+    </li>
+    
+  </ul>
+</nav>
+<nav class="navbar navbar-bottom">
+  <ul class="nav">
+    <li class="nav-item">
+      
+      <a class="nav-item-link nav-item-search"  title="Search">
+        <i class="ri-search-line"></i>
+      </a>
+      
+      
+    </li>
+  </ul>
+</nav>
+<div class="search-form-wrap">
+  <div class="local-search local-search-plugin">
+  <input type="search" id="local-search-input" class="local-search-input" placeholder="Search...">
+  <div id="local-search-result" class="local-search-result"></div>
+</div>
+</div>
+    </aside>
+    <script>
+      if (window.matchMedia("(max-width: 768px)").matches) {
+        document.querySelector('.content').classList.remove('on');
+        document.querySelector('.sidebar').classList.remove('on');
+      }
+    </script>
+    <div id="mask"></div>
+
+<!-- #reward -->
+<div id="reward">
+  <span class="close"><i class="ri-close-line"></i></span>
+  <p class="reward-p"><i class="ri-cup-line"></i>请我喝杯咖啡吧~</p>
+  <div class="reward-box">
+    
+    <div class="reward-item">
+      <img class="reward-img" src="/images/pay_ali.jpg">
+      <span class="reward-type">支付宝</span>
+    </div>
+    
+    
+    <div class="reward-item">
+      <img class="reward-img" src="/images/pay_wechat.jpg">
+      <span class="reward-type">微信</span>
+    </div>
+    
+  </div>
+</div>
+    
+<script src="/js/jquery-2.0.3.min.js"></script>
+
+
+<script src="/js/lazyload.min.js"></script>
+
+<!-- Tocbot -->
+
+
+<script src="/js/tocbot.min.js"></script>
+
+<script>
+  tocbot.init({
+    tocSelector: '.tocbot',
+    contentSelector: '.article-entry',
+    headingSelector: 'h1, h2, h3, h4, h5, h6',
+    hasInnerContainers: true,
+    scrollSmooth: true,
+    scrollContainer: 'main',
+    positionFixedSelector: '.tocbot',
+    positionFixedClass: 'is-position-fixed',
+    fixedSidebarOffset: 'auto'
+  });
+</script>
+
+<script src="https://cdn.jsdelivr.net/npm/jquery-modal@0.9.2/jquery.modal.min.js"></script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/jquery-modal@0.9.2/jquery.modal.min.css">
+<script src="https://cdn.jsdelivr.net/npm/justifiedGallery@3.7.0/dist/js/jquery.justifiedGallery.min.js"></script>
+
+<script src="/dist/main.js"></script>
+
+<!-- ImageViewer -->
+
+<!-- Root element of PhotoSwipe. Must have class pswp. -->
+<div class="pswp" tabindex="-1" role="dialog" aria-hidden="true">
+
+    <!-- Background of PhotoSwipe. 
+         It's a separate element as animating opacity is faster than rgba(). -->
+    <div class="pswp__bg"></div>
+
+    <!-- Slides wrapper with overflow:hidden. -->
+    <div class="pswp__scroll-wrap">
+
+        <!-- Container that holds slides. 
+            PhotoSwipe keeps only 3 of them in the DOM to save memory.
+            Don't modify these 3 pswp__item elements, data is added later on. -->
+        <div class="pswp__container">
+            <div class="pswp__item"></div>
+            <div class="pswp__item"></div>
+            <div class="pswp__item"></div>
+        </div>
+
+        <!-- Default (PhotoSwipeUI_Default) interface on top of sliding area. Can be changed. -->
+        <div class="pswp__ui pswp__ui--hidden">
+
+            <div class="pswp__top-bar">
+
+                <!--  Controls are self-explanatory. Order can be changed. -->
+
+                <div class="pswp__counter"></div>
+
+                <button class="pswp__button pswp__button--close" title="Close (Esc)"></button>
+
+                <button class="pswp__button pswp__button--share" style="display:none" title="Share"></button>
+
+                <button class="pswp__button pswp__button--fs" title="Toggle fullscreen"></button>
+
+                <button class="pswp__button pswp__button--zoom" title="Zoom in/out"></button>
+
+                <!-- Preloader demo http://codepen.io/dimsemenov/pen/yyBWoR -->
+                <!-- element will get class pswp__preloader--active when preloader is running -->
+                <div class="pswp__preloader">
+                    <div class="pswp__preloader__icn">
+                        <div class="pswp__preloader__cut">
+                            <div class="pswp__preloader__donut"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="pswp__share-modal pswp__share-modal--hidden pswp__single-tap">
+                <div class="pswp__share-tooltip"></div>
+            </div>
+
+            <button class="pswp__button pswp__button--arrow--left" title="Previous (arrow left)">
+            </button>
+
+            <button class="pswp__button pswp__button--arrow--right" title="Next (arrow right)">
+            </button>
+
+            <div class="pswp__caption">
+                <div class="pswp__caption__center"></div>
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe.min.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/default-skin/default-skin.min.css">
+<script src="https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe-ui-default.min.js"></script>
+
+<script>
+    function viewer_init() {
+        let pswpElement = document.querySelectorAll('.pswp')[0];
+        let $imgArr = document.querySelectorAll(('.article-entry img:not(.reward-img)'))
+
+        $imgArr.forEach(($em, i) => {
+            $em.onclick = () => {
+                // slider展开状态
+                // todo: 这样不好，后面改成状态
+                if (document.querySelector('.left-col.show')) return
+                let items = []
+                $imgArr.forEach(($em2, i2) => {
+                    let img = $em2.getAttribute('data-idx', i2)
+                    let src = $em2.getAttribute('data-target') || $em2.getAttribute('src')
+                    let title = $em2.getAttribute('alt')
+                    // 获得原图尺寸
+                    const image = new Image()
+                    image.src = src
+                    items.push({
+                        src: src,
+                        w: image.width || $em2.width,
+                        h: image.height || $em2.height,
+                        title: title
+                    })
+                })
+                var gallery = new PhotoSwipe(pswpElement, PhotoSwipeUI_Default, items, {
+                    index: parseInt(i)
+                });
+                gallery.init()
+            }
+        })
+    }
+    viewer_init()
+</script>
+
+<!-- MathJax -->
+
+<!-- Katex -->
+
+<!-- busuanzi  -->
+
+
+<script src="/js/busuanzi-2.3.pure.min.js"></script>
+
+
+<!-- ClickLove -->
+
+<!-- ClickBoom1 -->
+
+<!-- ClickBoom2 -->
+
+<!-- CodeCopy -->
+
+
+<link rel="stylesheet" href="/css/clipboard.css">
+
+<script src="https://cdn.jsdelivr.net/npm/clipboard@2/dist/clipboard.min.js"></script>
+<script>
+  function wait(callback, seconds) {
+    var timelag = null;
+    timelag = window.setTimeout(callback, seconds);
+  }
+  !function (e, t, a) {
+    var initCopyCode = function(){
+      var copyHtml = '';
+      copyHtml += '<button class="btn-copy" data-clipboard-snippet="">';
+      copyHtml += '<i class="ri-file-copy-2-line"></i><span>COPY</span>';
+      copyHtml += '</button>';
+      $(".highlight .code pre").before(copyHtml);
+      $(".article pre code").before(copyHtml);
+      var clipboard = new ClipboardJS('.btn-copy', {
+        target: function(trigger) {
+          return trigger.nextElementSibling;
+        }
+      });
+      clipboard.on('success', function(e) {
+        let $btn = $(e.trigger);
+        $btn.addClass('copied');
+        let $icon = $($btn.find('i'));
+        $icon.removeClass('ri-file-copy-2-line');
+        $icon.addClass('ri-checkbox-circle-line');
+        let $span = $($btn.find('span'));
+        $span[0].innerText = 'COPIED';
+        
+        wait(function () { // 等待两秒钟后恢复
+          $icon.removeClass('ri-checkbox-circle-line');
+          $icon.addClass('ri-file-copy-2-line');
+          $span[0].innerText = 'COPY';
+        }, 2000);
+      });
+      clipboard.on('error', function(e) {
+        e.clearSelection();
+        let $btn = $(e.trigger);
+        $btn.addClass('copy-failed');
+        let $icon = $($btn.find('i'));
+        $icon.removeClass('ri-file-copy-2-line');
+        $icon.addClass('ri-time-line');
+        let $span = $($btn.find('span'));
+        $span[0].innerText = 'COPY FAILED';
+        
+        wait(function () { // 等待两秒钟后恢复
+          $icon.removeClass('ri-time-line');
+          $icon.addClass('ri-file-copy-2-line');
+          $span[0].innerText = 'COPY';
+        }, 2000);
+      });
+    }
+    initCopyCode();
+  }(window, document);
+</script>
+
+
+<!-- CanvasBackground -->
+
+
+    
+  </div>
+</body>
+
+</html>

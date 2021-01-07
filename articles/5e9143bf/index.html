@@ -1,0 +1,648 @@
+<!DOCTYPE html>
+
+
+<html lang="zh-Hans">
+
+
+<head>
+  <meta charset="utf-8" />
+    
+  <meta name="description" content="谈天谈地，谈古谈今，一起谈谈我们的未来。" />
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
+  <title>
+    以太坊源码解读-第5.3讲-http rpc的启动流程分析 |  Jason漫谈区块链
+  </title>
+  <meta name="generator" content="hexo-theme-ayer">
+  
+  <link rel="shortcut icon" href="/images/my_head-16x16-next.ico" />
+  
+  
+<link rel="stylesheet" href="/dist/main.css">
+
+  
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/Shen-Yu/cdn/css/remixicon.min.css">
+
+  
+<link rel="stylesheet" href="/css/custom.css">
+
+  
+  
+<script src="https://cdn.jsdelivr.net/npm/pace-js@1.0.2/pace.min.js"></script>
+
+  
+  
+
+  
+
+</head>
+
+</html>
+
+<body>
+  <div id="app">
+    
+      
+    <main class="content on">
+      <section class="outer">
+  <article
+  id="post-ethereum/src_analysis/以太坊源码解读-第5.3讲-http-rpc的启动流程分析"
+  class="article article-type-post"
+  itemscope
+  itemprop="blogPost"
+  data-scroll-reveal
+>
+  <div class="article-inner">
+    
+    <header class="article-header">
+       
+<h1 class="article-title sea-center" style="border-left:0" itemprop="name">
+  以太坊源码解读-第5.3讲-http rpc的启动流程分析
+</h1>
+ 
+
+    </header>
+     
+    <div class="article-meta">
+      <a href="/articles/5e9143bf/" class="article-date">
+  <time datetime="2018-11-07T10:27:55.000Z" itemprop="datePublished">2018-11-07</time>
+</a> 
+  <div class="article-category">
+    <a class="article-category-link" href="/categories/%E4%BB%A5%E5%A4%AA%E5%9D%8A/">以太坊</a> / <a class="article-category-link" href="/categories/%E4%BB%A5%E5%A4%AA%E5%9D%8A/%E6%BA%90%E7%A0%81%E8%A7%A3%E8%AF%BB/">源码解读</a>
+  </div>
+  
+<div class="word_count">
+    <span class="post-time">
+        <span class="post-meta-item-icon">
+            <i class="ri-quill-pen-line"></i>
+            <span class="post-meta-item-text"> Word count:</span>
+            <span class="post-count">1.6k</span>
+        </span>
+    </span>
+
+    <span class="post-time">
+        &nbsp; | &nbsp;
+        <span class="post-meta-item-icon">
+            <i class="ri-book-open-line"></i>
+            <span class="post-meta-item-text"> Reading time≈</span>
+            <span class="post-count">7 min</span>
+        </span>
+    </span>
+</div>
+ 
+    </div>
+      
+    <div class="tocbot"></div>
+
+
+
+
+  
+    <div class="article-entry" itemprop="articleBody">
+       
+  <h2 id="前言"><a href="#前言" class="headerlink" title="前言"></a>前言</h2><p>可先了解下这两节：<br><a href="/articles/25c7447">以太坊源码解读-第5.1讲-rpc官翻及个人理解</a><br><a href="/articles/e10014d8">以太坊源码解读-第5.2讲-rpc源码解读</a><br>以太坊中，总共有四种rpc服务，分别是<code>InProc</code>、<code>IPC</code>、<code>Http</code>、<code>Ws(websockets)</code>，本文是通过介绍<code>Http rpc</code>的整个过程来了解以太坊rpc的情况。</p>
+<a id="more"></a>
+
+<h2 id="启动过程"><a href="#启动过程" class="headerlink" title="启动过程"></a>启动过程</h2><h3 id="http的配置"><a href="#http的配置" class="headerlink" title="http的配置"></a>http的配置</h3><ol>
+<li><p>先按如下顺序来找到这么个入口：<br><code>cmd-&gt;geth-&gt;main.go-&gt;app.Run(os.Args)-&gt;geth-&gt;makeFullNode(ctx)-&gt;makeConfigNode(ctx)</code><br>这个主要是完成以太坊的启动配置过程，这块的大意是，对<code>Eth模块</code>、<code>Shh模块</code>、<code>Node模块</code>、<code>Dashboard模块</code>进行配置，先给他们提供默认配置，然后检查是否有用户自定义的<code>toml</code>配置文件，若有，则覆盖默认配置，在此选择用默认配置。</p>
+</li>
+<li><p>先要说明一下，http相关配置是在<code>Node模块</code>中进行的，最后其余所有的模块都是注册到<code>Node模块中</code>，<code>Node</code>结构大体如下：</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">type</span> Node <span class="keyword">struct</span> &#123;</span><br><span class="line">  ...</span><br><span class="line">  config   *Config          <span class="comment">// http相关主要就是在该Config中配置的</span></span><br><span class="line">  services     <span class="keyword">map</span>[reflect.Type]Service <span class="comment">// 当前正在运行的服务（模块），以太坊把每个模块的功能都统一成service，然后注册到node.services中</span></span><br><span class="line">  rpcAPIs       []rpc.API   <span class="comment">// 所有模块的rpcAPIs都放在其中统一管理</span></span><br><span class="line">  <span class="comment">//http相关其余配置</span></span><br><span class="line">  httpEndpoint  <span class="keyword">string</span>       <span class="comment">// HTTP endpoint (interface + port) to listen at (empty = HTTP disabled)</span></span><br><span class="line">  httpWhitelist []<span class="keyword">string</span>     <span class="comment">// HTTP RPC modules to allow through this endpoint</span></span><br><span class="line">  httpListener  net.Listener <span class="comment">// HTTP RPC listener socket to server API requests</span></span><br><span class="line">  httpHandler   *rpc.Server  <span class="comment">// HTTP RPC request handler to process the API requests</span></span><br><span class="line">  ...</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<img src="/articles/5e9143bf/1.png" class="" title="geth启动过程">
+</li>
+<li><p>这里我们主要关心http的配置，直接看对<code>Node模块</code>配置情况：<code>defaultNodeConfig</code>以及<code>defaultNodeConfig-&gt;node.DefaultConfig</code>，其中有对http的基本配置，具体解释看下面代码注释：</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">defaultNodeConfig</span><span class="params">()</span> <span class="title">node</span>.<span class="title">Config</span></span> &#123;</span><br><span class="line">	cfg := node.DefaultConfig</span><br><span class="line">	cfg.Name = clientIdentifier</span><br><span class="line">	cfg.Version = params.VersionWithCommit(gitCommit)</span><br><span class="line">  cfg.HTTPModules = <span class="built_in">append</span>(cfg.HTTPModules, <span class="string">&quot;eth&quot;</span>, <span class="string">&quot;shh&quot;</span>)</span><br><span class="line">  <span class="comment">//在已有的modules基础上，再加上eth shh两个模块</span></span><br><span class="line">	cfg.WSModules = <span class="built_in">append</span>(cfg.WSModules, <span class="string">&quot;eth&quot;</span>, <span class="string">&quot;shh&quot;</span>)</span><br><span class="line">	cfg.IPCPath = <span class="string">&quot;geth.ipc&quot;</span></span><br><span class="line">	<span class="keyword">return</span> cfg</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="keyword">var</span> DefaultConfig = Config&#123;</span><br><span class="line">  <span class="comment">// 节点信息默认的存放位置，mac、windows、others三个平台</span></span><br><span class="line">  DataDir:          DefaultDataDir(),</span><br><span class="line">  <span class="comment">// HTTP RPC server的默认端口，8545</span></span><br><span class="line">  HTTPPort:         DefaultHTTPPort,</span><br><span class="line">  <span class="comment">// 默认rpcapi接口提供方式，标示，其实就是api.namespace</span></span><br><span class="line">  HTTPModules:      []<span class="keyword">string</span>&#123;<span class="string">&quot;net&quot;</span>, <span class="string">&quot;web3&quot;</span>&#125;,</span><br><span class="line">  <span class="comment">// 虚拟主机地址</span></span><br><span class="line">  HTTPVirtualHosts: []<span class="keyword">string</span>&#123;<span class="string">&quot;localhost&quot;</span>&#125;,</span><br><span class="line">  <span class="comment">// 下面websockets和p2p相关，暂不考虑</span></span><br><span class="line">	WSPort:           DefaultWSPort,</span><br><span class="line">	WSModules:        []<span class="keyword">string</span>&#123;<span class="string">&quot;net&quot;</span>, <span class="string">&quot;web3&quot;</span>&#125;,</span><br><span class="line">	P2P: p2p.Config&#123;</span><br><span class="line">		ListenAddr: <span class="string">&quot;:30303&quot;</span>,</span><br><span class="line">		MaxPeers:   <span class="number">25</span>,</span><br><span class="line">		NAT:        nat.Any(),</span><br><span class="line">	&#125;,</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>此步我们可以看出，http modules默认总共有<code>net</code>、<code>web3</code>、<code>eth</code>、<code>shh</code>四类的rpcapi，标示我们有4种方式调用api接口</p>
+</li>
+<li><p>http的进一步配置<br><code>makeConfigNode(ctx)-&gt;utils.SetNodeConfig(ctx, &amp;cfg.Node)-&gt;setHTTP(ctx, cfg)</code>，在其中可以发现，其余默认的一些配置：</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">setHTTP</span><span class="params">(ctx *cli.Context, cfg *node.Config)</span></span> &#123;</span><br><span class="line">	<span class="keyword">if</span> ctx.GlobalBool(RPCEnabledFlag.Name) &amp;&amp; cfg.HTTPHost == <span class="string">&quot;&quot;</span> &#123;</span><br><span class="line">		cfg.HTTPHost = <span class="string">&quot;127.0.0.1&quot;</span></span><br><span class="line">		<span class="keyword">if</span> ctx.GlobalIsSet(RPCListenAddrFlag.Name) &#123;</span><br><span class="line">			cfg.HTTPHost = ctx.GlobalString(RPCListenAddrFlag.Name)</span><br><span class="line">		&#125;</span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	<span class="keyword">if</span> ctx.GlobalIsSet(RPCPortFlag.Name) &#123;</span><br><span class="line">		cfg.HTTPPort = ctx.GlobalInt(RPCPortFlag.Name)</span><br><span class="line">	&#125;</span><br><span class="line">	<span class="keyword">if</span> ctx.GlobalIsSet(RPCCORSDomainFlag.Name) &#123;</span><br><span class="line">		cfg.HTTPCors = splitAndTrim(ctx.GlobalString(RPCCORSDomainFlag.Name))</span><br><span class="line">	&#125;</span><br><span class="line">	<span class="keyword">if</span> ctx.GlobalIsSet(RPCApiFlag.Name) &#123;</span><br><span class="line">		cfg.HTTPModules = splitAndTrim(ctx.GlobalString(RPCApiFlag.Name))</span><br><span class="line">	&#125;</span><br><span class="line">	<span class="keyword">if</span> ctx.GlobalIsSet(RPCVirtualHostsFlag.Name) &#123;</span><br><span class="line">		cfg.HTTPVirtualHosts = splitAndTrim(ctx.GlobalString(RPCVirtualHostsFlag.Name))</span><br><span class="line">	&#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></li>
+<li><p>注册<br>返回到<code>cmd-&gt;geth-&gt;main.go-&gt;app.Run(os.Args)-&gt;geth-&gt;makeFullNode(ctx)</code>，其余配置好的模块（或者叫做服务）,都会被注册到<code>Node</code>中.<br>前面提到过，会有四个功能模块：<code>Eth模块</code>、<code>Shh模块</code>、<code>Node模块</code>、<code>Dashboard模块</code><br>这里提示一下，每个服务都会实现node中的下面这个接口：<br><code>node-&gt;service</code></p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">type</span> Service <span class="keyword">interface</span> &#123;   </span><br><span class="line">    Protocols() []p2p.Protocol  </span><br><span class="line">    APIs() []rpc.API  </span><br><span class="line">    Start(server *p2p.Server) error  </span><br><span class="line">    Stop() error  </span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></li>
+<li><p>总结<br><code>cmd-&gt;geth-&gt;main.go-&gt;app.Run(os.Args)-&gt;geth-&gt;makeFullNode(ctx)</code>主要做了两件事：</p>
+</li>
+<li><p>配置模块</p>
+</li>
+<li><p>注册模块到node</p>
+</li>
+</ol>
+<h3 id="启动http-rpc过程"><a href="#启动http-rpc过程" class="headerlink" title="启动http rpc过程"></a>启动http rpc过程</h3><ol>
+<li>前往：<br><code>cmd-&gt;geth-&gt;main.go-&gt;app.Run(os.Args)-&gt;geth-&gt;makeFullNode(ctx)-&gt;startNode(ctx, node)-&gt;utils.StartNode(stack)-&gt;stack.Start()-&gt;n.startRPC(services)</code>中，找到：<br><code>n.startHTTP(n.httpEndpoint, apis, n.config.HTTPModules, n.config.HTTPCors, n.config.HTTPVirtualHosts);</code>，这一行就是用来启动http rpc的，看看它所需要的4个参数：</li>
+<li>n.httpEndpoint，默认值为127.0.0.1</li>
+<li>apis，默认值为所有的服务的api</li>
+<li>n.config.HTTPModules，rpcapi的标示，前面提到过，默认给出：[“eth”,”shh”,”net”,”web3”]</li>
+<li>n.config.HTTPCors 跨域资源共享，通过浏览器访问的化，需要设置它，</li>
+<li>n.config.HTTPVirtualHosts 防攻击的设置，官方有解释，可以去看看，限制访问范围，默认：localhost</li>
+<li>startHTTP还是很重要的，这里列出源码和注释：<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">//初始化http以及启动http rpc服务</span></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="params">(n *Node)</span> <span class="title">startHTTP</span><span class="params">(endpoint <span class="keyword">string</span>, apis []rpc.API, modules []<span class="keyword">string</span>, cors []<span class="keyword">string</span>, vhosts []<span class="keyword">string</span>)</span> <span class="title">error</span></span> &#123;</span><br><span class="line">	<span class="comment">// endpoint必须有</span></span><br><span class="line">	<span class="keyword">if</span> endpoint == <span class="string">&quot;&quot;</span> &#123;</span><br><span class="line">		<span class="keyword">return</span> <span class="literal">nil</span></span><br><span class="line">	&#125;</span><br><span class="line">	<span class="comment">// 白名单其实就是modules，默认给出：[&quot;eth&quot;,&quot;shh&quot;,&quot;net&quot;,&quot;web3&quot;]</span></span><br><span class="line">	whitelist := <span class="built_in">make</span>(<span class="keyword">map</span>[<span class="keyword">string</span>]<span class="keyword">bool</span>)</span><br><span class="line">	<span class="keyword">for</span> _, module := <span class="keyword">range</span> modules &#123;</span><br><span class="line">		whitelist[module] = <span class="literal">true</span></span><br><span class="line">	&#125;</span><br><span class="line">	<span class="comment">// 创建一个rpc server，并且注册服务，要求满足白名单条件</span></span><br><span class="line">	handler := rpc.NewServer()</span><br><span class="line">	<span class="keyword">for</span> _, api := <span class="keyword">range</span> apis &#123;</span><br><span class="line">		<span class="keyword">if</span> whitelist[api.Namespace] || (<span class="built_in">len</span>(whitelist) == <span class="number">0</span> &amp;&amp; api.Public) &#123;</span><br><span class="line">			<span class="keyword">if</span> err := handler.RegisterName(api.Namespace, api.Service); err != <span class="literal">nil</span> &#123;</span><br><span class="line">				<span class="keyword">return</span> err</span><br><span class="line">			&#125;</span><br><span class="line">			n.log.Debug(<span class="string">&quot;HTTP registered&quot;</span>, <span class="string">&quot;service&quot;</span>, api.Service, <span class="string">&quot;namespace&quot;</span>, api.Namespace)</span><br><span class="line">		&#125;</span><br><span class="line">	&#125;</span><br><span class="line">	<span class="comment">// All APIs registered, start the HTTP listener</span></span><br><span class="line">	<span class="keyword">var</span> (</span><br><span class="line">		listener net.Listener</span><br><span class="line">		err      error</span><br><span class="line">	)</span><br><span class="line">	<span class="keyword">if</span> listener, err = net.Listen(<span class="string">&quot;tcp&quot;</span>, endpoint); err != <span class="literal">nil</span> &#123;</span><br><span class="line">		<span class="keyword">return</span> err</span><br><span class="line">  &#125;</span><br><span class="line">  <span class="comment">//启动 rpc</span></span><br><span class="line">	<span class="keyword">go</span> rpc.NewHTTPServer(cors, vhosts, handler).Serve(listener)</span><br><span class="line">	n.log.Info(<span class="string">&quot;HTTP endpoint opened&quot;</span>, <span class="string">&quot;url&quot;</span>, fmt.Sprintf(<span class="string">&quot;http://%s&quot;</span>, endpoint), <span class="string">&quot;cors&quot;</span>, strings.Join(cors, <span class="string">&quot;,&quot;</span>), <span class="string">&quot;vhosts&quot;</span>, strings.Join(vhosts, <span class="string">&quot;,&quot;</span>))</span><br><span class="line">	<span class="comment">// All listeners booted successfully</span></span><br><span class="line">	n.httpEndpoint = endpoint</span><br><span class="line">	n.httpListener = listener</span><br><span class="line">	n.httpHandler = handler</span><br><span class="line"></span><br><span class="line">	<span class="keyword">return</span> <span class="literal">nil</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></li>
+<li>总结<br>这个rpc启动流程：<br><code>创建：rpc.NewServer()</code>-&gt;<code>注册：handler.RegisterName(api.Namespace, api.Service)</code>-&gt;<code>启动监听：rpc.NewHTTPServer(cors, vhosts, handler).Serve(listener)</code></li>
+</ol>
+<h3 id="http-rpc-stop"><a href="#http-rpc-stop" class="headerlink" title="http rpc stop"></a>http rpc stop</h3><p>既然有启动，就有停止，这是停止的执行步骤：<br>在<code>node-&gt;node.go</code>中，和上面的<code>startHTTP</code>在同一目录中</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// stopHTTP terminates the HTTP RPC endpoint.</span></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="params">(n *Node)</span> <span class="title">stopHTTP</span><span class="params">()</span></span> &#123;</span><br><span class="line">	<span class="keyword">if</span> n.httpListener != <span class="literal">nil</span> &#123;</span><br><span class="line">		n.httpListener.Close()</span><br><span class="line">		n.httpListener = <span class="literal">nil</span></span><br><span class="line"></span><br><span class="line">		n.log.Info(<span class="string">&quot;HTTP endpoint closed&quot;</span>, <span class="string">&quot;url&quot;</span>, fmt.Sprintf(<span class="string">&quot;http://%s&quot;</span>, n.httpEndpoint))</span><br><span class="line">	&#125;</span><br><span class="line">	<span class="keyword">if</span> n.httpHandler != <span class="literal">nil</span> &#123;</span><br><span class="line">		n.httpHandler.Stop()</span><br><span class="line">		n.httpHandler = <span class="literal">nil</span></span><br><span class="line">	&#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<h2 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h2><p>再次来梳理一下http rpc注册流程：<br><code>创建：rpc.NewServer()</code>-&gt;<code>注册：handler.RegisterName(api.Namespace, api.Service)</code>-&gt;<code>启动监听：rpc.NewHTTPServer(cors, vhosts, handler).Serve(listener)</code>-&gt;<code>停止监听：n.httpListener.Close()</code>-&gt;<code>服务停止：n.httpHandler.Stop()</code><br>原本打算把具体的rpc流程也顺带讲一下，但混在一起会乱，就先不提了。<br>本文梳理后，可以很清晰的了解到，以太坊是如何启动一项rpc服务的，为我们后来进一步研究rpc做了一些充分的准备。</p>
+ 
+      <!-- reward -->
+      
+    </div>
+    
+
+    <!-- copyright -->
+    
+    <div class="declare">
+      <ul class="post-copyright">
+        <li>
+          <i class="ri-copyright-line"></i>
+          <strong>Copyright： </strong>
+          
+          Copyright is owned by the author. For commercial reprints, please contact the author for authorization. For non-commercial reprints, please indicate the source.
+          
+        </li>
+      </ul>
+    </div>
+    
+    <footer class="article-footer">
+       
+<div class="share-btn">
+      <span class="share-sns share-outer">
+        <i class="ri-share-forward-line"></i>
+        分享
+      </span>
+      <div class="share-wrap">
+        <i class="arrow"></i>
+        <div class="share-icons">
+          
+          <a class="weibo share-sns" href="javascript:;" data-type="weibo">
+            <i class="ri-weibo-fill"></i>
+          </a>
+          <a class="weixin share-sns wxFab" href="javascript:;" data-type="weixin">
+            <i class="ri-wechat-fill"></i>
+          </a>
+          <a class="qq share-sns" href="javascript:;" data-type="qq">
+            <i class="ri-qq-fill"></i>
+          </a>
+          <a class="douban share-sns" href="javascript:;" data-type="douban">
+            <i class="ri-douban-line"></i>
+          </a>
+          <!-- <a class="qzone share-sns" href="javascript:;" data-type="qzone">
+            <i class="icon icon-qzone"></i>
+          </a> -->
+          
+          <a class="facebook share-sns" href="javascript:;" data-type="facebook">
+            <i class="ri-facebook-circle-fill"></i>
+          </a>
+          <a class="twitter share-sns" href="javascript:;" data-type="twitter">
+            <i class="ri-twitter-fill"></i>
+          </a>
+          <a class="google share-sns" href="javascript:;" data-type="google">
+            <i class="ri-google-fill"></i>
+          </a>
+        </div>
+      </div>
+</div>
+
+<div class="wx-share-modal">
+    <a class="modal-close" href="javascript:;"><i class="ri-close-circle-line"></i></a>
+    <p>扫一扫，分享到微信</p>
+    <div class="wx-qrcode">
+      <img src="//api.qrserver.com/v1/create-qr-code/?size=150x150&data=http://jason-wj.gitee.io/articles/5e9143bf/" alt="微信分享二维码">
+    </div>
+</div>
+
+<div id="share-mask"></div>  
+  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/ethereum/" rel="tag">ethereum</a></li></ul>
+
+    </footer>
+  </div>
+
+   
+  <nav class="article-nav">
+    
+      <a href="/articles/6fa9e36/" class="article-nav-link">
+        <strong class="article-nav-caption">上一篇</strong>
+        <div class="article-nav-title">
+          
+            以太坊源码解读-第5.4讲-http rpc server相关源码详解
+          
+        </div>
+      </a>
+    
+    
+      <a href="/articles/66d6f92e/" class="article-nav-link">
+        <strong class="article-nav-caption">下一篇</strong>
+        <div class="article-nav-title">以太坊crypto模块的概览</div>
+      </a>
+    
+  </nav>
+
+   
+<!-- valine评论 -->
+<div id="vcomments-box">
+  <div id="vcomments"></div>
+</div>
+<script src="//cdn1.lncld.net/static/js/3.0.4/av-min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/valine@1.4.14/dist/Valine.min.js"></script>
+<script>
+  new Valine({
+    el: "#vcomments",
+    app_id: "gdw0hVSwW3l6KgEMulSAc9Rx-gzGzoHsz",
+    app_key: "M4iiVXe0CuXWQEKuyIzWWDMh",
+    path: window.location.pathname,
+    avatar: "monsterid",
+    placeholder: "给我的文章加点评论吧~",
+    recordIP: true,
+  });
+  const infoEle = document.querySelector("#vcomments .info");
+  if (infoEle && infoEle.childNodes && infoEle.childNodes.length > 0) {
+    infoEle.childNodes.forEach(function (item) {
+      item.parentNode.removeChild(item);
+    });
+  }
+</script>
+<style>
+  #vcomments-box {
+    padding: 5px 30px;
+  }
+
+  @media screen and (max-width: 800px) {
+    #vcomments-box {
+      padding: 5px 0px;
+    }
+  }
+
+  #vcomments-box #vcomments {
+    background-color: #fff;
+  }
+
+  .v .vlist .vcard .vh {
+    padding-right: 20px;
+  }
+
+  .v .vlist .vcard {
+    padding-left: 10px;
+  }
+</style>
+
+ 
+   
+     
+</article>
+
+</section>
+      <footer class="footer">
+  <div class="outer">
+    <ul>
+      <li>
+        Copyrights &copy;
+        2017-2021
+        <i class="ri-heart-fill heart_icon"></i> Jason
+      </li>
+    </ul>
+    <ul>
+      <li>
+        
+      </li>
+    </ul>
+    <ul>
+      <li>
+        
+        
+        <span>
+  <span><i class="ri-user-3-fill"></i>Visitors:<span id="busuanzi_value_site_uv"></span></s>
+  <span class="division">|</span>
+  <span><i class="ri-eye-fill"></i>Views:<span id="busuanzi_value_page_pv"></span></span>
+</span>
+        
+      </li>
+    </ul>
+    <ul>
+      
+    </ul>
+    <ul>
+      
+    </ul>
+    <ul>
+      <li>
+        <!-- cnzz统计 -->
+        
+        <script type="text/javascript" src='https://s4.cnzz.com/z_stat.php?id=1279593399&amp;web_id=1279593399'></script>
+        
+      </li>
+    </ul>
+  </div>
+</footer>
+      <div class="float_btns">
+        <div class="totop" id="totop">
+  <i class="ri-arrow-up-line"></i>
+</div>
+
+<div class="todark" id="todark">
+  <i class="ri-moon-line"></i>
+</div>
+
+      </div>
+    </main>
+    <aside class="sidebar on">
+      <button class="navbar-toggle"></button>
+<nav class="navbar">
+  
+  <div class="logo">
+    <a href="/"><img src="/images/my_head-touch-icon-next.png" alt="Jason漫谈区块链"></a>
+  </div>
+  
+  <ul class="nav nav-main">
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/">主页</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/archives">归档</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/categories">分类</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/tags">标签</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/friends">友链</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/about">关于我</a>
+    </li>
+    
+  </ul>
+</nav>
+<nav class="navbar navbar-bottom">
+  <ul class="nav">
+    <li class="nav-item">
+      
+      <a class="nav-item-link nav-item-search"  title="Search">
+        <i class="ri-search-line"></i>
+      </a>
+      
+      
+    </li>
+  </ul>
+</nav>
+<div class="search-form-wrap">
+  <div class="local-search local-search-plugin">
+  <input type="search" id="local-search-input" class="local-search-input" placeholder="Search...">
+  <div id="local-search-result" class="local-search-result"></div>
+</div>
+</div>
+    </aside>
+    <script>
+      if (window.matchMedia("(max-width: 768px)").matches) {
+        document.querySelector('.content').classList.remove('on');
+        document.querySelector('.sidebar').classList.remove('on');
+      }
+    </script>
+    <div id="mask"></div>
+
+<!-- #reward -->
+<div id="reward">
+  <span class="close"><i class="ri-close-line"></i></span>
+  <p class="reward-p"><i class="ri-cup-line"></i>请我喝杯咖啡吧~</p>
+  <div class="reward-box">
+    
+    <div class="reward-item">
+      <img class="reward-img" src="/images/pay_ali.jpg">
+      <span class="reward-type">支付宝</span>
+    </div>
+    
+    
+    <div class="reward-item">
+      <img class="reward-img" src="/images/pay_wechat.jpg">
+      <span class="reward-type">微信</span>
+    </div>
+    
+  </div>
+</div>
+    
+<script src="/js/jquery-2.0.3.min.js"></script>
+
+
+<script src="/js/lazyload.min.js"></script>
+
+<!-- Tocbot -->
+
+
+<script src="/js/tocbot.min.js"></script>
+
+<script>
+  tocbot.init({
+    tocSelector: '.tocbot',
+    contentSelector: '.article-entry',
+    headingSelector: 'h1, h2, h3, h4, h5, h6',
+    hasInnerContainers: true,
+    scrollSmooth: true,
+    scrollContainer: 'main',
+    positionFixedSelector: '.tocbot',
+    positionFixedClass: 'is-position-fixed',
+    fixedSidebarOffset: 'auto'
+  });
+</script>
+
+<script src="https://cdn.jsdelivr.net/npm/jquery-modal@0.9.2/jquery.modal.min.js"></script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/jquery-modal@0.9.2/jquery.modal.min.css">
+<script src="https://cdn.jsdelivr.net/npm/justifiedGallery@3.7.0/dist/js/jquery.justifiedGallery.min.js"></script>
+
+<script src="/dist/main.js"></script>
+
+<!-- ImageViewer -->
+
+<!-- Root element of PhotoSwipe. Must have class pswp. -->
+<div class="pswp" tabindex="-1" role="dialog" aria-hidden="true">
+
+    <!-- Background of PhotoSwipe. 
+         It's a separate element as animating opacity is faster than rgba(). -->
+    <div class="pswp__bg"></div>
+
+    <!-- Slides wrapper with overflow:hidden. -->
+    <div class="pswp__scroll-wrap">
+
+        <!-- Container that holds slides. 
+            PhotoSwipe keeps only 3 of them in the DOM to save memory.
+            Don't modify these 3 pswp__item elements, data is added later on. -->
+        <div class="pswp__container">
+            <div class="pswp__item"></div>
+            <div class="pswp__item"></div>
+            <div class="pswp__item"></div>
+        </div>
+
+        <!-- Default (PhotoSwipeUI_Default) interface on top of sliding area. Can be changed. -->
+        <div class="pswp__ui pswp__ui--hidden">
+
+            <div class="pswp__top-bar">
+
+                <!--  Controls are self-explanatory. Order can be changed. -->
+
+                <div class="pswp__counter"></div>
+
+                <button class="pswp__button pswp__button--close" title="Close (Esc)"></button>
+
+                <button class="pswp__button pswp__button--share" style="display:none" title="Share"></button>
+
+                <button class="pswp__button pswp__button--fs" title="Toggle fullscreen"></button>
+
+                <button class="pswp__button pswp__button--zoom" title="Zoom in/out"></button>
+
+                <!-- Preloader demo http://codepen.io/dimsemenov/pen/yyBWoR -->
+                <!-- element will get class pswp__preloader--active when preloader is running -->
+                <div class="pswp__preloader">
+                    <div class="pswp__preloader__icn">
+                        <div class="pswp__preloader__cut">
+                            <div class="pswp__preloader__donut"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="pswp__share-modal pswp__share-modal--hidden pswp__single-tap">
+                <div class="pswp__share-tooltip"></div>
+            </div>
+
+            <button class="pswp__button pswp__button--arrow--left" title="Previous (arrow left)">
+            </button>
+
+            <button class="pswp__button pswp__button--arrow--right" title="Next (arrow right)">
+            </button>
+
+            <div class="pswp__caption">
+                <div class="pswp__caption__center"></div>
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe.min.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/default-skin/default-skin.min.css">
+<script src="https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe-ui-default.min.js"></script>
+
+<script>
+    function viewer_init() {
+        let pswpElement = document.querySelectorAll('.pswp')[0];
+        let $imgArr = document.querySelectorAll(('.article-entry img:not(.reward-img)'))
+
+        $imgArr.forEach(($em, i) => {
+            $em.onclick = () => {
+                // slider展开状态
+                // todo: 这样不好，后面改成状态
+                if (document.querySelector('.left-col.show')) return
+                let items = []
+                $imgArr.forEach(($em2, i2) => {
+                    let img = $em2.getAttribute('data-idx', i2)
+                    let src = $em2.getAttribute('data-target') || $em2.getAttribute('src')
+                    let title = $em2.getAttribute('alt')
+                    // 获得原图尺寸
+                    const image = new Image()
+                    image.src = src
+                    items.push({
+                        src: src,
+                        w: image.width || $em2.width,
+                        h: image.height || $em2.height,
+                        title: title
+                    })
+                })
+                var gallery = new PhotoSwipe(pswpElement, PhotoSwipeUI_Default, items, {
+                    index: parseInt(i)
+                });
+                gallery.init()
+            }
+        })
+    }
+    viewer_init()
+</script>
+
+<!-- MathJax -->
+
+<!-- Katex -->
+
+<!-- busuanzi  -->
+
+
+<script src="/js/busuanzi-2.3.pure.min.js"></script>
+
+
+<!-- ClickLove -->
+
+<!-- ClickBoom1 -->
+
+<!-- ClickBoom2 -->
+
+<!-- CodeCopy -->
+
+
+<link rel="stylesheet" href="/css/clipboard.css">
+
+<script src="https://cdn.jsdelivr.net/npm/clipboard@2/dist/clipboard.min.js"></script>
+<script>
+  function wait(callback, seconds) {
+    var timelag = null;
+    timelag = window.setTimeout(callback, seconds);
+  }
+  !function (e, t, a) {
+    var initCopyCode = function(){
+      var copyHtml = '';
+      copyHtml += '<button class="btn-copy" data-clipboard-snippet="">';
+      copyHtml += '<i class="ri-file-copy-2-line"></i><span>COPY</span>';
+      copyHtml += '</button>';
+      $(".highlight .code pre").before(copyHtml);
+      $(".article pre code").before(copyHtml);
+      var clipboard = new ClipboardJS('.btn-copy', {
+        target: function(trigger) {
+          return trigger.nextElementSibling;
+        }
+      });
+      clipboard.on('success', function(e) {
+        let $btn = $(e.trigger);
+        $btn.addClass('copied');
+        let $icon = $($btn.find('i'));
+        $icon.removeClass('ri-file-copy-2-line');
+        $icon.addClass('ri-checkbox-circle-line');
+        let $span = $($btn.find('span'));
+        $span[0].innerText = 'COPIED';
+        
+        wait(function () { // 等待两秒钟后恢复
+          $icon.removeClass('ri-checkbox-circle-line');
+          $icon.addClass('ri-file-copy-2-line');
+          $span[0].innerText = 'COPY';
+        }, 2000);
+      });
+      clipboard.on('error', function(e) {
+        e.clearSelection();
+        let $btn = $(e.trigger);
+        $btn.addClass('copy-failed');
+        let $icon = $($btn.find('i'));
+        $icon.removeClass('ri-file-copy-2-line');
+        $icon.addClass('ri-time-line');
+        let $span = $($btn.find('span'));
+        $span[0].innerText = 'COPY FAILED';
+        
+        wait(function () { // 等待两秒钟后恢复
+          $icon.removeClass('ri-time-line');
+          $icon.addClass('ri-file-copy-2-line');
+          $span[0].innerText = 'COPY';
+        }, 2000);
+      });
+    }
+    initCopyCode();
+  }(window, document);
+</script>
+
+
+<!-- CanvasBackground -->
+
+
+    
+  </div>
+</body>
+
+</html>

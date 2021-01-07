@@ -1,0 +1,688 @@
+<!DOCTYPE html>
+
+
+<html lang="zh-Hans">
+
+
+<head>
+  <meta charset="utf-8" />
+    
+  <meta name="description" content="谈天谈地，谈古谈今，一起谈谈我们的未来。" />
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
+  <title>
+    以太坊vm系列2-基础篇 |  Jason漫谈区块链
+  </title>
+  <meta name="generator" content="hexo-theme-ayer">
+  
+  <link rel="shortcut icon" href="/images/my_head-16x16-next.ico" />
+  
+  
+<link rel="stylesheet" href="/dist/main.css">
+
+  
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/Shen-Yu/cdn/css/remixicon.min.css">
+
+  
+<link rel="stylesheet" href="/css/custom.css">
+
+  
+  
+<script src="https://cdn.jsdelivr.net/npm/pace-js@1.0.2/pace.min.js"></script>
+
+  
+  
+
+  
+
+</head>
+
+</html>
+
+<body>
+  <div id="app">
+    
+      
+    <main class="content on">
+      <section class="outer">
+  <article
+  id="post-ethereum/src_analysis/vm/以太坊vm系列2-基础篇"
+  class="article article-type-post"
+  itemscope
+  itemprop="blogPost"
+  data-scroll-reveal
+>
+  <div class="article-inner">
+    
+    <header class="article-header">
+       
+<h1 class="article-title sea-center" style="border-left:0" itemprop="name">
+  以太坊vm系列2-基础篇
+</h1>
+ 
+
+    </header>
+     
+    <div class="article-meta">
+      <a href="/articles/4b0172c1/" class="article-date">
+  <time datetime="2018-07-18T07:49:03.000Z" itemprop="datePublished">2018-07-18</time>
+</a> 
+  <div class="article-category">
+    <a class="article-category-link" href="/categories/%E4%BB%A5%E5%A4%AA%E5%9D%8A/">以太坊</a> / <a class="article-category-link" href="/categories/%E4%BB%A5%E5%A4%AA%E5%9D%8A/%E6%BA%90%E7%A0%81%E8%A7%A3%E8%AF%BB/">源码解读</a>
+  </div>
+  
+<div class="word_count">
+    <span class="post-time">
+        <span class="post-meta-item-icon">
+            <i class="ri-quill-pen-line"></i>
+            <span class="post-meta-item-text"> Word count:</span>
+            <span class="post-count">4.8k</span>
+        </span>
+    </span>
+
+    <span class="post-time">
+        &nbsp; | &nbsp;
+        <span class="post-meta-item-icon">
+            <i class="ri-book-open-line"></i>
+            <span class="post-meta-item-text"> Reading time≈</span>
+            <span class="post-count">18 min</span>
+        </span>
+    </span>
+</div>
+ 
+    </div>
+      
+    <div class="tocbot"></div>
+
+
+
+
+  
+    <div class="article-entry" itemprop="articleBody">
+       
+  <h2 id="前言"><a href="#前言" class="headerlink" title="前言"></a>前言</h2><p>vm这东西，要想自己搞任何链，这都是绕不开的一道坎。<br>对于写智能合约也一样很重要，要知道自己写下的每一个字符都是真金白银，合理的规划，会让你极大的减少不必要的开支。</p>
+<a id="more"></a>
+<p>原本想根据黄皮书来逐步了解vm的理念，时间和精力有限，打算结合一些现有的网络资料，编辑整理出自己对vm的理解。Howard是量子链的大神，有幸在以太坊线下沙龙中听了他的演讲，一个字：非常强。回来翻了下他的相关文章，发现他有很完整的以太坊vm讲解的文章，都是英文^^。。。<br>小编准备结合他的文章来以自己的方式了解到底vm是怎样运行的。</p>
+<h2 id="概述"><a href="#概述" class="headerlink" title="概述"></a>概述</h2><p>一个合约写出来，传到vm后是如何处理的？燃料手续费是怎么样一个逻辑？为什么任意别的语言也可以开发合约？想要开发自己的公链，别的模块怎么和vm对接？等等。。。<br>带着种种问题，我们没有理由不去了解vm到底是怎么一回事。<br>好，我们一步步的来揭开这层神秘的面纱</p>
+<h2 id="解析只有一个变量的合约"><a href="#解析只有一个变量的合约" class="headerlink" title="解析只有一个变量的合约"></a>解析只有一个变量的合约</h2><p>solidity编写：</p>
+<figure class="highlight javascript"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">pragma solidity ^<span class="number">0.4</span><span class="number">.11</span>;</span><br><span class="line">contract C &#123;</span><br><span class="line">    uint256 a;</span><br><span class="line">    <span class="title">constructor</span>(<span class="params"></span>) <span class="title">public</span> &#123;</span><br><span class="line">      a = <span class="number">1</span>;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>Remix编译（不要说不知道这是什么工具。。。）该合约，<br>我们获取了EVM字节码：<br>上面整个合约编辑后的字节码，16进制表示，evm中就是以这个来运行的</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">6080604052348015600f57600080fd5b50600160008190555060358060256000396000f3006080604052600080fd00a165627a7a72305820c2f00be46981ed7116a7d8162fd0cb5c04c4571aa49f5fccbea4b90a5fe8f9290029</span><br></pre></td></tr></table></figure>
+<p>·······································<br><code>2019-01-17 ps:</code><br>这部分内容可以不看，只是半年后的不同状况的补充，建议等了解本文全局后在看此处<br>新版本solidity编译后的字节码结果不太一样，可能对细节做了优化，先记录下来<br>6080604052348015600f57600080fd5b50600160005560358060226000396000f3006080604052600080fd00a165627a7a723058201504b6af3b58ab847e989f2345b4448a1d53d6107652ed711770c90cdb7d60890029<br>此时的<code>a=1</code>的字节码为：<code>6001600055</code>，指令优化，比原先减少了一半，此时指令为：<br>60 01<br>60 00<br>55<br>简洁明了，出栈后，直接把01存储在00位置，比原先简单多了<br>········································</p>
+<p>上面的一坨信息，看的就头大，但不要急，我们先从合约中的简单的存储变量赋值来入手：</p>
+<figure class="highlight javascript"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">a = <span class="number">1</span></span><br></pre></td></tr></table></figure>
+<p>这个过程的字节码是：<code>6001600081905550</code>（先不用考虑怎么得来的），我们通过查看<a href="/articles/715e1612">以太坊vm系列1-指令集汇总</a>，把它拆成一行一条指令</p>
+<figure class="highlight armasm"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="number">60</span> <span class="number">01</span> <span class="comment">//60是PUSH1指令，因此后面要跟另一个16进制数</span></span><br><span class="line"><span class="number">60</span> <span class="number">00</span> <span class="comment">//同理</span></span><br><span class="line"><span class="number">81</span></span><br><span class="line"><span class="number">90</span></span><br><span class="line"><span class="number">55</span></span><br><span class="line"><span class="number">50</span></span><br></pre></td></tr></table></figure>
+<p>为了更清晰的了解上面的内容，我们用<a href="/articles/715e1612">以太坊vm系列1-指令集汇总</a>中查出的结果重新描述一下汇编代码：<br><code>stack[]表示栈，store&#123;&#125;表示存储器</code>(后续均使用此表示)</p>
+<figure class="highlight armasm"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line"><span class="symbol">PUSH1</span> <span class="number">01</span>  <span class="comment">//60 0x1，该过程可以用0x1表示,它是push(0x1)的速记。这条指令将数值1压入栈中。此时栈中数据stack[0x1]</span></span><br><span class="line"></span><br><span class="line"><span class="symbol">PUSH1</span> <span class="number">00</span>  <span class="comment">//60 0x0，该过程可以用0x0表示,它是push(0x0)的速记。这条指令将数值0压入栈中。此时栈中数据stack[0x1 0x0]</span></span><br><span class="line"></span><br><span class="line"><span class="symbol">DUP2</span>      <span class="comment">//81    ，从栈顶起，将栈中第2个元素复制并加入栈顶。此时栈中数据stack[0x1 0x0 0x1]</span></span><br><span class="line"></span><br><span class="line"><span class="symbol">SWAP1</span>     <span class="comment">//90    ，从栈顶起，将前两个数据交换。此时栈中数据stack[0x1 0x1 0x0]</span></span><br><span class="line"></span><br><span class="line"><span class="symbol">SSTORE</span>    <span class="comment">//55    ，栈顶推出两位，将数值0x01存储在存储器的0x0的位置上。此时栈中数据stack[0x1],存储器数据store&#123;`0x1数值存在0x0地址`&#125;</span></span><br><span class="line"></span><br><span class="line"><span class="keyword">POP</span>       <span class="comment">//50    ，丢弃栈顶数据。此时栈中数据stack[],存储器数据store&#123;`0x1数值存在0x0地址`&#125;</span></span><br></pre></td></tr></table></figure>
+<p>从上面分析中可知：Solidity是将<code>uint256 a</code>保存在<code>0x0</code>的位置上。</p>
+<p>仔细观察，会发现<code>DUP2</code>、<code>SWAP1</code>    、<code>POP</code>命令都是多余的，去掉后，会更清晰，并且运行结果也一样：</p>
+<figure class="highlight armasm"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="symbol">PUSH1</span> <span class="number">01</span>  <span class="comment">//60 0x1，该过程可以用0x1表示,它是push(0x1)的速记。这条指令将数值1压入栈中。此时栈中数据stack[0x1]</span></span><br><span class="line"><span class="symbol">PUSH1</span> <span class="number">00</span>  <span class="comment">//60 0x0，该过程可以用0x0表示,它是push(0x0)的速记。这条指令将数值0压入栈中。此时栈中数据stack[0x1，0x0]</span></span><br><span class="line"><span class="symbol">SSTORE</span>    <span class="comment">//55    ，将数值0x01存储在存储器的0x0的位置上，此时会消耗掉栈顶的两项数据。此时栈中数据stack[0x1],存储器数据store&#123;`0x1数值存在0x0地址`&#125;</span></span><br></pre></td></tr></table></figure>
+<h2 id="解析有两个变量的合约"><a href="#解析有两个变量的合约" class="headerlink" title="解析有两个变量的合约"></a>解析有两个变量的合约</h2><p>代码如下：</p>
+<figure class="highlight javascript"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">pragma solidity ^<span class="number">0.4</span><span class="number">.11</span>;</span><br><span class="line">contract C &#123;</span><br><span class="line">    uint256 a;</span><br><span class="line">    uint256 b;</span><br><span class="line">    <span class="title">constructor</span>(<span class="params"></span>) <span class="title">public</span> &#123;</span><br><span class="line">      a = <span class="number">1</span>;</span><br><span class="line">      b = <span class="number">2</span>;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>编译后，<code>b=2</code>的过程的EVM字节码（a=1前面已解析）：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">6002600181905550</span><br></pre></td></tr></table></figure>
+<p>对应的汇编指令：</p>
+<figure class="highlight armasm"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="symbol">PUSH1</span> <span class="number">0x2</span>  <span class="comment">//60 0x2，该过程可以用0x2表示,它是push(0x2)的速记。这条指令将数值2压入栈中。此时栈中数据stack[0x2]</span></span><br><span class="line"><span class="symbol">PUSH1</span> <span class="number">0x1</span>  <span class="comment">//60 0x1，该过程可以用0x1表示,它是push(0x1)的速记。这条指令将数值2压入栈中。此时栈中数据stack[0x2 0x1]</span></span><br><span class="line"><span class="symbol">DUP2</span>       <span class="comment">//81，   从栈顶起，将栈中第2个元素复制并加入栈顶。此时栈中数据stack[0x2 0x1 0x2]</span></span><br><span class="line"><span class="symbol">SWAP1</span>      <span class="comment">//90，   从栈顶起，将前两个数据交换。此时栈中数据stack[0x2 0x2 0x1]</span></span><br><span class="line"><span class="symbol">SSTORE</span>     <span class="comment">//55，   将数值0x02存储在存储器的0x1的位置上，此时会消耗掉栈顶的两项数据。此时栈中数据stack[0x2],存储器数据store&#123;`0x02数值存在0x1地址`&#125;</span></span><br><span class="line"><span class="keyword">POP</span>        <span class="comment">//50，   丢弃栈顶数据。此时栈中数据stack[],存储器数据store&#123;`0x1数值存在0x0地址`,`0x2数值存在0x1地址`&#125;</span></span><br></pre></td></tr></table></figure>
+<p>可知，最终：<br>store{<code>0x1数值存在0x0地址</code>,<code>0x2数值存在0x1地址</code>}，也就是说a存在0x0地址，b存在0x1地址</p>
+<h2 id="存储打包（合约初步优化）"><a href="#存储打包（合约初步优化）" class="headerlink" title="存储打包（合约初步优化）"></a>存储打包（合约初步优化）</h2><p>上面案例中，我们将每个数据都保存在了一个地址，其实每个地址可以看作是一个槽，一个槽可以放下32字节的。要是每个16字节的变量分别都放在32字节的不同槽中，会很浪费空间的，并且存储在不同的槽每次都需要很高的手续费，要知道手续费可不是闹着玩的。<br>Solidity提供的优化方案：尽量将小一点的两个数据打包并存储在同一个槽中。<br>把合约改为如下样子，a和b都使用uint128，也就是16个字节：</p>
+<figure class="highlight javascript"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">pragma solidity ^<span class="number">0.4</span><span class="number">.11</span>;</span><br><span class="line">contract C &#123;</span><br><span class="line">    uint128 a;</span><br><span class="line">    uint128 b;</span><br><span class="line">    <span class="title">constructor</span>(<span class="params"></span>) <span class="title">public</span> &#123;</span><br><span class="line">      a = <span class="number">1</span>;</span><br><span class="line">      b = <span class="number">2</span>;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>编译后，<code>a=1;b=2;</code>对应EVM字节码：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">60016000806101000a8154816fffffffffffffffffffffffffffffffff02191690836fffffffffffffffffffffffffffffffff1602179055506002600060106101000a8154816fffffffffffffffffffffffffffffffff02191690836fffffffffffffffffffffffffffffffff160217905550</span><br></pre></td></tr></table></figure>
+<p>对应汇编指令：</p>
+<figure class="highlight armasm"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br></pre></td><td class="code"><pre><span class="line">a<span class="number">=1</span>:</span><br><span class="line"><span class="symbol">PUSH1</span> <span class="number">0x1</span>                                 <span class="comment">//60 0x1，    该过程可以用0x1表示,它是push(0x1)的速记。这条指令将数值1压入栈中。此时栈中数据stack[0x1]</span></span><br><span class="line"></span><br><span class="line"><span class="symbol">PUSH1</span> <span class="number">0x0</span>                                 <span class="comment">//60 0x0，    该过程可以用0x0表示,它是push(0x0)的速记。这条指令将数值0压入栈中。此时栈中数据stack[0x1 0x0]</span></span><br><span class="line"></span><br><span class="line"><span class="symbol">DUP1</span>                                      <span class="comment">//80，        从栈顶起，将栈中第1个元素复制并加入栈顶。此时栈中数据stack[0x1 0x0 0x0]</span></span><br><span class="line"></span><br><span class="line"><span class="symbol">PUSH2</span> <span class="number">0x100</span>                               <span class="comment">//61 0x100    占用2个字节，将值256压入栈。此时栈中数据stack[0x1 0x0 0x0 0x100]</span></span><br><span class="line"></span><br><span class="line"><span class="symbol">EXP</span>                                       <span class="comment">//0a          从栈顶起，依次取出2个元素，第一个元素为底数，第二个元素为指数，计算出结果为1，然后1字节存储到栈中。此时栈中数据stack[0x1 0x0 0x1]</span></span><br><span class="line"></span><br><span class="line"><span class="symbol">DUP2</span>                                      <span class="comment">//81          从栈顶起，将栈中第2个元素复制并加入栈顶。此时栈中数据stack[0x1 0x0 0x1 0x0]</span></span><br><span class="line"></span><br><span class="line"><span class="symbol">SLOAD</span>                                     <span class="comment">//54          取出栈顶元素，转为hash长度（表示在db中的地址），在db中是否存在对应值,并读取出,此处db中不存在对应数据，返回0x0，push到栈中。此时栈中数据stack[0x1 0x0 0x1 0x0]</span></span><br><span class="line"></span><br><span class="line"><span class="symbol">DUP2</span>                                      <span class="comment">//81          从栈顶起，将栈中第2个元素复制并加入栈顶。此时栈中数据stack[0x1 0x0 0x1 0x0 0x1]</span></span><br><span class="line"></span><br><span class="line"><span class="symbol">PUSH16</span> <span class="number">0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF</span> <span class="comment">//6f 0xFF...  将16字节值0xFF...推入栈中。此时栈中数据stack[0x1 0x0 0x1 0x0 0x1 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF]</span></span><br><span class="line"></span><br><span class="line"><span class="keyword">MUL</span>                                       <span class="comment">//02          栈中两个元素相乘，结果存入栈中。此时栈中数据stack[0x1 0x0 0x1 0x0 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF]</span></span><br><span class="line"></span><br><span class="line"><span class="symbol">NOT</span>                                       <span class="comment">//19          栈顶数据取反，但实际运算还需要转为补码。此时栈中数据stack[0x1 0x0 0x1 0x0 0XFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00000000000000000000000000000000]</span></span><br><span class="line"></span><br><span class="line"><span class="keyword">AND</span>                                       <span class="comment">//16          栈中取出前两个数据进行与运算，结果推入栈。此时栈中数据stack[0x1 0x0 0x1 0x0]</span></span><br><span class="line"></span><br><span class="line"><span class="symbol">SWAP1</span>                                     <span class="comment">//90          从栈顶起，将前两个数据交换。此时栈中数据stack[0x1 0x0 0x0 0x1]</span></span><br><span class="line"></span><br><span class="line"><span class="symbol">DUP4</span>                                      <span class="comment">//83          从栈顶起，将栈中第4个元素复制并加入栈顶。此时栈中数据stack[0x1 0x0 0x0 0x1 0x1]</span></span><br><span class="line"></span><br><span class="line"><span class="symbol">PUSH16</span> <span class="number">0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF</span> <span class="comment">//6f 0xFF...  将16字节值0xFF...推入栈中。此时栈中数据stack[0x1 0x0 0x0 0x1 0x1 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF]</span></span><br><span class="line"></span><br><span class="line"><span class="keyword">AND</span>                                       <span class="comment">//16          栈中取出前两个数据进行与运算，结果推入栈。此时栈中数据stack[0x1 0x0 0x0 0x1 0x1]</span></span><br><span class="line"></span><br><span class="line"><span class="keyword">MUL</span>                                       <span class="comment">//02          栈中两个元素相乘，结果存入栈中。此时栈中数据stack[0x1 0x0 0x0 0x1]</span></span><br><span class="line"></span><br><span class="line"><span class="symbol">OR</span>                                        <span class="comment">//17          栈中pop出栈顶元素，与栈中新的栈顶元素或运算，栈顶修改为新的运算结果。此时栈中数据stack[0x1 0x0 0x1]</span></span><br><span class="line"></span><br><span class="line"><span class="symbol">SWAP1</span>                                     <span class="comment">//90          从栈顶起，将前两个数据交换。此时栈中数据stack[0x1 0x1 0x0]</span></span><br><span class="line"></span><br><span class="line"><span class="symbol">SSTORE</span>                                    <span class="comment">//55          栈顶开始，前两项。将数据0x1保存在0x0地址,此时store&#123;`0x1数值存在0x0地址`&#125;。此时栈中数据stack[0x1]</span></span><br><span class="line"></span><br><span class="line"><span class="keyword">POP</span>                                       <span class="comment">//50          栈中数据推出。此时栈中数据stack[]。</span></span><br><span class="line"></span><br><span class="line">b<span class="number">=2</span>:</span><br><span class="line"><span class="symbol">PUSH1</span> <span class="number">0x2</span>                                 <span class="comment">//60 0x2，     该过程可以用0x2表示,它是push(0x2)的速记。这条指令将数值1压入栈中。此时栈中数据stack[0x2]</span></span><br><span class="line"></span><br><span class="line"><span class="symbol">PUSH1</span> <span class="number">0x0</span>                                 <span class="comment">//60 0x0，     该过程可以用0x0表示,它是push(0x0)的速记。这条指令将数值0压入栈中。此时栈中数据stack[0x2,0x0]</span></span><br><span class="line"></span><br><span class="line"><span class="symbol">PUSH1</span> <span class="number">0x10</span>                                <span class="comment">//60 0x10，    将数值0x10压入栈中。此时栈中数据stack[0x2,0x0,0x10]</span></span><br><span class="line"></span><br><span class="line"><span class="symbol">PUSH2</span> <span class="number">0x100</span>                               <span class="comment">//60 0x100，   将数值0x100压入栈中。此时栈中数据stack[0x2,0x0,0x10,0x100]</span></span><br><span class="line"></span><br><span class="line"><span class="symbol">EXP</span>                                       <span class="comment">//0a           从栈顶起，依次取出2个元素，第一个元素为底数，第二个元素为指数，计算结果进栈。此时栈中数据stack[0x2,0x0,0x100000000000000000000000000000000]</span></span><br><span class="line"></span><br><span class="line"><span class="symbol">DUP2</span>                                      <span class="comment">//81           从栈顶起，将栈中第2个元素复制并加入栈顶。此时栈中数据stack[0x2,0x0,0x100000000000000000000000000000000,0x0]</span></span><br><span class="line"></span><br><span class="line"><span class="symbol">SLOAD</span>                                     <span class="comment">//54           取出栈顶元素，转为hash长度（表示在db中的地址），在db中读取出对应值为1，将其压入栈中。此时栈中数据stack[0x2,0x0,0x100000000000000000000000000000000,0x1]</span></span><br><span class="line"></span><br><span class="line"><span class="symbol">DUP2</span>                                      <span class="comment">//81           从栈顶起，将栈中第2个元素复制并加入栈顶。此时栈中数据stack[0x2,0x0,0x100000000000000000000000000000000,0x1,0x100000000000000000000000000000000]</span></span><br><span class="line"></span><br><span class="line"><span class="symbol">PUSH16</span> <span class="number">0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF</span> <span class="comment">//6f 0xFF...   将16字节值0xFF...推入栈中。此时栈中数据stack[0x2,0x0,0x100000000000000000000000000000000,0x1,0x100000000000000000000000000000000,0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF]</span></span><br><span class="line"></span><br><span class="line"><span class="keyword">MUL</span>                                       <span class="comment">//02           栈中两个元素相乘，结果存入栈中。此时栈中数据stack[0x2,0x0,0x100000000000000000000000000000000,0x1,0XFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00000000000000000000000000000000]</span></span><br><span class="line"></span><br><span class="line"><span class="symbol">NOT</span>                                       <span class="comment">//19           栈顶数据取反，但实际运算还需要转为补码。此时栈中数据stack[0x2,0x0,0x100000000000000000000000000000000,0x1,0XFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF]</span></span><br><span class="line"></span><br><span class="line"><span class="keyword">AND</span>                                       <span class="comment">//16           栈中取出前两个数据进行与运算，结果推入栈。此时栈中数据stack[0x2,0x0,0x100000000000000000000000000000000,0x1]</span></span><br><span class="line"></span><br><span class="line"><span class="symbol">SWAP1</span>                                     <span class="comment">//90           从栈顶起，将前两个数据交换。此时栈中数据stack[0x2,0x0,0x1,0x100000000000000000000000000000000]</span></span><br><span class="line"></span><br><span class="line"><span class="symbol">DUP4</span>                                      <span class="comment">//83           从栈顶起，将栈中第4个元素复制并加入栈顶。此时栈中数据stack[0x2,0x0,0x1,0x100000000000000000000000000000000,0x2]</span></span><br><span class="line"></span><br><span class="line"><span class="symbol">PUSH16</span> <span class="number">0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF</span> <span class="comment">//6f 0xFF...   将16字节值0xFF...推入栈中。此时栈中数据stack[0x2,0x0,0x1,0x100000000000000000000000000000000,0x2,0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF]</span></span><br><span class="line"></span><br><span class="line"><span class="keyword">AND</span>                                       <span class="comment">//16           栈中取出前两个数据进行与运算，结果推入栈。此时栈中数据stack[0x2,0x0,0x1,0x100000000000000000000000000000000,0x2]</span></span><br><span class="line"></span><br><span class="line"><span class="keyword">MUL</span>                                       <span class="comment">//02           栈中两个元素相乘，结果存入栈中。此时栈中数据stack[0x2,0x0,0x1,0x200000000000000000000000000000000]</span></span><br><span class="line"></span><br><span class="line"><span class="symbol">OR</span>                                        <span class="comment">//17           栈中pop出栈顶元素，与栈中新的栈顶元素或运算，栈顶修改为新的运算结果。此时栈中数据stack[0x2,0x0,0x200000000000000000000000000000000]</span></span><br><span class="line"></span><br><span class="line"><span class="symbol">SWAP1</span>                                     <span class="comment">//90           从栈顶起，将前两个数据交换。此时栈中数据stack[0x2,0x200000000000000000000000000000000,0x0]</span></span><br><span class="line"></span><br><span class="line"><span class="symbol">SSTORE</span>                                    <span class="comment">//55           栈顶开始，前两项。将数据0x200000000000000000000000000000000保存在0x0地址,此时store&#123;`0x200000000000000000000000000000000数值存在0x0地址`,`0x1数值存在0x0地址`&#125;。此时栈中数据stack[0x2]</span></span><br><span class="line"></span><br><span class="line"><span class="keyword">POP</span>                                       <span class="comment">//50           栈中数据推出。此时栈中数据stack[]。</span></span><br></pre></td></tr></table></figure>
+<p>一路把这些蛋疼的指令整理后，会发现<code>a=1</code>和<code>b=2</code>都存在了同一个地址，完整的存储形式是这样子：<code>[0x0000000000000000000000000000000200000000000000000000000000000001]</code>,低16个字节存1，高16个字节存2，倒数第二行的<code>SSTORE</code>的指令应该是进行了或操作。<br>指令分析完了，有什么用呢？先看看各指令手续费情况：</p>
+<ol>
+<li><code>sstore</code>指令第一次写入一个新位置需要花费20000 gas</li>
+<li><code>sstore</code>指令后续写入一个已存在的位置需要花费5000 gas</li>
+<li><code>sload</code>指令的成本是200 gas</li>
+<li><code>其余</code>大多数的指令成本是3～10 gas</li>
+</ol>
+<p>知道手续费成本后，我们就明白，将两个变量写入同一个槽中，按照上面指令：<code>sstore</code>指令使用2次，费用25000gas；<code>sload</code>指令使用2次，费用1000gas；整体大概用了26000的gas。这比分别写在不同槽中，节省了将近15000gas。<br>这里不知道大家是否发现，<code>SLOAD</code>命令，我们明明知道这个0x0地址没有值，结果肯定是值0x0，却还要用指令去读取，无辜花费了手续费,这是Solidity语言的不足之处。此处若直接用值0x0替代<code>SLOAD</code>，将会剩下不少手续费，期待后面Solidity语言的优化吧。</p>
+<h2 id="合约进一步优化"><a href="#合约进一步优化" class="headerlink" title="合约进一步优化"></a>合约进一步优化</h2><p>从上面的指令中进一步研究发现，如果能将<code>a=1</code>和<code>b=2</code>这两个128位的数只调用一次<code>sstroe</code>存储指令就将其存储，还可以再节省5000gas。<br>Solidity中提供了这样一个方式来实现此目的，即在编译命令中加入<code>--optimize</code>，如：<code>solc --bin --asm --optimize test.sol</code>。<br>小编使用的是<code>Remix</code>，如下图操作选中<code>optimize</code>即可:</p>
+<img src="/articles/4b0172c1/1.png" class="" title="Remix启用optimize">
+<p>（合约源码紧接上一部分的）编译后，<code>a=1;b=2;</code>对应EVM字节码：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">600080547002000000000000000000000000000000006001608060020a03199091166001176001608060020a0316179055</span><br></pre></td></tr></table></figure>
+<p>对应汇编指令：</p>
+<figure class="highlight armasm"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br></pre></td><td class="code"><pre><span class="line"><span class="symbol">PUSH1</span> <span class="number">0x0</span>                                   <span class="comment">//60 0x0，      该过程可以用0x0表示,它是push(0x0)的速记。这条指令将数值0压入栈中。此时栈中数据stack[0x0]</span></span><br><span class="line"></span><br><span class="line"><span class="symbol">DUP1</span>                                        <span class="comment">//80，          从栈顶起，将栈中第1个元素复制并加入栈顶。此时栈中数据stack[0x0 0x0]</span></span><br><span class="line"></span><br><span class="line"><span class="symbol">SLOAD</span>                                       <span class="comment">//54，          取出栈顶元素，转为hash长度（表示在db中的地址），在db中是否存在对应值,并读取出,此处db中不存在对应数据，返回0x0，push到栈中。此时栈中数据stack[0x0 0x0]</span></span><br><span class="line"></span><br><span class="line"><span class="symbol">PUSH17</span> <span class="number">0x200000000000000000000000000000000</span>  <span class="comment">//70 0x200...， 将17字节值0x200...推入栈中。此时栈中数据stack[0x0 0x0 0x200000000000000000000000000000000]        </span></span><br><span class="line"></span><br><span class="line"><span class="symbol">PUSH1</span> <span class="number">0x1</span>                                   <span class="comment">//60 0x1，      将值0x1压入栈。此时栈中数据stack[0x0 0x0 0x200000000000000000000000000000000 0x1]</span></span><br><span class="line"></span><br><span class="line"><span class="symbol">PUSH1</span> <span class="number">0x80</span>                                  <span class="comment">//60 80，       将值0x80压入栈。此时栈中数据stack[0x0 0x0 0x200000000000000000000000000000000 0x1 0x80]</span></span><br><span class="line"></span><br><span class="line"><span class="symbol">PUSH1</span> <span class="number">0x2</span>                                   <span class="comment">//60 0x2，      将值0x2压入栈。此时栈中数据stack[0x0 0x0 0x200000000000000000000000000000000 0x1 0x80 0x2]</span></span><br><span class="line"></span><br><span class="line"><span class="symbol">EXP</span>                                         <span class="comment">//0a，          从栈顶起，依次取出2个元素，第一个元素为底数，第二个元素为指数，计算结果进栈。此时栈中数据stack[0x0 0x0 0x200000000000000000000000000000000 0x1 0x100000000000000000000000000000000]</span></span><br><span class="line"></span><br><span class="line"><span class="keyword">SUB</span>                                         <span class="comment">//03，          栈中推出栈顶元素，减去新的栈顶元素，栈顶修改为新的运算结果。此时栈中数据stack[0x0 0x0 0x200000000000000000000000000000000 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF]</span></span><br><span class="line"></span><br><span class="line"><span class="symbol">NOT</span>                                         <span class="comment">//19，          栈顶数据取反，但实际运算还需要转为补码。此时栈中数据stack[0x0 0x0  0x200000000000000000000000000000000 0XFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00000000000000000000000000000000]</span></span><br><span class="line"></span><br><span class="line"><span class="symbol">SWAP1</span>                                       <span class="comment">//90，          从栈顶起，将前两个数据交换。此时栈中数据stack[0x0 0x0 0XFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00000000000000000000000000000000 0x200000000000000000000000000000000]</span></span><br><span class="line"></span><br><span class="line"><span class="symbol">SWAP2</span>                                       <span class="comment">//91，          栈顶元素和它下面的第2项进行交换，此时栈中数据stack[0x0 0x200000000000000000000000000000000 0XFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00000000000000000000000000000000 0x0]</span></span><br><span class="line"></span><br><span class="line"><span class="keyword">AND</span>                                         <span class="comment">//16，          栈中取出前两个数据进行与运算，结果推入栈。此时栈中数据stack[0x0 0x200000000000000000000000000000000 0x0]</span></span><br><span class="line"></span><br><span class="line"><span class="symbol">PUSH1</span> <span class="number">0x1</span>                                   <span class="comment">//60 0x1，      将值0x1压入栈。。此时栈中数据stack[0x0 0x200000000000000000000000000000000 0x0 0x1]</span></span><br><span class="line"></span><br><span class="line"><span class="symbol">OR</span>                                          <span class="comment">//17，          栈中pop出栈顶元素，与栈中新的栈顶元素或运算，栈顶修改为新的运算结果。此时栈中数据stack[0x0 0x200000000000000000000000000000000 0x1]</span></span><br><span class="line"></span><br><span class="line"><span class="symbol">PUSH1</span> <span class="number">0x1</span>                                   <span class="comment">//60 0x1，      将值0x1压入栈。此时栈中数据stack[0x0 0x200000000000000000000000000000000 0x1 0x1]</span></span><br><span class="line"></span><br><span class="line"><span class="symbol">PUSH1</span> <span class="number">0x80</span>                                  <span class="comment">//60 80，       将值0x80压入栈。此时栈中数据stack[0x0 0x200000000000000000000000000000000 0x1 0x1 0x80]</span></span><br><span class="line"></span><br><span class="line"><span class="symbol">PUSH1</span> <span class="number">0x2</span>                                   <span class="comment">//60 0x2，      将值0x2压入栈。此时栈中数据stack[0x0 0x200000000000000000000000000000000 0x1 0x1 0x80 0x2]</span></span><br><span class="line"></span><br><span class="line"><span class="symbol">EXP</span>                                         <span class="comment">//0a，          从栈顶起，依次取出2个元素，第一个元素为底数，第二个元素为指数，计算结果进栈。此时栈中数据stack[0x0 0x200000000000000000000000000000000 0x1 0x1 0x100000000000000000000000000000000]</span></span><br><span class="line"></span><br><span class="line"><span class="keyword">SUB</span>                                         <span class="comment">//03，          栈中推出栈顶元素，减去新的栈顶元素，栈顶修改为新的运算结果。此时栈中数据stack[0x0 0x200000000000000000000000000000000 0x1 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF]</span></span><br><span class="line"></span><br><span class="line"><span class="keyword">AND</span>                                         <span class="comment">//16，          栈中取出前两个数据进行与运算，结果推入栈。此时栈中数据stack[0x0 0x200000000000000000000000000000000 0x1]</span></span><br><span class="line"></span><br><span class="line"><span class="symbol">OR</span>                                          <span class="comment">//17，          栈中pop出栈顶元素，与栈中新的栈顶元素或运算，栈顶修改为新的运算结果。此时栈中数据stack[0x0 0x200000000000000000000000000000001]</span></span><br><span class="line"></span><br><span class="line"><span class="symbol">SWAP1</span>                                       <span class="comment">//90，          从栈顶起，将前两个数据交换。此时栈中数据stack[0x200000000000000000000000000000001 0x0]</span></span><br><span class="line"></span><br><span class="line"><span class="symbol">SSTORE</span>                                      <span class="comment">//55，          栈顶开始，前两项。将数值0x200000000000000000000000000000001存储在存储器的0x0的位置上，此时会消耗掉栈顶的两项数据。此时栈中数据stack[],存储器数据store&#123;`0x200000000000000000000000000000001数值存在0x0地址`&#125;</span></span><br></pre></td></tr></table></figure>
+<p>从上面指令中可以看出，Solidity使用了一系列的运算，生成<code>0x200000000000000000000000000000001</code>,然后一次性将其写入存储器中，正好32个字节。</p>
+<h2 id="关于Gas的考虑"><a href="#关于Gas的考虑" class="headerlink" title="关于Gas的考虑"></a>关于Gas的考虑</h2><p>关于上面合约中<code>a=1;b=2</code>的字节码，仔细观察：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">600080547002000000000000000000000000000000006001608060020a03199091166001176001608060020a0316179055</span><br></pre></td></tr></table></figure>
+<p>我们发现字节码中直接使用了<code>200000000000000000000000000000000</code>,而不是用指令<code>exp(0x2, 0x81)</code>来计算，原因很简单，因为前者便宜，我们来看看对于手续费的标准：</p>
+<ol>
+<li>一笔交易的每个零字节的数据或代码费用为<code>4 gas</code></li>
+<li>一笔交易的每个非零字节的数据或代码的费用为<code>68 gas</code></li>
+</ol>
+<p>根据这个标准，我们来计算一下<code>200000000000000000000000000000000</code>的费用：</p>
+<ol>
+<li>一个非0数<code>2</code>，费用为<code>68gas</code></li>
+<li>32个<code>0</code>，费用为<code>32*4=128gas</code></li>
+<li>公共gas费用：<code>128+68=196gas</code></li>
+</ol>
+<p>再来计算一下使用<code>exp(0x2, 0x81)</code>费用：</p>
+<ol>
+<li><code>exp(0x2, 0x81)</code>的字节码为：<code>608160020a</code>,即指令：<code>PUSH 0x81 PUSH 0x02 EXP</code></li>
+<li>其中代码：<code>60</code>、<code>60</code>、<code>0a</code>总共3个，费用为<code>3*68=204gas</code></li>
+<li>非0数：81、02,费用为<code>2*68=136gas</code></li>
+<li>总共gas费用<code>204+136=340gas</code></li>
+</ol>
+<p>看，虽然后者字节码短，但是费用却要高很多。因此Solidity的字节码会生成为前者。</p>
+<h2 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h2><p>EVM的编译器实际上不会为字节码的大小、速度或内存高效性进行优化。相反，它会为gas的使用进行优化，这间接鼓励了计算的排序，让以太坊区块链可以更高效一点。<br>我们也看到了EVM一些奇特的地方：</p>
+<ol>
+<li>EVM是一个256位的机器。以32字节来处理数据是最自然的</li>
+<li>持久存储是相当昂贵的</li>
+<li>Solidity编译器会为了减少gas的使用而做出相应的优化选择</li>
+<li>指令中涉及的位操作，小编也没有深究，也没有太多精力去深究，简单说一句是：位操作主要是用来优化汇编操作的，由Solidity的编译器来处理。</li>
+</ol>
+<p>Gas成本的设置有一点武断，也许未来会改变。当成本改变的时候，编译器也会做出不同的优化选择。</p>
+<blockquote>
+<p>量子链-Howard英文原文：<a target="_blank" rel="noopener" href="https://blog.qtum.org/diving-into-the-ethereum-vm-6e8d5d2f3c30">https://blog.qtum.org/diving-into-the-ethereum-vm-6e8d5d2f3c30</a><br>xuli中文翻译：<a target="_blank" rel="noopener" href="https://lilymoana.github.io/evm_part1.html">https://lilymoana.github.io/evm_part1.html</a></p>
+</blockquote>
+ 
+      <!-- reward -->
+      
+    </div>
+    
+
+    <!-- copyright -->
+    
+    <div class="declare">
+      <ul class="post-copyright">
+        <li>
+          <i class="ri-copyright-line"></i>
+          <strong>Copyright： </strong>
+          
+          Copyright is owned by the author. For commercial reprints, please contact the author for authorization. For non-commercial reprints, please indicate the source.
+          
+        </li>
+      </ul>
+    </div>
+    
+    <footer class="article-footer">
+       
+<div class="share-btn">
+      <span class="share-sns share-outer">
+        <i class="ri-share-forward-line"></i>
+        分享
+      </span>
+      <div class="share-wrap">
+        <i class="arrow"></i>
+        <div class="share-icons">
+          
+          <a class="weibo share-sns" href="javascript:;" data-type="weibo">
+            <i class="ri-weibo-fill"></i>
+          </a>
+          <a class="weixin share-sns wxFab" href="javascript:;" data-type="weixin">
+            <i class="ri-wechat-fill"></i>
+          </a>
+          <a class="qq share-sns" href="javascript:;" data-type="qq">
+            <i class="ri-qq-fill"></i>
+          </a>
+          <a class="douban share-sns" href="javascript:;" data-type="douban">
+            <i class="ri-douban-line"></i>
+          </a>
+          <!-- <a class="qzone share-sns" href="javascript:;" data-type="qzone">
+            <i class="icon icon-qzone"></i>
+          </a> -->
+          
+          <a class="facebook share-sns" href="javascript:;" data-type="facebook">
+            <i class="ri-facebook-circle-fill"></i>
+          </a>
+          <a class="twitter share-sns" href="javascript:;" data-type="twitter">
+            <i class="ri-twitter-fill"></i>
+          </a>
+          <a class="google share-sns" href="javascript:;" data-type="google">
+            <i class="ri-google-fill"></i>
+          </a>
+        </div>
+      </div>
+</div>
+
+<div class="wx-share-modal">
+    <a class="modal-close" href="javascript:;"><i class="ri-close-circle-line"></i></a>
+    <p>扫一扫，分享到微信</p>
+    <div class="wx-qrcode">
+      <img src="//api.qrserver.com/v1/create-qr-code/?size=150x150&data=http://jason-wj.gitee.io/articles/4b0172c1/" alt="微信分享二维码">
+    </div>
+</div>
+
+<div id="share-mask"></div>  
+  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/EVM/" rel="tag">EVM</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/ethereum/" rel="tag">ethereum</a></li></ul>
+
+    </footer>
+  </div>
+
+   
+  <nav class="article-nav">
+    
+      <a href="/articles/8ddcbc00/" class="article-nav-link">
+        <strong class="article-nav-caption">上一篇</strong>
+        <div class="article-nav-title">
+          
+            以太坊vm系列3-固定长度数据类型的处理
+          
+        </div>
+      </a>
+    
+    
+      <a href="/articles/715e1612/" class="article-nav-link">
+        <strong class="article-nav-caption">下一篇</strong>
+        <div class="article-nav-title">以太坊vm系列1-指令集汇总</div>
+      </a>
+    
+  </nav>
+
+   
+<!-- valine评论 -->
+<div id="vcomments-box">
+  <div id="vcomments"></div>
+</div>
+<script src="//cdn1.lncld.net/static/js/3.0.4/av-min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/valine@1.4.14/dist/Valine.min.js"></script>
+<script>
+  new Valine({
+    el: "#vcomments",
+    app_id: "gdw0hVSwW3l6KgEMulSAc9Rx-gzGzoHsz",
+    app_key: "M4iiVXe0CuXWQEKuyIzWWDMh",
+    path: window.location.pathname,
+    avatar: "monsterid",
+    placeholder: "给我的文章加点评论吧~",
+    recordIP: true,
+  });
+  const infoEle = document.querySelector("#vcomments .info");
+  if (infoEle && infoEle.childNodes && infoEle.childNodes.length > 0) {
+    infoEle.childNodes.forEach(function (item) {
+      item.parentNode.removeChild(item);
+    });
+  }
+</script>
+<style>
+  #vcomments-box {
+    padding: 5px 30px;
+  }
+
+  @media screen and (max-width: 800px) {
+    #vcomments-box {
+      padding: 5px 0px;
+    }
+  }
+
+  #vcomments-box #vcomments {
+    background-color: #fff;
+  }
+
+  .v .vlist .vcard .vh {
+    padding-right: 20px;
+  }
+
+  .v .vlist .vcard {
+    padding-left: 10px;
+  }
+</style>
+
+ 
+   
+     
+</article>
+
+</section>
+      <footer class="footer">
+  <div class="outer">
+    <ul>
+      <li>
+        Copyrights &copy;
+        2017-2021
+        <i class="ri-heart-fill heart_icon"></i> Jason
+      </li>
+    </ul>
+    <ul>
+      <li>
+        
+      </li>
+    </ul>
+    <ul>
+      <li>
+        
+        
+        <span>
+  <span><i class="ri-user-3-fill"></i>Visitors:<span id="busuanzi_value_site_uv"></span></s>
+  <span class="division">|</span>
+  <span><i class="ri-eye-fill"></i>Views:<span id="busuanzi_value_page_pv"></span></span>
+</span>
+        
+      </li>
+    </ul>
+    <ul>
+      
+    </ul>
+    <ul>
+      
+    </ul>
+    <ul>
+      <li>
+        <!-- cnzz统计 -->
+        
+        <script type="text/javascript" src='https://s4.cnzz.com/z_stat.php?id=1279593399&amp;web_id=1279593399'></script>
+        
+      </li>
+    </ul>
+  </div>
+</footer>
+      <div class="float_btns">
+        <div class="totop" id="totop">
+  <i class="ri-arrow-up-line"></i>
+</div>
+
+<div class="todark" id="todark">
+  <i class="ri-moon-line"></i>
+</div>
+
+      </div>
+    </main>
+    <aside class="sidebar on">
+      <button class="navbar-toggle"></button>
+<nav class="navbar">
+  
+  <div class="logo">
+    <a href="/"><img src="/images/my_head-touch-icon-next.png" alt="Jason漫谈区块链"></a>
+  </div>
+  
+  <ul class="nav nav-main">
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/">主页</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/archives">归档</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/categories">分类</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/tags">标签</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/friends">友链</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/about">关于我</a>
+    </li>
+    
+  </ul>
+</nav>
+<nav class="navbar navbar-bottom">
+  <ul class="nav">
+    <li class="nav-item">
+      
+      <a class="nav-item-link nav-item-search"  title="Search">
+        <i class="ri-search-line"></i>
+      </a>
+      
+      
+    </li>
+  </ul>
+</nav>
+<div class="search-form-wrap">
+  <div class="local-search local-search-plugin">
+  <input type="search" id="local-search-input" class="local-search-input" placeholder="Search...">
+  <div id="local-search-result" class="local-search-result"></div>
+</div>
+</div>
+    </aside>
+    <script>
+      if (window.matchMedia("(max-width: 768px)").matches) {
+        document.querySelector('.content').classList.remove('on');
+        document.querySelector('.sidebar').classList.remove('on');
+      }
+    </script>
+    <div id="mask"></div>
+
+<!-- #reward -->
+<div id="reward">
+  <span class="close"><i class="ri-close-line"></i></span>
+  <p class="reward-p"><i class="ri-cup-line"></i>请我喝杯咖啡吧~</p>
+  <div class="reward-box">
+    
+    <div class="reward-item">
+      <img class="reward-img" src="/images/pay_ali.jpg">
+      <span class="reward-type">支付宝</span>
+    </div>
+    
+    
+    <div class="reward-item">
+      <img class="reward-img" src="/images/pay_wechat.jpg">
+      <span class="reward-type">微信</span>
+    </div>
+    
+  </div>
+</div>
+    
+<script src="/js/jquery-2.0.3.min.js"></script>
+
+
+<script src="/js/lazyload.min.js"></script>
+
+<!-- Tocbot -->
+
+
+<script src="/js/tocbot.min.js"></script>
+
+<script>
+  tocbot.init({
+    tocSelector: '.tocbot',
+    contentSelector: '.article-entry',
+    headingSelector: 'h1, h2, h3, h4, h5, h6',
+    hasInnerContainers: true,
+    scrollSmooth: true,
+    scrollContainer: 'main',
+    positionFixedSelector: '.tocbot',
+    positionFixedClass: 'is-position-fixed',
+    fixedSidebarOffset: 'auto'
+  });
+</script>
+
+<script src="https://cdn.jsdelivr.net/npm/jquery-modal@0.9.2/jquery.modal.min.js"></script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/jquery-modal@0.9.2/jquery.modal.min.css">
+<script src="https://cdn.jsdelivr.net/npm/justifiedGallery@3.7.0/dist/js/jquery.justifiedGallery.min.js"></script>
+
+<script src="/dist/main.js"></script>
+
+<!-- ImageViewer -->
+
+<!-- Root element of PhotoSwipe. Must have class pswp. -->
+<div class="pswp" tabindex="-1" role="dialog" aria-hidden="true">
+
+    <!-- Background of PhotoSwipe. 
+         It's a separate element as animating opacity is faster than rgba(). -->
+    <div class="pswp__bg"></div>
+
+    <!-- Slides wrapper with overflow:hidden. -->
+    <div class="pswp__scroll-wrap">
+
+        <!-- Container that holds slides. 
+            PhotoSwipe keeps only 3 of them in the DOM to save memory.
+            Don't modify these 3 pswp__item elements, data is added later on. -->
+        <div class="pswp__container">
+            <div class="pswp__item"></div>
+            <div class="pswp__item"></div>
+            <div class="pswp__item"></div>
+        </div>
+
+        <!-- Default (PhotoSwipeUI_Default) interface on top of sliding area. Can be changed. -->
+        <div class="pswp__ui pswp__ui--hidden">
+
+            <div class="pswp__top-bar">
+
+                <!--  Controls are self-explanatory. Order can be changed. -->
+
+                <div class="pswp__counter"></div>
+
+                <button class="pswp__button pswp__button--close" title="Close (Esc)"></button>
+
+                <button class="pswp__button pswp__button--share" style="display:none" title="Share"></button>
+
+                <button class="pswp__button pswp__button--fs" title="Toggle fullscreen"></button>
+
+                <button class="pswp__button pswp__button--zoom" title="Zoom in/out"></button>
+
+                <!-- Preloader demo http://codepen.io/dimsemenov/pen/yyBWoR -->
+                <!-- element will get class pswp__preloader--active when preloader is running -->
+                <div class="pswp__preloader">
+                    <div class="pswp__preloader__icn">
+                        <div class="pswp__preloader__cut">
+                            <div class="pswp__preloader__donut"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="pswp__share-modal pswp__share-modal--hidden pswp__single-tap">
+                <div class="pswp__share-tooltip"></div>
+            </div>
+
+            <button class="pswp__button pswp__button--arrow--left" title="Previous (arrow left)">
+            </button>
+
+            <button class="pswp__button pswp__button--arrow--right" title="Next (arrow right)">
+            </button>
+
+            <div class="pswp__caption">
+                <div class="pswp__caption__center"></div>
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe.min.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/default-skin/default-skin.min.css">
+<script src="https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe-ui-default.min.js"></script>
+
+<script>
+    function viewer_init() {
+        let pswpElement = document.querySelectorAll('.pswp')[0];
+        let $imgArr = document.querySelectorAll(('.article-entry img:not(.reward-img)'))
+
+        $imgArr.forEach(($em, i) => {
+            $em.onclick = () => {
+                // slider展开状态
+                // todo: 这样不好，后面改成状态
+                if (document.querySelector('.left-col.show')) return
+                let items = []
+                $imgArr.forEach(($em2, i2) => {
+                    let img = $em2.getAttribute('data-idx', i2)
+                    let src = $em2.getAttribute('data-target') || $em2.getAttribute('src')
+                    let title = $em2.getAttribute('alt')
+                    // 获得原图尺寸
+                    const image = new Image()
+                    image.src = src
+                    items.push({
+                        src: src,
+                        w: image.width || $em2.width,
+                        h: image.height || $em2.height,
+                        title: title
+                    })
+                })
+                var gallery = new PhotoSwipe(pswpElement, PhotoSwipeUI_Default, items, {
+                    index: parseInt(i)
+                });
+                gallery.init()
+            }
+        })
+    }
+    viewer_init()
+</script>
+
+<!-- MathJax -->
+
+<!-- Katex -->
+
+<!-- busuanzi  -->
+
+
+<script src="/js/busuanzi-2.3.pure.min.js"></script>
+
+
+<!-- ClickLove -->
+
+<!-- ClickBoom1 -->
+
+<!-- ClickBoom2 -->
+
+<!-- CodeCopy -->
+
+
+<link rel="stylesheet" href="/css/clipboard.css">
+
+<script src="https://cdn.jsdelivr.net/npm/clipboard@2/dist/clipboard.min.js"></script>
+<script>
+  function wait(callback, seconds) {
+    var timelag = null;
+    timelag = window.setTimeout(callback, seconds);
+  }
+  !function (e, t, a) {
+    var initCopyCode = function(){
+      var copyHtml = '';
+      copyHtml += '<button class="btn-copy" data-clipboard-snippet="">';
+      copyHtml += '<i class="ri-file-copy-2-line"></i><span>COPY</span>';
+      copyHtml += '</button>';
+      $(".highlight .code pre").before(copyHtml);
+      $(".article pre code").before(copyHtml);
+      var clipboard = new ClipboardJS('.btn-copy', {
+        target: function(trigger) {
+          return trigger.nextElementSibling;
+        }
+      });
+      clipboard.on('success', function(e) {
+        let $btn = $(e.trigger);
+        $btn.addClass('copied');
+        let $icon = $($btn.find('i'));
+        $icon.removeClass('ri-file-copy-2-line');
+        $icon.addClass('ri-checkbox-circle-line');
+        let $span = $($btn.find('span'));
+        $span[0].innerText = 'COPIED';
+        
+        wait(function () { // 等待两秒钟后恢复
+          $icon.removeClass('ri-checkbox-circle-line');
+          $icon.addClass('ri-file-copy-2-line');
+          $span[0].innerText = 'COPY';
+        }, 2000);
+      });
+      clipboard.on('error', function(e) {
+        e.clearSelection();
+        let $btn = $(e.trigger);
+        $btn.addClass('copy-failed');
+        let $icon = $($btn.find('i'));
+        $icon.removeClass('ri-file-copy-2-line');
+        $icon.addClass('ri-time-line');
+        let $span = $($btn.find('span'));
+        $span[0].innerText = 'COPY FAILED';
+        
+        wait(function () { // 等待两秒钟后恢复
+          $icon.removeClass('ri-time-line');
+          $icon.addClass('ri-file-copy-2-line');
+          $span[0].innerText = 'COPY';
+        }, 2000);
+      });
+    }
+    initCopyCode();
+  }(window, document);
+</script>
+
+
+<!-- CanvasBackground -->
+
+
+    
+  </div>
+</body>
+
+</html>

@@ -1,0 +1,635 @@
+<!DOCTYPE html>
+
+
+<html lang="zh-Hans">
+
+
+<head>
+  <meta charset="utf-8" />
+    
+  <meta name="description" content="谈天谈地，谈古谈今，一起谈谈我们的未来。" />
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
+  <title>
+    以太坊源码解读-第7讲-创世块 |  Jason漫谈区块链
+  </title>
+  <meta name="generator" content="hexo-theme-ayer">
+  
+  <link rel="shortcut icon" href="/images/my_head-16x16-next.ico" />
+  
+  
+<link rel="stylesheet" href="/dist/main.css">
+
+  
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/Shen-Yu/cdn/css/remixicon.min.css">
+
+  
+<link rel="stylesheet" href="/css/custom.css">
+
+  
+  
+<script src="https://cdn.jsdelivr.net/npm/pace-js@1.0.2/pace.min.js"></script>
+
+  
+  
+
+  
+
+</head>
+
+</html>
+
+<body>
+  <div id="app">
+    
+      
+    <main class="content on">
+      <section class="outer">
+  <article
+  id="post-ethereum/src_analysis/以太坊源码解读-第7讲-创世块"
+  class="article article-type-post"
+  itemscope
+  itemprop="blogPost"
+  data-scroll-reveal
+>
+  <div class="article-inner">
+    
+    <header class="article-header">
+       
+<h1 class="article-title sea-center" style="border-left:0" itemprop="name">
+  以太坊源码解读-第7讲-创世块
+</h1>
+ 
+
+    </header>
+     
+    <div class="article-meta">
+      <a href="/articles/85deafe/" class="article-date">
+  <time datetime="2018-12-15T11:09:52.000Z" itemprop="datePublished">2018-12-15</time>
+</a> 
+  <div class="article-category">
+    <a class="article-category-link" href="/categories/%E4%BB%A5%E5%A4%AA%E5%9D%8A/">以太坊</a> / <a class="article-category-link" href="/categories/%E4%BB%A5%E5%A4%AA%E5%9D%8A/%E6%BA%90%E7%A0%81%E8%A7%A3%E8%AF%BB/">源码解读</a>
+  </div>
+  
+<div class="word_count">
+    <span class="post-time">
+        <span class="post-meta-item-icon">
+            <i class="ri-quill-pen-line"></i>
+            <span class="post-meta-item-text"> Word count:</span>
+            <span class="post-count">2.1k</span>
+        </span>
+    </span>
+
+    <span class="post-time">
+        &nbsp; | &nbsp;
+        <span class="post-meta-item-icon">
+            <i class="ri-book-open-line"></i>
+            <span class="post-meta-item-text"> Reading time≈</span>
+            <span class="post-count">9 min</span>
+        </span>
+    </span>
+</div>
+ 
+    </div>
+      
+    <div class="tocbot"></div>
+
+
+
+
+  
+    <div class="article-entry" itemprop="articleBody">
+       
+  <h2 id="前言"><a href="#前言" class="headerlink" title="前言"></a>前言</h2><p>创世块是以太坊的第一个块，随着逐步对以太坊的了解，越来越发现应该关注一下这些地方细节上的实现了。</p>
+<a id="more"></a>
+<p>创世块的文件在这里：<code>core-&gt;genesis.go</code>，这里定义了整个创世块的规则，本文主要就是分析这个文件。</p>
+<h2 id="配置文件的结构体"><a href="#配置文件的结构体" class="headerlink" title="配置文件的结构体"></a>配置文件的结构体</h2><p>进去<code>core-&gt;genesis.go</code>这个文件，咋一看感觉有点乱，抽丝剥茧后，小编整理出下面的几个结构体，它们就是创世块的整个初始化原型。<br>这些结构体中的字段，都是用来直接解析<code>*.json</code>配置文件的。</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">type</span> Genesis <span class="keyword">struct</span> &#123;</span><br><span class="line">    <span class="comment">//这个Config主要是配置chainID以及共识相关（pow和pos），还有一些硬分叉信息，在此就不列出来了</span></span><br><span class="line">    <span class="comment">//chainID是一个标示，1标示以太坊公网，测试时，建议设置别的</span></span><br><span class="line">    Config     *params.ChainConfig <span class="string">`json:&quot;config&quot;`</span></span><br><span class="line">    <span class="comment">//随机值</span></span><br><span class="line">	Nonce      <span class="keyword">uint64</span>              <span class="string">`json:&quot;nonce&quot;`</span></span><br><span class="line">	Timestamp  <span class="keyword">uint64</span>              <span class="string">`json:&quot;timestamp&quot;`</span></span><br><span class="line">	ExtraData  []<span class="keyword">byte</span>              <span class="string">`json:&quot;extraData&quot;`</span></span><br><span class="line">	GasLimit   <span class="keyword">uint64</span>              <span class="string">`json:&quot;gasLimit&quot;   gencodec:&quot;required&quot;`</span></span><br><span class="line">	Difficulty *big.Int            <span class="string">`json:&quot;difficulty&quot; gencodec:&quot;required&quot;`</span></span><br><span class="line">	Mixhash    common.Hash         <span class="string">`json:&quot;mixHash&quot;`</span></span><br><span class="line">    Coinbase   common.Address      <span class="string">`json:&quot;coinbase&quot;`</span></span><br><span class="line">    <span class="comment">//加入一些账户，以太坊启动后就能直接用这几个账户</span></span><br><span class="line">	Alloc      GenesisAlloc        <span class="string">`json:&quot;alloc&quot;      gencodec:&quot;required&quot;`</span></span><br><span class="line"></span><br><span class="line">	<span class="comment">//下面这三个是用来测试使用的</span></span><br><span class="line">	Number     <span class="keyword">uint64</span>      <span class="string">`json:&quot;number&quot;`</span></span><br><span class="line">	GasUsed    <span class="keyword">uint64</span>      <span class="string">`json:&quot;gasUsed&quot;`</span></span><br><span class="line">	ParentHash common.Hash <span class="string">`json:&quot;parentHash&quot;`</span></span><br><span class="line">&#125;</span><br><span class="line"><span class="comment">//用于将账户追加到以太坊中，方便直接使用</span></span><br><span class="line"><span class="keyword">type</span> GenesisAlloc <span class="keyword">map</span>[common.Address]GenesisAccount</span><br><span class="line"><span class="keyword">type</span> GenesisAccount <span class="keyword">struct</span> &#123;</span><br><span class="line">	Code       []<span class="keyword">byte</span>                      <span class="string">`json:&quot;code,omitempty&quot;`</span></span><br><span class="line">	Storage    <span class="keyword">map</span>[common.Hash]common.Hash <span class="string">`json:&quot;storage,omitempty&quot;`</span></span><br><span class="line">	Balance    *big.Int                    <span class="string">`json:&quot;balance&quot; gencodec:&quot;required&quot;`</span></span><br><span class="line">    Nonce      <span class="keyword">uint64</span>                      <span class="string">`json:&quot;nonce,omitempty&quot;`</span></span><br><span class="line">    <span class="comment">//用来测试</span></span><br><span class="line">	PrivateKey []<span class="keyword">byte</span>                      <span class="string">`json:&quot;secretKey,omitempty&quot;`</span> </span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>为了直观展示，我们看看操作部署以太坊时候，我们的配置文件，正好和上面一一对应：</p>
+<figure class="highlight json"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br></pre></td><td class="code"><pre><span class="line">&#123;</span><br><span class="line">  <span class="attr">&quot;config&quot;</span>: &#123;</span><br><span class="line">    <span class="attr">&quot;chainId&quot;</span>: <span class="number">10</span>,</span><br><span class="line">    <span class="attr">&quot;homesteadBlock&quot;</span>: <span class="number">5</span>,</span><br><span class="line">    <span class="attr">&quot;eip155Block&quot;</span>: <span class="number">0</span>,</span><br><span class="line">    <span class="attr">&quot;eip158Block&quot;</span>: <span class="number">0</span></span><br><span class="line">  &#125;,</span><br><span class="line">  <span class="attr">&quot;alloc&quot;</span>: &#123;</span><br><span class="line">    <span class="attr">&quot;0x81e71d34e8a9e4382c36fd90c3f234549106addd&quot;</span>: &#123;</span><br><span class="line">      <span class="attr">&quot;balance&quot;</span>: <span class="string">&quot;20000000000000000000&quot;</span></span><br><span class="line">    &#125;</span><br><span class="line">  &#125;,</span><br><span class="line">  <span class="attr">&quot;coinbase&quot;</span>: <span class="string">&quot;0x0000000000000000000000000000000000000000&quot;</span>,</span><br><span class="line">  <span class="attr">&quot;difficulty&quot;</span>: <span class="string">&quot;0x20000&quot;</span>,</span><br><span class="line">  <span class="attr">&quot;extraData&quot;</span>: <span class="string">&quot;&quot;</span>,</span><br><span class="line">  <span class="attr">&quot;gasLimit&quot;</span>: <span class="string">&quot;0x2fefd8&quot;</span>,</span><br><span class="line">  <span class="attr">&quot;nonce&quot;</span>: <span class="string">&quot;0x0000000000000042&quot;</span>,</span><br><span class="line">  <span class="attr">&quot;mixhash&quot;</span>: <span class="string">&quot;0x0000000000000000000000000000000000000000000000000000000000000000&quot;</span>,</span><br><span class="line">  <span class="attr">&quot;parentHash&quot;</span>: <span class="string">&quot;0x0000000000000000000000000000000000000000000000000000000000000000&quot;</span>,</span><br><span class="line">  <span class="attr">&quot;timestamp&quot;</span>: <span class="string">&quot;0x00&quot;</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>为了方便测试，一般会在<code>alloc</code>中添加几个默认账户。</p>
+<h2 id="上述配置结构体的说明"><a href="#上述配置结构体的说明" class="headerlink" title="上述配置结构体的说明"></a>上述配置结构体的说明</h2><p>文件中，你会发现还有别的结构体，在此小编专门解释一下，因为上面提到的结构体是直接解析<code>*.json</code>的，会有很多限制，为此官方使用了<code>github.com/fjl/gencodec</code>包来扩充弥补其中的不足，可以在此处了解：<code>https://godoc.org/github.com/fjl/gencodec</code>。<br>文件头部，会发现有这两行内容：</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">//go:generate gencodec -type Genesis -field-override genesisSpecMarshaling -out gen_genesis.go</span></span><br><span class="line"><span class="comment">//go:generate gencodec -type GenesisAccount -field-override genesisAccountMarshaling -out gen_genesis_account.go</span></span><br></pre></td></tr></table></figure>
+<p>其中<code>go:generate</code>是golang1.4引入的机制，编译期间，会将后面的命令执行，生成对应文件。<br>总结一下：</p>
+<ol>
+<li>需要了解<code>https://godoc.org/github.com/fjl/gencodec</code>这个</li>
+<li>需要了解<code>go:generate</code>的作用</li>
+</ol>
+<h2 id="创世块的初始化设置"><a href="#创世块的初始化设置" class="headerlink" title="创世块的初始化设置"></a>创世块的初始化设置</h2><p>前面提到的是用来初始化创世块的结构体，其具体的操作是使用如下这个方法来实现的：<br><code>时间有限，暂时先写到这里</code></p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">//若genesis为空，则进入主网</span></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">SetupGenesisBlock</span><span class="params">(db ethdb.Database, genesis *Genesis)</span> <span class="params">(*params.ChainConfig, common.Hash, error)</span></span> &#123;</span><br><span class="line">	<span class="comment">//若自定义了创世块，却没有对Config进行配置，则返回错误</span></span><br><span class="line">	<span class="keyword">if</span> genesis != <span class="literal">nil</span> &amp;&amp; genesis.Config == <span class="literal">nil</span> &#123;</span><br><span class="line">		<span class="keyword">return</span> params.AllEthashProtocolChanges, common.Hash&#123;&#125;, errGenesisNoConfig</span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	<span class="comment">//初始化新配置的以太坊节点会用到</span></span><br><span class="line">	stored := rawdb.ReadCanonicalHash(db, <span class="number">0</span>)</span><br><span class="line">	<span class="keyword">if</span> (stored == common.Hash&#123;&#125;) &#123; <span class="comment">//如果db中没有存储创世块</span></span><br><span class="line">		<span class="keyword">if</span> genesis == <span class="literal">nil</span> &#123; <span class="comment">//如果没有配置genesis，则使用主网的默认配置，这会连接到主网</span></span><br><span class="line">			log.Info(<span class="string">&quot;Writing default main-net genesis block&quot;</span>)</span><br><span class="line">			genesis = DefaultGenesisBlock()</span><br><span class="line">		&#125; <span class="keyword">else</span> &#123; <span class="comment">//如果genesis不为空，则按照用户要求进行</span></span><br><span class="line">			log.Info(<span class="string">&quot;Writing custom genesis block&quot;</span>)</span><br><span class="line">		&#125;</span><br><span class="line">		block, err := genesis.Commit(db) <span class="comment">//保存在db中</span></span><br><span class="line">		<span class="keyword">return</span> genesis.Config, block.Hash(), err <span class="comment">//返回结果，配置、创世块hash</span></span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	<span class="comment">// 若是有自定义的genesis，则校验跟库中已有的是否一致 </span></span><br><span class="line">	<span class="keyword">if</span> genesis != <span class="literal">nil</span> &#123;</span><br><span class="line">		<span class="comment">//因为创世块的配置文件每次都可以随意改动，该步骤用来检查创世块是否有所变动</span></span><br><span class="line">		hash := genesis.ToBlock(<span class="literal">nil</span>).Hash() <span class="comment">//ToBlock传入nil会返回一个标准创世块的hash</span></span><br><span class="line">		<span class="keyword">if</span> hash != stored &#123;  <span class="comment">//检查从数据库中读取的创世块hash和启动时候配置的创世块hash是否一致</span></span><br><span class="line">			<span class="keyword">return</span> genesis.Config, hash, &amp;GenesisMismatchError&#123;stored, hash&#125;</span><br><span class="line">		&#125;</span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	<span class="comment">// 获取链的配置，注意不是创世块的配置</span></span><br><span class="line">	<span class="comment">// 根据传入的stored检测要建立什么样的网络，主网、测试网等</span></span><br><span class="line">	newcfg := genesis.configOrDefault(stored)</span><br><span class="line">	storedcfg := rawdb.ReadChainConfig(db, stored)</span><br><span class="line">	<span class="comment">// 如果db中没有对链的配置，则将newcfg配置进去</span></span><br><span class="line">	<span class="keyword">if</span> storedcfg == <span class="literal">nil</span> &#123;</span><br><span class="line">		log.Warn(<span class="string">&quot;Found genesis block without chain config&quot;</span>)</span><br><span class="line">		rawdb.WriteChainConfig(db, stored, newcfg)</span><br><span class="line">		<span class="keyword">return</span> newcfg, stored, <span class="literal">nil</span></span><br><span class="line">	&#125;</span><br><span class="line">	<span class="comment">// 再次做配置，若genesis为空，则创世块的hash值必须是主网的值</span></span><br><span class="line">	<span class="keyword">if</span> genesis == <span class="literal">nil</span> &amp;&amp; stored != params.MainnetGenesisHash &#123;</span><br><span class="line">		<span class="keyword">return</span> storedcfg, stored, <span class="literal">nil</span></span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	<span class="comment">// 检查兼容性</span></span><br><span class="line">	<span class="comment">// 只有当前是区块0的时候，才能进行下面的操作</span></span><br><span class="line">	height := rawdb.ReadHeaderNumber(db, rawdb.ReadHeadHeaderHash(db))</span><br><span class="line">	<span class="keyword">if</span> height == <span class="literal">nil</span> &#123;</span><br><span class="line">		<span class="keyword">return</span> newcfg, stored, fmt.Errorf(<span class="string">&quot;missing block number for head header hash&quot;</span>)</span><br><span class="line">	&#125;</span><br><span class="line">	compatErr := storedcfg.CheckCompatible(newcfg, *height)</span><br><span class="line">	<span class="comment">//若已经有区块在db，则不能更改配置</span></span><br><span class="line">	<span class="keyword">if</span> compatErr != <span class="literal">nil</span> &amp;&amp; *height != <span class="number">0</span> &amp;&amp; compatErr.RewindTo != <span class="number">0</span> &#123;</span><br><span class="line">		<span class="keyword">return</span> newcfg, stored, compatErr</span><br><span class="line">	&#125;</span><br><span class="line">	<span class="comment">//相当于在0块时更新链的配置</span></span><br><span class="line">	rawdb.WriteChainConfig(db, stored, newcfg)</span><br><span class="line">	<span class="keyword">return</span> newcfg, stored, <span class="literal">nil</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>这个创世块的配置，其目的就是为了保证网络启动后，自始至终只能配置一次。主要的说明都记录在注释中了。其中涉及到了几个比较重要的方法：<code>ToBlock()</code>、<code>Commit()</code>，之后我们一一来说明。</p>
+<h2 id="ToBlock"><a href="#ToBlock" class="headerlink" title="ToBlock()"></a>ToBlock()</h2><p>这个方法的目的就是生成一个创世块，同时将相关信息写入到db中.</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">func</span> <span class="params">(g *Genesis)</span> <span class="title">ToBlock</span><span class="params">(db ethdb.Database)</span> *<span class="title">types</span>.<span class="title">Block</span></span> &#123;</span><br><span class="line">	<span class="keyword">if</span> db == <span class="literal">nil</span> &#123;</span><br><span class="line">		db = ethdb.NewMemDatabase() <span class="comment">//内存db</span></span><br><span class="line">	&#125;</span><br><span class="line">	statedb, _ := state.New(common.Hash&#123;&#125;, state.NewDatabase(db))</span><br><span class="line">	<span class="keyword">for</span> addr, account := <span class="keyword">range</span> g.Alloc &#123;</span><br><span class="line">		<span class="comment">//初始化时候设置的账户保存在db中</span></span><br><span class="line">		statedb.AddBalance(addr, account.Balance)</span><br><span class="line">		statedb.SetCode(addr, account.Code)</span><br><span class="line">		statedb.SetNonce(addr, account.Nonce)</span><br><span class="line">		<span class="comment">//将账户中的各种交易状态存入（注意此时并没有提交到真正数据库中，只是存入内存db）</span></span><br><span class="line">		<span class="keyword">for</span> key, value := <span class="keyword">range</span> account.Storage &#123;</span><br><span class="line">			statedb.SetState(addr, key, value)</span><br><span class="line">		&#125;</span><br><span class="line">	&#125;</span><br><span class="line">	<span class="comment">// 获取db根地址</span></span><br><span class="line">	root := statedb.IntermediateRoot(<span class="literal">false</span>)</span><br><span class="line">	<span class="comment">// 创世块的head</span></span><br><span class="line">	head := &amp;types.Header&#123;</span><br><span class="line">		<span class="comment">//块号</span></span><br><span class="line">		Number:     <span class="built_in">new</span>(big.Int).SetUint64(g.Number),</span><br><span class="line">		Nonce:      types.EncodeNonce(g.Nonce),</span><br><span class="line">		Time:       <span class="built_in">new</span>(big.Int).SetUint64(g.Timestamp),</span><br><span class="line">		<span class="comment">//父hash</span></span><br><span class="line">		ParentHash: g.ParentHash,</span><br><span class="line">		<span class="comment">//额外数据</span></span><br><span class="line">		Extra:      g.ExtraData,</span><br><span class="line">		<span class="comment">//gas限制</span></span><br><span class="line">		GasLimit:   g.GasLimit,</span><br><span class="line">		<span class="comment">//已使用的gas</span></span><br><span class="line">		GasUsed:    g.GasUsed,</span><br><span class="line">		<span class="comment">// 难度</span></span><br><span class="line">		Difficulty: g.Difficulty,</span><br><span class="line">		<span class="comment">//与nonce配合用于挖矿，由上一个区块的一部分生成的hash。</span></span><br><span class="line">		MixDigest:  g.Mixhash,</span><br><span class="line">		<span class="comment">//挖矿人</span></span><br><span class="line">		Coinbase:   g.Coinbase,</span><br><span class="line">		<span class="comment">//块hash</span></span><br><span class="line">		Root:       root,</span><br><span class="line">	&#125;</span><br><span class="line">	<span class="comment">//创世块设置的默认gaslimit:4712388</span></span><br><span class="line">	<span class="keyword">if</span> g.GasLimit == <span class="number">0</span> &#123;</span><br><span class="line">		head.GasLimit = params.GenesisGasLimit</span><br><span class="line">	&#125;</span><br><span class="line">	<span class="comment">//默认难度：131072</span></span><br><span class="line">	<span class="keyword">if</span> g.Difficulty == <span class="literal">nil</span> &#123;</span><br><span class="line">		head.Difficulty = params.GenesisDifficulty</span><br><span class="line">	&#125;</span><br><span class="line">	<span class="comment">//真正将数据存入db</span></span><br><span class="line">	statedb.Commit(<span class="literal">false</span>)</span><br><span class="line">	statedb.Database().TrieDB().Commit(root, <span class="literal">true</span>)</span><br><span class="line">	<span class="comment">//返回创世块</span></span><br><span class="line">	<span class="keyword">return</span> types.NewBlock(head, <span class="literal">nil</span>, <span class="literal">nil</span>, <span class="literal">nil</span>)</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>可以看出，整个过程都是为了组装创世块，里面并没有太复杂的逻辑，能够知道的就是，默认的难度为：<code>131072</code>，默认的gasLimit：<code>4712388</code>，返回的创世块中，只有head即可。</p>
+<h2 id="Commit"><a href="#Commit" class="headerlink" title="Commit()"></a>Commit()</h2><p>这个主要就是把创世块的配置相关记录到db中，<br>对比上面的<code>ToBlock()</code>，会发现有rawdb和statedb两种不同的db操作，后者主要是存储块交易的各种信息，前者可以理解为是对后者的进一步封装，目前认为其主要是存储创世块相关配置信息，后续再把这个坑补上。。</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">func</span> <span class="params">(g *Genesis)</span> <span class="title">Commit</span><span class="params">(db ethdb.Database)</span> <span class="params">(*types.Block, error)</span></span> &#123;</span><br><span class="line">	<span class="comment">//获取创世块</span></span><br><span class="line">	block := g.ToBlock(db)</span><br><span class="line">	<span class="comment">//只有创世块才可以操作</span></span><br><span class="line">	<span class="keyword">if</span> block.Number().Sign() != <span class="number">0</span> &#123;</span><br><span class="line">		<span class="keyword">return</span> <span class="literal">nil</span>, fmt.Errorf(<span class="string">&quot;can&#x27;t commit genesis block with number &gt; 0&quot;</span>)</span><br><span class="line">	&#125;</span><br><span class="line">	<span class="comment">//将块的信息加入rawdb之中</span></span><br><span class="line">	rawdb.WriteTd(db, block.Hash(), block.NumberU64(), g.Difficulty)</span><br><span class="line">	rawdb.WriteBlock(db, block)</span><br><span class="line">	rawdb.WriteReceipts(db, block.Hash(), block.NumberU64(), <span class="literal">nil</span>)</span><br><span class="line">	rawdb.WriteCanonicalHash(db, block.Hash(), block.NumberU64())</span><br><span class="line">	rawdb.WriteHeadBlockHash(db, block.Hash())</span><br><span class="line">	rawdb.WriteHeadHeaderHash(db, block.Hash())</span><br><span class="line"></span><br><span class="line">	config := g.Config</span><br><span class="line">	<span class="keyword">if</span> config == <span class="literal">nil</span> &#123;</span><br><span class="line">		config = params.AllEthashProtocolChanges</span><br><span class="line">	&#125;</span><br><span class="line">	<span class="comment">//将创世块的配置写入</span></span><br><span class="line">	rawdb.WriteChainConfig(db, block.Hash(), config)</span><br><span class="line">	<span class="keyword">return</span> block, <span class="literal">nil</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<h2 id="返回各种模式的genesis"><a href="#返回各种模式的genesis" class="headerlink" title="返回各种模式的genesis"></a>返回各种模式的genesis</h2><p>这个是为了方便不同网络的测试和使用：<code>GenesisBlockForTesting</code>、<code>DefaultGenesisBlock</code>、<code>DefaultTestnetGenesisBlock</code>、<code>DefaultRinkebyGenesisBlock</code>、<code>DeveloperGenesisBlock</code>，可根据需要选择。<br>这个就不详述了。</p>
+<h2 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h2><p>创世块这里，总的来说，没有太复杂的操作，主要就是配置文件的读取，校验，然后存储在db。注意区分rawdb和statedb。</p>
+ 
+      <!-- reward -->
+      
+    </div>
+    
+
+    <!-- copyright -->
+    
+    <div class="declare">
+      <ul class="post-copyright">
+        <li>
+          <i class="ri-copyright-line"></i>
+          <strong>Copyright： </strong>
+          
+          Copyright is owned by the author. For commercial reprints, please contact the author for authorization. For non-commercial reprints, please indicate the source.
+          
+        </li>
+      </ul>
+    </div>
+    
+    <footer class="article-footer">
+       
+<div class="share-btn">
+      <span class="share-sns share-outer">
+        <i class="ri-share-forward-line"></i>
+        分享
+      </span>
+      <div class="share-wrap">
+        <i class="arrow"></i>
+        <div class="share-icons">
+          
+          <a class="weibo share-sns" href="javascript:;" data-type="weibo">
+            <i class="ri-weibo-fill"></i>
+          </a>
+          <a class="weixin share-sns wxFab" href="javascript:;" data-type="weixin">
+            <i class="ri-wechat-fill"></i>
+          </a>
+          <a class="qq share-sns" href="javascript:;" data-type="qq">
+            <i class="ri-qq-fill"></i>
+          </a>
+          <a class="douban share-sns" href="javascript:;" data-type="douban">
+            <i class="ri-douban-line"></i>
+          </a>
+          <!-- <a class="qzone share-sns" href="javascript:;" data-type="qzone">
+            <i class="icon icon-qzone"></i>
+          </a> -->
+          
+          <a class="facebook share-sns" href="javascript:;" data-type="facebook">
+            <i class="ri-facebook-circle-fill"></i>
+          </a>
+          <a class="twitter share-sns" href="javascript:;" data-type="twitter">
+            <i class="ri-twitter-fill"></i>
+          </a>
+          <a class="google share-sns" href="javascript:;" data-type="google">
+            <i class="ri-google-fill"></i>
+          </a>
+        </div>
+      </div>
+</div>
+
+<div class="wx-share-modal">
+    <a class="modal-close" href="javascript:;"><i class="ri-close-circle-line"></i></a>
+    <p>扫一扫，分享到微信</p>
+    <div class="wx-qrcode">
+      <img src="//api.qrserver.com/v1/create-qr-code/?size=150x150&data=http://jason-wj.gitee.io/articles/85deafe/" alt="微信分享二维码">
+    </div>
+</div>
+
+<div id="share-mask"></div>  
+  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/ethereum/" rel="tag">ethereum</a></li></ul>
+
+    </footer>
+  </div>
+
+   
+  <nav class="article-nav">
+    
+      <a href="/articles/10e60082/" class="article-nav-link">
+        <strong class="article-nav-caption">上一篇</strong>
+        <div class="article-nav-title">
+          
+            以太坊源码解读-第8讲-块(block)
+          
+        </div>
+      </a>
+    
+    
+      <a href="/articles/231042d1/" class="article-nav-link">
+        <strong class="article-nav-caption">下一篇</strong>
+        <div class="article-nav-title">以太坊源码解读-第6.2讲-pow共识算法实现</div>
+      </a>
+    
+  </nav>
+
+   
+<!-- valine评论 -->
+<div id="vcomments-box">
+  <div id="vcomments"></div>
+</div>
+<script src="//cdn1.lncld.net/static/js/3.0.4/av-min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/valine@1.4.14/dist/Valine.min.js"></script>
+<script>
+  new Valine({
+    el: "#vcomments",
+    app_id: "gdw0hVSwW3l6KgEMulSAc9Rx-gzGzoHsz",
+    app_key: "M4iiVXe0CuXWQEKuyIzWWDMh",
+    path: window.location.pathname,
+    avatar: "monsterid",
+    placeholder: "给我的文章加点评论吧~",
+    recordIP: true,
+  });
+  const infoEle = document.querySelector("#vcomments .info");
+  if (infoEle && infoEle.childNodes && infoEle.childNodes.length > 0) {
+    infoEle.childNodes.forEach(function (item) {
+      item.parentNode.removeChild(item);
+    });
+  }
+</script>
+<style>
+  #vcomments-box {
+    padding: 5px 30px;
+  }
+
+  @media screen and (max-width: 800px) {
+    #vcomments-box {
+      padding: 5px 0px;
+    }
+  }
+
+  #vcomments-box #vcomments {
+    background-color: #fff;
+  }
+
+  .v .vlist .vcard .vh {
+    padding-right: 20px;
+  }
+
+  .v .vlist .vcard {
+    padding-left: 10px;
+  }
+</style>
+
+ 
+   
+     
+</article>
+
+</section>
+      <footer class="footer">
+  <div class="outer">
+    <ul>
+      <li>
+        Copyrights &copy;
+        2017-2021
+        <i class="ri-heart-fill heart_icon"></i> Jason
+      </li>
+    </ul>
+    <ul>
+      <li>
+        
+      </li>
+    </ul>
+    <ul>
+      <li>
+        
+        
+        <span>
+  <span><i class="ri-user-3-fill"></i>Visitors:<span id="busuanzi_value_site_uv"></span></s>
+  <span class="division">|</span>
+  <span><i class="ri-eye-fill"></i>Views:<span id="busuanzi_value_page_pv"></span></span>
+</span>
+        
+      </li>
+    </ul>
+    <ul>
+      
+    </ul>
+    <ul>
+      
+    </ul>
+    <ul>
+      <li>
+        <!-- cnzz统计 -->
+        
+        <script type="text/javascript" src='https://s4.cnzz.com/z_stat.php?id=1279593399&amp;web_id=1279593399'></script>
+        
+      </li>
+    </ul>
+  </div>
+</footer>
+      <div class="float_btns">
+        <div class="totop" id="totop">
+  <i class="ri-arrow-up-line"></i>
+</div>
+
+<div class="todark" id="todark">
+  <i class="ri-moon-line"></i>
+</div>
+
+      </div>
+    </main>
+    <aside class="sidebar on">
+      <button class="navbar-toggle"></button>
+<nav class="navbar">
+  
+  <div class="logo">
+    <a href="/"><img src="/images/my_head-touch-icon-next.png" alt="Jason漫谈区块链"></a>
+  </div>
+  
+  <ul class="nav nav-main">
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/">主页</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/archives">归档</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/categories">分类</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/tags">标签</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/friends">友链</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/about">关于我</a>
+    </li>
+    
+  </ul>
+</nav>
+<nav class="navbar navbar-bottom">
+  <ul class="nav">
+    <li class="nav-item">
+      
+      <a class="nav-item-link nav-item-search"  title="Search">
+        <i class="ri-search-line"></i>
+      </a>
+      
+      
+    </li>
+  </ul>
+</nav>
+<div class="search-form-wrap">
+  <div class="local-search local-search-plugin">
+  <input type="search" id="local-search-input" class="local-search-input" placeholder="Search...">
+  <div id="local-search-result" class="local-search-result"></div>
+</div>
+</div>
+    </aside>
+    <script>
+      if (window.matchMedia("(max-width: 768px)").matches) {
+        document.querySelector('.content').classList.remove('on');
+        document.querySelector('.sidebar').classList.remove('on');
+      }
+    </script>
+    <div id="mask"></div>
+
+<!-- #reward -->
+<div id="reward">
+  <span class="close"><i class="ri-close-line"></i></span>
+  <p class="reward-p"><i class="ri-cup-line"></i>请我喝杯咖啡吧~</p>
+  <div class="reward-box">
+    
+    <div class="reward-item">
+      <img class="reward-img" src="/images/pay_ali.jpg">
+      <span class="reward-type">支付宝</span>
+    </div>
+    
+    
+    <div class="reward-item">
+      <img class="reward-img" src="/images/pay_wechat.jpg">
+      <span class="reward-type">微信</span>
+    </div>
+    
+  </div>
+</div>
+    
+<script src="/js/jquery-2.0.3.min.js"></script>
+
+
+<script src="/js/lazyload.min.js"></script>
+
+<!-- Tocbot -->
+
+
+<script src="/js/tocbot.min.js"></script>
+
+<script>
+  tocbot.init({
+    tocSelector: '.tocbot',
+    contentSelector: '.article-entry',
+    headingSelector: 'h1, h2, h3, h4, h5, h6',
+    hasInnerContainers: true,
+    scrollSmooth: true,
+    scrollContainer: 'main',
+    positionFixedSelector: '.tocbot',
+    positionFixedClass: 'is-position-fixed',
+    fixedSidebarOffset: 'auto'
+  });
+</script>
+
+<script src="https://cdn.jsdelivr.net/npm/jquery-modal@0.9.2/jquery.modal.min.js"></script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/jquery-modal@0.9.2/jquery.modal.min.css">
+<script src="https://cdn.jsdelivr.net/npm/justifiedGallery@3.7.0/dist/js/jquery.justifiedGallery.min.js"></script>
+
+<script src="/dist/main.js"></script>
+
+<!-- ImageViewer -->
+
+<!-- Root element of PhotoSwipe. Must have class pswp. -->
+<div class="pswp" tabindex="-1" role="dialog" aria-hidden="true">
+
+    <!-- Background of PhotoSwipe. 
+         It's a separate element as animating opacity is faster than rgba(). -->
+    <div class="pswp__bg"></div>
+
+    <!-- Slides wrapper with overflow:hidden. -->
+    <div class="pswp__scroll-wrap">
+
+        <!-- Container that holds slides. 
+            PhotoSwipe keeps only 3 of them in the DOM to save memory.
+            Don't modify these 3 pswp__item elements, data is added later on. -->
+        <div class="pswp__container">
+            <div class="pswp__item"></div>
+            <div class="pswp__item"></div>
+            <div class="pswp__item"></div>
+        </div>
+
+        <!-- Default (PhotoSwipeUI_Default) interface on top of sliding area. Can be changed. -->
+        <div class="pswp__ui pswp__ui--hidden">
+
+            <div class="pswp__top-bar">
+
+                <!--  Controls are self-explanatory. Order can be changed. -->
+
+                <div class="pswp__counter"></div>
+
+                <button class="pswp__button pswp__button--close" title="Close (Esc)"></button>
+
+                <button class="pswp__button pswp__button--share" style="display:none" title="Share"></button>
+
+                <button class="pswp__button pswp__button--fs" title="Toggle fullscreen"></button>
+
+                <button class="pswp__button pswp__button--zoom" title="Zoom in/out"></button>
+
+                <!-- Preloader demo http://codepen.io/dimsemenov/pen/yyBWoR -->
+                <!-- element will get class pswp__preloader--active when preloader is running -->
+                <div class="pswp__preloader">
+                    <div class="pswp__preloader__icn">
+                        <div class="pswp__preloader__cut">
+                            <div class="pswp__preloader__donut"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="pswp__share-modal pswp__share-modal--hidden pswp__single-tap">
+                <div class="pswp__share-tooltip"></div>
+            </div>
+
+            <button class="pswp__button pswp__button--arrow--left" title="Previous (arrow left)">
+            </button>
+
+            <button class="pswp__button pswp__button--arrow--right" title="Next (arrow right)">
+            </button>
+
+            <div class="pswp__caption">
+                <div class="pswp__caption__center"></div>
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe.min.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/default-skin/default-skin.min.css">
+<script src="https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe-ui-default.min.js"></script>
+
+<script>
+    function viewer_init() {
+        let pswpElement = document.querySelectorAll('.pswp')[0];
+        let $imgArr = document.querySelectorAll(('.article-entry img:not(.reward-img)'))
+
+        $imgArr.forEach(($em, i) => {
+            $em.onclick = () => {
+                // slider展开状态
+                // todo: 这样不好，后面改成状态
+                if (document.querySelector('.left-col.show')) return
+                let items = []
+                $imgArr.forEach(($em2, i2) => {
+                    let img = $em2.getAttribute('data-idx', i2)
+                    let src = $em2.getAttribute('data-target') || $em2.getAttribute('src')
+                    let title = $em2.getAttribute('alt')
+                    // 获得原图尺寸
+                    const image = new Image()
+                    image.src = src
+                    items.push({
+                        src: src,
+                        w: image.width || $em2.width,
+                        h: image.height || $em2.height,
+                        title: title
+                    })
+                })
+                var gallery = new PhotoSwipe(pswpElement, PhotoSwipeUI_Default, items, {
+                    index: parseInt(i)
+                });
+                gallery.init()
+            }
+        })
+    }
+    viewer_init()
+</script>
+
+<!-- MathJax -->
+
+<!-- Katex -->
+
+<!-- busuanzi  -->
+
+
+<script src="/js/busuanzi-2.3.pure.min.js"></script>
+
+
+<!-- ClickLove -->
+
+<!-- ClickBoom1 -->
+
+<!-- ClickBoom2 -->
+
+<!-- CodeCopy -->
+
+
+<link rel="stylesheet" href="/css/clipboard.css">
+
+<script src="https://cdn.jsdelivr.net/npm/clipboard@2/dist/clipboard.min.js"></script>
+<script>
+  function wait(callback, seconds) {
+    var timelag = null;
+    timelag = window.setTimeout(callback, seconds);
+  }
+  !function (e, t, a) {
+    var initCopyCode = function(){
+      var copyHtml = '';
+      copyHtml += '<button class="btn-copy" data-clipboard-snippet="">';
+      copyHtml += '<i class="ri-file-copy-2-line"></i><span>COPY</span>';
+      copyHtml += '</button>';
+      $(".highlight .code pre").before(copyHtml);
+      $(".article pre code").before(copyHtml);
+      var clipboard = new ClipboardJS('.btn-copy', {
+        target: function(trigger) {
+          return trigger.nextElementSibling;
+        }
+      });
+      clipboard.on('success', function(e) {
+        let $btn = $(e.trigger);
+        $btn.addClass('copied');
+        let $icon = $($btn.find('i'));
+        $icon.removeClass('ri-file-copy-2-line');
+        $icon.addClass('ri-checkbox-circle-line');
+        let $span = $($btn.find('span'));
+        $span[0].innerText = 'COPIED';
+        
+        wait(function () { // 等待两秒钟后恢复
+          $icon.removeClass('ri-checkbox-circle-line');
+          $icon.addClass('ri-file-copy-2-line');
+          $span[0].innerText = 'COPY';
+        }, 2000);
+      });
+      clipboard.on('error', function(e) {
+        e.clearSelection();
+        let $btn = $(e.trigger);
+        $btn.addClass('copy-failed');
+        let $icon = $($btn.find('i'));
+        $icon.removeClass('ri-file-copy-2-line');
+        $icon.addClass('ri-time-line');
+        let $span = $($btn.find('span'));
+        $span[0].innerText = 'COPY FAILED';
+        
+        wait(function () { // 等待两秒钟后恢复
+          $icon.removeClass('ri-time-line');
+          $icon.addClass('ri-file-copy-2-line');
+          $span[0].innerText = 'COPY';
+        }, 2000);
+      });
+    }
+    initCopyCode();
+  }(window, document);
+</script>
+
+
+<!-- CanvasBackground -->
+
+
+    
+  </div>
+</body>
+
+</html>

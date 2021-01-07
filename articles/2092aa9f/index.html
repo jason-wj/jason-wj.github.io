@@ -1,0 +1,741 @@
+<!DOCTYPE html>
+
+
+<html lang="zh-Hans">
+
+
+<head>
+  <meta charset="utf-8" />
+    
+  <meta name="description" content="谈天谈地，谈古谈今，一起谈谈我们的未来。" />
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
+  <title>
+    以太坊dpos共识改造-实现dpos算法（1） |  Jason漫谈区块链
+  </title>
+  <meta name="generator" content="hexo-theme-ayer">
+  
+  <link rel="shortcut icon" href="/images/my_head-16x16-next.ico" />
+  
+  
+<link rel="stylesheet" href="/dist/main.css">
+
+  
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/Shen-Yu/cdn/css/remixicon.min.css">
+
+  
+<link rel="stylesheet" href="/css/custom.css">
+
+  
+  
+<script src="https://cdn.jsdelivr.net/npm/pace-js@1.0.2/pace.min.js"></script>
+
+  
+  
+
+  
+
+</head>
+
+</html>
+
+<body>
+  <div id="app">
+    
+      
+    <main class="content on">
+      <section class="outer">
+  <article
+  id="post-ethereum/others/以太坊dpos共识改造-实现dpos算法（1）"
+  class="article article-type-post"
+  itemscope
+  itemprop="blogPost"
+  data-scroll-reveal
+>
+  <div class="article-inner">
+    
+    <header class="article-header">
+       
+<h1 class="article-title sea-center" style="border-left:0" itemprop="name">
+  以太坊dpos共识改造-实现dpos算法（1）
+</h1>
+ 
+
+    </header>
+     
+    <div class="article-meta">
+      <a href="/articles/2092aa9f/" class="article-date">
+  <time datetime="2019-01-29T07:00:53.000Z" itemprop="datePublished">2019-01-29</time>
+</a> 
+  <div class="article-category">
+    <a class="article-category-link" href="/categories/%E4%BB%A5%E5%A4%AA%E5%9D%8A/">以太坊</a> / <a class="article-category-link" href="/categories/%E4%BB%A5%E5%A4%AA%E5%9D%8A/%E7%BB%BC%E5%90%88/">综合</a>
+  </div>
+  
+<div class="word_count">
+    <span class="post-time">
+        <span class="post-meta-item-icon">
+            <i class="ri-quill-pen-line"></i>
+            <span class="post-meta-item-text"> Word count:</span>
+            <span class="post-count">4.4k</span>
+        </span>
+    </span>
+
+    <span class="post-time">
+        &nbsp; | &nbsp;
+        <span class="post-meta-item-icon">
+            <i class="ri-book-open-line"></i>
+            <span class="post-meta-item-text"> Reading time≈</span>
+            <span class="post-count">17 min</span>
+        </span>
+    </span>
+</div>
+ 
+    </div>
+      
+    <div class="tocbot"></div>
+
+
+
+
+  
+    <div class="article-entry" itemprop="articleBody">
+       
+  <p>dpos是什么，为什么要改造成dpos，这些问题小编就不解释了。可参考：<a href="/articles/bbe43e3f">委托股权证明原理(DPOS)–翻译及解读</a><br>对以太坊做dpos共识改造，从0开始是不可能的，这里小编参考了<a target="_blank" rel="noopener" href="https://github.com/meitu/go-ethereum">美图以太坊dpos改造</a>。美图实验室的改造相比较来说更加直观，网上这方面对信息不多，为此，小编参考该项目重头敲了一遍这个共识。收益颇多，也发现了很多不足的地方。</p>
+<a id="more"></a>
+<p>美图官方发布的改造教程解说并不多，讲述的内容也很简洁。为此，小编通过这篇文章详细解释下dpos在以太坊中的改造细节。自我总结的同时，希望能对大家有所帮助。<br>美图是在ethereum1.7.4上改造dpos的，而小编是在1.8.20上改造的，会有一些差异，但影响不大。<br>本文最后会介绍这次改造中的不足之处，后续会逐步完善。</p>
+<h2 id="本文源码下载"><a href="#本文源码下载" class="headerlink" title="本文源码下载"></a>本文源码下载</h2><p>本文是在以太坊基础上改造的，整个源码迟些时候会放在github上，其实这源码就是美图官方的，只是小编根据自己的想法做了一些改动。<br>每个阶段的改动，都会单独切换一个分支。<br>分阶段实现，更容易理解这次改造的过程。<br>dpos相关源码位置都有对应的单元测试，可快速验证每个方法。<br>关键地方，小编都加入了中文注释。</p>
+<h2 id="dpos整体框架"><a href="#dpos整体框架" class="headerlink" title="dpos整体框架"></a>dpos整体框架</h2><p>小编先前在<a href="/articles/3673b530">以太坊源码解读-第6.1讲-共识模块入口设计</a>以及<a href="/articles/231042d1">以太坊源码解读-第6.2讲-pow共识算法实现</a>中解释过，<br>实现一套共识算法，是需要在以太坊提供的共识引擎之下完成。<br>这里先说一下本文dpos的全局参数：</p>
+<ol>
+<li>每隔10秒钟生成一个块，</li>
+<li>每一天（24小时）进行一轮新的选举</li>
+<li>验证人有21个</li>
+<li>验证人最小人数为15人（计算方式：21*2/3+1）</li>
+</ol>
+<p>美图DPOS的实现方案如下图所示：</p>
+<img src="/articles/2092aa9f/1.png" class="" title="Dpos算法整体结构">
+<p>注意区分候选人和验证人，<code>验证人是候选人之一，但候选人不一定是验证人</code><br>从上图可以看出，分成三大部分，这里简述一下其中每部分的作用：</p>
+<ol>
+<li>dpos_context和dpos_context_pro：用来存储和操作验证人、投票、候选人等信息，是通过trie来将这些信息存储在leveldb中。这些信息主要分为5部分：<ol>
+<li>EpochTrie：记录当前周期的验证人列表</li>
+<li>DelegateTrie：记录每个候选人对应的投票人，一个候选人有不同的投票人</li>
+<li>VoteTrie：记录投票人对应的候选人，每个投票人只能对应一个候选人</li>
+<li>MintCntTrie：记录验证人在当前周期内的出块数</li>
+<li>CandidateTrie：候选人集合，其中包含了验证人</li>
+</ol>
+</li>
+<li>epoch_context：dpos验证阶段的处理，图中可知，主要完成四部分内容：<ol>
+<li>CountVotes:获取候选人及其对应投票数（积分）</li>
+<li>KickoutValidator：踢除不合格的验证人</li>
+<li>LookupValidator：获取当前验证人，就是确定应该由哪个验证人来出块</li>
+<li>TryElec：发起新一轮选举，从候选人中选出验证人</li>
+</ol>
+</li>
+<li>Dpos：实现共识引擎，dpos的主体</li>
+</ol>
+<p>来看看dpos算在在以太坊中的结构：</p>
+<figure class="highlight sh"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line">.</span><br><span class="line">|____params.go</span><br><span class="line">|____context</span><br><span class="line">| |____dpos_context.go</span><br><span class="line">| |____dpos_context_proto.go</span><br><span class="line">|____dpos_test.go</span><br><span class="line">|____api.go</span><br><span class="line">|____epoch_context_test.go</span><br><span class="line">|____epoch_context.go</span><br><span class="line">|____dpos.go</span><br></pre></td></tr></table></figure>
+<p>正对应上面提到的3部分内容。</p>
+<p>整个实现过程，小编也建议按照上面1、2、3的顺序来实现。下面小编就按照这个步骤来一一讲解。</p>
+<h2 id="dpos-context和dpos-context-pro"><a href="#dpos-context和dpos-context-pro" class="headerlink" title="dpos_context和dpos_context_pro"></a>dpos_context和dpos_context_pro</h2><p>上面小编说过，dpos选举的数据信息都会以trie的形式保存在以太坊的leveldb之中。dpos_context和dpos_context_pro就是用来处理这一过程的。<br>就是说，这一过程是对trie树的操作过程<br>小编想要说的是dpos_context_pro是为了方便外部对接而通过gencodec将dpos_context自动转换生成的。也就是说真正的核心是dpos_context。<br>理解dpos_context.go中内容尤为重要。</p>
+<p>先来看看结构体其结构体和重要参数：</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">var</span> (</span><br><span class="line">	epochPrefix     = []<span class="keyword">byte</span>(<span class="string">&quot;epoch-&quot;</span>)</span><br><span class="line">	delegatePrefix  = []<span class="keyword">byte</span>(<span class="string">&quot;delegate-&quot;</span>)</span><br><span class="line">	votePrefix      = []<span class="keyword">byte</span>(<span class="string">&quot;vote-&quot;</span>)</span><br><span class="line">	candidatePrefix = []<span class="keyword">byte</span>(<span class="string">&quot;candidate-&quot;</span>)</span><br><span class="line">	mintCntPrefix   = []<span class="keyword">byte</span>(<span class="string">&quot;mintCnt-&quot;</span>)</span><br><span class="line">)</span><br><span class="line"></span><br><span class="line"><span class="keyword">type</span> DposContext <span class="keyword">struct</span> &#123;</span><br><span class="line">	EpochTrie     *trie.Trie <span class="comment">//记录每个周期的验证人列表</span></span><br><span class="line">	DelegateTrie  *trie.Trie <span class="comment">//记录候选人-&gt;投票人</span></span><br><span class="line">	VoteTrie      *trie.Trie <span class="comment">//记录投票人-&gt;候选人</span></span><br><span class="line">	CandidateTrie *trie.Trie <span class="comment">//记录候选人列表</span></span><br><span class="line">	MintCntTrie   *trie.Trie <span class="comment">//记录验证人在周期内的出块数目</span></span><br><span class="line"></span><br><span class="line">	db ethdb.Database</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>很直观，dpos的五个前缀，后续操作的数据将会在这些前缀之后保存，索引很容易找到结果。<br>以太坊trie树是一种kv类型对，上面提到的五种trie，具体数据是如下格式来保存：</p>
+<ol>
+<li>EpochTrie数据格式：<br>key：epoch-validator<br>value：xxxxxxxxxxxxxxx (<code>ps</code>：xxxxxxxxxxxxxxx表示经过rlp序列化的所有验证人地址)</li>
+<li>DelegateTrie数据格式：<br>key：delegate-候选人地址-投票人地址<br>value：投票人地址</li>
+<li>VoteTrie数据格式：<br>key：vote-投票人地址<br>value：候选人地址</li>
+<li>CandidateTrie数据格式：<br>key：candidate-候选人地址<br>value；候选人地址</li>
+<li>MintCntTrie数据格式：<br>key；mintCnt-周期数（2进制）-验证人<br>value：当前验证人本周期总共挖块数（2进制å）<br><code>ps</code>：此处是小编自己理解，可能不正确：<code>其中，第5个加入周期数的目的：若不加入周期数，则这五棵trie经过rlp生成的hash，每一轮有可能都一样，对其签名会造成很大困扰</code></li>
+</ol>
+<p>接着看看DposContext的几个重要方法：</p>
+<h3 id="Copy-复制当前dpos状态"><a href="#Copy-复制当前dpos状态" class="headerlink" title="Copy():复制当前dpos状态"></a>Copy():复制当前dpos状态</h3><p>将当前DposContext对象复制出来，其实就是复制出当前Dpos状态，一般用于快照操作。拿到某时刻的状态。</p>
+<h3 id="Snapshot-快照，同上"><a href="#Snapshot-快照，同上" class="headerlink" title="Snapshot():快照，同上"></a>Snapshot():快照，同上</h3><p>快照。其实就是调用了上面提到的Copy()方法。</p>
+<h3 id="RevertToSnapShot-：快照读取"><a href="#RevertToSnapShot-：快照读取" class="headerlink" title="RevertToSnapShot()：快照读取"></a>RevertToSnapShot()：快照读取</h3><p>这个其实就是将快照信息转移到主体DposContext中，描述不好理解，贴代码，一目了然：</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">func</span> <span class="params">(d *DposContext)</span> <span class="title">RevertToSnapShot</span><span class="params">(snapshot *DposContext)</span></span> &#123;</span><br><span class="line">	d.EpochTrie = snapshot.EpochTrie</span><br><span class="line">	d.DelegateTrie = snapshot.DelegateTrie</span><br><span class="line">	d.CandidateTrie = snapshot.CandidateTrie</span><br><span class="line">	d.VoteTrie = snapshot.VoteTrie</span><br><span class="line">	d.MintCntTrie = snapshot.MintCntTrie</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<h3 id="KickoutCandidate-：踢除候选人"><a href="#KickoutCandidate-：踢除候选人" class="headerlink" title="KickoutCandidate()：踢除候选人"></a>KickoutCandidate()：踢除候选人</h3><p>该方法用于踢掉某个候选人（候选人有可能是验证人）<br>该方法在这里就不贴具体代码了，<br>删除某个候选人，需要涉及到三个trie：</p>
+<ol>
+<li>CandidateTrie：删掉对应候选人</li>
+<li>DelegateTrie：删掉候选人何其对应的投票人</li>
+<li>VoteTrie：删掉投票人对应的候选人</li>
+</ol>
+<p>从中也可以看出：<code>一个候选人可以有不同的投票人；一个投票人只能为一个候选人投票</code></p>
+<h3 id="BecomeCandidate-：成为候选人"><a href="#BecomeCandidate-：成为候选人" class="headerlink" title="BecomeCandidate()：成为候选人"></a>BecomeCandidate()：成为候选人</h3><p>任何拥有以太坊账户的人，都可以成为候选人。<br>当然，真正线上的这一过程，是需要严格控制的。</p>
+<h3 id="Delegate-：为某候选人投票"><a href="#Delegate-：为某候选人投票" class="headerlink" title="Delegate()：为某候选人投票"></a>Delegate()：为某候选人投票</h3><p>每轮选举，一个投票人只能为一个候选人投票，若该投票人已经为某候选人投票，想要再给新的候选人投票，则会覆盖原先旧的投票记录</p>
+<h3 id="UnDelegate-：取消某投票人投票记录"><a href="#UnDelegate-：取消某投票人投票记录" class="headerlink" title="UnDelegate()：取消某投票人投票记录"></a>UnDelegate()：取消某投票人投票记录</h3><ol>
+<li>判断投票人是否已经投过票，以及给谁投的票</li>
+<li>投票人不是给候选人candidate投的票，则不可以做取消操作</li>
+<li>将候选人对应投票人删除</li>
+<li>将投票人对应候选人删除</li>
+</ol>
+<h3 id="GetValidators-：获取验证人列表"><a href="#GetValidators-：获取验证人列表" class="headerlink" title="GetValidators()：获取验证人列表"></a>GetValidators()：获取验证人列表</h3><p>获取当前验证人列表</p>
+<h3 id="SetValidators-：设置当前验证人"><a href="#SetValidators-：设置当前验证人" class="headerlink" title="SetValidators()：设置当前验证人"></a>SetValidators()：设置当前验证人</h3><p>设置当前验证人</p>
+<h3 id="不足之处"><a href="#不足之处" class="headerlink" title="不足之处"></a>不足之处</h3><ol>
+<li>dpos_context和dpos_context_pro很容易让人感到凌乱，这是因为要跟别的模块交互的缘故，毕竟header只有hash，并没有具体块数据来支撑trie。<br>后期如何将两者融合，或者用新的解决方案来处理，这是需要考虑的一个问题。</li>
+<li>整体的数据操作方法没问题，但并没有做太大约束，比如成为候选人的条件等，当然，这属于dpos细节设计过程，这需要自行根据需要来设计。</li>
+</ol>
+<h3 id="小节"><a href="#小节" class="headerlink" title="小节"></a>小节</h3><p>这一部分的实现，小编没有给出具体源码，主要是考虑到篇幅，另外一个原因是实现本身并没有太复杂的逻辑。<br>定义了db中要存储的前缀和具体数据。这部分内容还是很容易理解的。<br>trie由于新增了前缀操作，为此做了一些改动，这个改动在本文最后给出。</p>
+<h2 id="epoch-context"><a href="#epoch-context" class="headerlink" title="epoch_context"></a>epoch_context</h2><p>这一部分属于对验证人的操作过程，比如统计投票数、踢除不合格验证人等操作。属于dpos最重要的一部分。目前提供了以下几个方法，这里一一来详细说明</p>
+<h3 id="CountVotes-统计投票数"><a href="#CountVotes-统计投票数" class="headerlink" title="CountVotes() 统计投票数"></a>CountVotes() 统计投票数</h3><p>一个候选人会拥有多个投票人，该方法目的就是统计出所有候选人中，每个候选人分别拥有多少投票数。<br>目前是这样进行统计的：</p>
+<ol>
+<li>通过candidateTrie获取所有候选人</li>
+<li>通过delegateTrie检测某候选人是否有投票（备注：delegateTrie表示候选人对应的投票人，也就是只要检测该候选人是否有投票人即可）</li>
+<li>一个候选人有多个投票人，将该候选人所有的投票人的账户余额相加的结果，就是当前候选人的投票数，比如每个投票人当前账户分别拥有1000wei，该候选人有5个投票人，则该候选人的投票数就是5000，将<code>候选人-&gt;投票数</code>记录在map</li>
+<li>将map结果返回，其中就是所有候选人投票数</li>
+</ol>
+<h3 id="KickoutValidator-踢除不合格验证人"><a href="#KickoutValidator-踢除不合格验证人" class="headerlink" title="KickoutValidator() 踢除不合格验证人"></a>KickoutValidator() 踢除不合格验证人</h3><p>踢除当前周期内不合格的验证人，<br>如果一个周期内，一个验证人的出块数不够50%，则将其踢出。比如：一周期是24小时（86400秒），每隔10秒产生一个块，总共有21个验证人，则86400/10/21*0.5=206块，就是说，一个验证人一个周期生成的块数不足206块，则该验证人在新的一轮选举中被踢除。<br>要确保踢出验证人后，剩余的所有候选人的人数在一个安全阈值内，一般是要满足总验证人的2/3</p>
+<h3 id="LookupValidator-获取当前验证人-也就是调度验证人"><a href="#LookupValidator-获取当前验证人-也就是调度验证人" class="headerlink" title="LookupValidator() 获取当前验证人,也就是调度验证人"></a>LookupValidator() 获取当前验证人,也就是调度验证人</h3><p>该方法是根据当前周期以及出块时间从验证人列表中选择一个正确的验证人。</p>
+<h3 id="TryElect-开始选举验证人"><a href="#TryElect-开始选举验证人" class="headerlink" title="TryElect() 开始选举验证人"></a>TryElect() 开始选举验证人</h3><p>该过程用于从候选人中选择验证人。</p>
+<ol>
+<li>若上一个块的周期和当前块的周期不是同一周期，则触发选举 </li>
+<li>获取上一周期验证人以及对应的出块数</li>
+<li>踢除上一周期不合格的验证人</li>
+<li>获取所有候选人及其对应的投票数，选择最高21位作为验证人</li>
+<li>将21位验证人顺序随机打乱</li>
+</ol>
+<h3 id="不足之处-1"><a href="#不足之处-1" class="headerlink" title="不足之处"></a>不足之处</h3><p>候选人数量需要限制</p>
+<h3 id="小节-1"><a href="#小节-1" class="headerlink" title="小节"></a>小节</h3><p>本小节主要是对验证人的操作，目的就是踢掉不合格的验证人，选择新的验证人。<br>这些都属于dpos内部逻辑。</p>
+<h2 id="Dpos"><a href="#Dpos" class="headerlink" title="Dpos"></a>Dpos</h2><p>这个模块是用来实现以太坊共识引擎接口的。<br>需要知道，dpos中，不需要叔块概念、不需要难度概念。<br>先来看看Dpos的结构体：</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">type</span> Dpos <span class="keyword">struct</span> &#123;</span><br><span class="line">	config *DposConfig</span><br><span class="line">	db     ethdb.Database <span class="comment">//存储验证人相关信息</span></span><br><span class="line"></span><br><span class="line">	signer common.Address <span class="comment">//打包人</span></span><br><span class="line">	signFn SignerFn</span><br><span class="line"></span><br><span class="line">	<span class="comment">//ARCCache是一个线程安全的固定大小的自适应替换缓存工具。</span></span><br><span class="line">	<span class="comment">//ARC是对标准LRU缓存的一种改进，它跟踪使用的频率和最近情况。</span></span><br><span class="line">	<span class="comment">//这样就避免了对新条目的突然访问，无法将经常使用的旧条目逐出。</span></span><br><span class="line">	<span class="comment">//它为标准的LRU缓存增加了一些额外的跟踪开销，计算上它大约是成本的2倍，并且额外的内存开销与缓存的大小成线性关系。</span></span><br><span class="line">	<span class="comment">//ARC已获得IBM专利，但类似于需要设置参数的TwoQueueCache（2Q,双队列缓存).</span></span><br><span class="line">	signatures           *lru.ARCCache <span class="comment">//等待验签的块</span></span><br><span class="line">	confirmedBlockHeader *types.Header <span class="comment">//被确认了的块头部</span></span><br><span class="line">	mu   sync.RWMutex</span><br><span class="line">	stop <span class="keyword">chan</span> <span class="keyword">bool</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>主要的方法如下所示。</p>
+<h3 id="VerifyHeader-验证头部"><a href="#VerifyHeader-验证头部" class="headerlink" title="VerifyHeader() 验证头部"></a>VerifyHeader() 验证头部</h3><p>验证块头部信息。<br>这里重要的一点是<code>header.Extra</code>数据，其中包含有ecp256k1签名信息，需要确保其中该信息。</p>
+<h3 id="VerifySeal-验证块签名信息"><a href="#VerifySeal-验证块签名信息" class="headerlink" title="VerifySeal() 验证块签名信息"></a>VerifySeal() 验证块签名信息</h3><ol>
+<li>创世块不验证</li>
+<li>根据块的生成时间，获取该块的验证人地址，判断该验证人是否为块的签名人</li>
+<li>另外重要的一点是：updateConfirmedBlockHeader()，这一步要更新待确认块的位置，让用户知道，当前哪些块被确认了，哪些块还没有。</li>
+</ol>
+<h3 id="Prepare-初始化准备"><a href="#Prepare-初始化准备" class="headerlink" title="Prepare() 初始化准备"></a>Prepare() 初始化准备</h3><p>对头部信息设置</p>
+<h3 id="Finalize-奖励分发并进行新的选举"><a href="#Finalize-奖励分发并进行新的选举" class="headerlink" title="Finalize() 奖励分发并进行新的选举"></a>Finalize() 奖励分发并进行新的选举</h3><ol>
+<li>为块生成者分发奖励</li>
+<li>若父块和当前块是同一周期，则不选举；否则进行选举</li>
+</ol>
+<h3 id="Seal-打包签名"><a href="#Seal-打包签名" class="headerlink" title="Seal() 打包签名"></a>Seal() 打包签名</h3><p>对当前块进行签名<br>签名信息保存在header.extra中</p>
+<h3 id="SealHash-返回head头部hash"><a href="#SealHash-返回head头部hash" class="headerlink" title="SealHash() 返回head头部hash"></a>SealHash() 返回head头部hash</h3><p>这个方法是用来生成一个块头部的hash，来看看源码：</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">func</span> <span class="params">(d *Dpos)</span> <span class="title">SealHash</span><span class="params">(header *types.Header)</span> <span class="params">(hash common.Hash)</span></span> &#123;</span><br><span class="line">	hasher := sha3.NewLegacyKeccak256()</span><br><span class="line">	rlp.Encode(hasher, []<span class="keyword">interface</span>&#123;&#125;&#123;</span><br><span class="line">		header.ParentHash,</span><br><span class="line">		header.UncleHash,</span><br><span class="line">		header.Validator,</span><br><span class="line">		header.Coinbase,</span><br><span class="line">		header.Root,</span><br><span class="line">		header.TxHash,</span><br><span class="line">		header.ReceiptHash,</span><br><span class="line">		header.Bloom,</span><br><span class="line">		header.Difficulty,</span><br><span class="line">		header.Number,</span><br><span class="line">		header.GasLimit,</span><br><span class="line">		header.GasUsed,</span><br><span class="line">		header.Time,</span><br><span class="line">		header.Extra[:<span class="built_in">len</span>(header.Extra)<span class="number">-65</span>], <span class="comment">//这里记录签名信息</span></span><br><span class="line">		header.MixDigest,</span><br><span class="line">		header.Nonce,</span><br><span class="line">		header.DposContext.Root(),</span><br><span class="line">	&#125;)</span><br><span class="line">	hasher.Sum(hash[:<span class="number">0</span>])</span><br><span class="line">	<span class="keyword">return</span> hash</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>使用rlp编码，然后生成一个hash，这个就代表一个head，其中dpos部分，发现这样一行代码：<code>header.DposContext.Root()</code>，这表示dpos中的五棵trie被编码为一个hash存入其中。</p>
+<h3 id="CheckValidator-检测验证人是否有效"><a href="#CheckValidator-检测验证人是否有效" class="headerlink" title="CheckValidator() 检测验证人是否有效"></a>CheckValidator() 检测验证人是否有效</h3><ol>
+<li>上一个块和当前块时间是否正确</li>
+<li>根据块当前时间获取验证人，然后跟header.signer比较是否一致</li>
+</ol>
+<h3 id="小节-2"><a href="#小节-2" class="headerlink" title="小节"></a>小节</h3><p>这一部分主要就是实现共识引擎的接口，相比较于pow，dpos的实现要容易很多</p>
+<h2 id="trie数据存储"><a href="#trie数据存储" class="headerlink" title="trie数据存储"></a>trie数据存储</h2><p>以太坊的trie是什么东西，小编原先讲解过，并对其源码也做过深入分析<br>前面小编说过，dpos的五个trie是需要保存在db，以太坊原先的方式并不能满足这一需要，为此需要对现有的trie做一些改造。在现有trie模块的基础上，加入了如下两个文件：</p>
+<ol>
+<li>prefix_trie.go</li>
+<li>prefix_trie_iterator.go</li>
+</ol>
+<h3 id="prefix-trie-go"><a href="#prefix-trie-go" class="headerlink" title="prefix_trie.go"></a>prefix_trie.go</h3><p>这个文件中是对Trie结构体方法的扩充，加入了前缀后，trie的更新插入等操作有了些许变化，代码不多，都贴出来了，这里就不做注释，很简单：</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">NewTrieWithPrefix</span><span class="params">(root common.Hash, prefix []<span class="keyword">byte</span>, db ethdb.Database)</span> <span class="params">(*Trie, error)</span></span> &#123;</span><br><span class="line">	trie, err := New(root, NewDatabase(db))</span><br><span class="line">	<span class="keyword">if</span> err != <span class="literal">nil</span> &#123;</span><br><span class="line">		<span class="keyword">return</span> <span class="literal">nil</span>, err</span><br><span class="line">	&#125;</span><br><span class="line">	trie.prefix = prefix</span><br><span class="line">	<span class="keyword">return</span> trie, <span class="literal">nil</span></span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="params">(t *Trie)</span> <span class="title">NodeIteratorWithPrefix</span><span class="params">(start []<span class="keyword">byte</span>)</span> <span class="title">NodeIterator</span></span> &#123;</span><br><span class="line">	<span class="keyword">if</span> t.prefix != <span class="literal">nil</span> &#123;</span><br><span class="line">		start = <span class="built_in">append</span>(t.prefix, start...)</span><br><span class="line">	&#125;</span><br><span class="line">	<span class="keyword">return</span> newNodeIterator(t, start)</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="params">(t *Trie)</span> <span class="title">PrefixIterator</span><span class="params">(prefix []<span class="keyword">byte</span>)</span> <span class="title">NodeIterator</span></span> &#123;</span><br><span class="line">	<span class="keyword">if</span> t.prefix != <span class="literal">nil</span> &#123;</span><br><span class="line">		prefix = <span class="built_in">append</span>(t.prefix, prefix...)</span><br><span class="line">	&#125;</span><br><span class="line">	<span class="keyword">return</span> newPrefixIterator(t, prefix)</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="params">(t *Trie)</span> <span class="title">UpdateWithPrefix</span><span class="params">(key, value []<span class="keyword">byte</span>)</span></span> &#123;</span><br><span class="line">	<span class="keyword">if</span> err := t.TryUpdateWithPrefix(key, value); err != <span class="literal">nil</span> &#123;</span><br><span class="line">		log.Error(fmt.Sprintf(<span class="string">&quot;Unhandled trie error: %v&quot;</span>, err))</span><br><span class="line">	&#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="params">(t *Trie)</span> <span class="title">TryUpdateWithPrefix</span><span class="params">(key, value []<span class="keyword">byte</span>)</span> <span class="title">error</span></span> &#123;</span><br><span class="line">	<span class="keyword">if</span> t.prefix != <span class="literal">nil</span> &#123;</span><br><span class="line">		key = <span class="built_in">append</span>(t.prefix, key...)</span><br><span class="line">	&#125;</span><br><span class="line">	k := keybytesToHex(key)</span><br><span class="line">	<span class="keyword">if</span> <span class="built_in">len</span>(value) != <span class="number">0</span> &#123;</span><br><span class="line">		_, n, err := t.insert(t.root, <span class="literal">nil</span>, k, valueNode(value))</span><br><span class="line">		<span class="keyword">if</span> err != <span class="literal">nil</span> &#123;</span><br><span class="line">			<span class="keyword">return</span> err</span><br><span class="line">		&#125;</span><br><span class="line">		t.root = n</span><br><span class="line">	&#125; <span class="keyword">else</span> &#123;</span><br><span class="line">		_, n, err := t.<span class="built_in">delete</span>(t.root, <span class="literal">nil</span>, k)</span><br><span class="line">		<span class="keyword">if</span> err != <span class="literal">nil</span> &#123;</span><br><span class="line">			<span class="keyword">return</span> err</span><br><span class="line">		&#125;</span><br><span class="line">		t.root = n</span><br><span class="line">	&#125;</span><br><span class="line">	<span class="keyword">return</span> <span class="literal">nil</span></span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="params">(t *Trie)</span> <span class="title">GetWithPrefix</span><span class="params">(key []<span class="keyword">byte</span>)</span> []<span class="title">byte</span></span> &#123;</span><br><span class="line">	res, err := t.TryGetWithPrefix(key)</span><br><span class="line">	<span class="keyword">if</span> err != <span class="literal">nil</span> &#123;</span><br><span class="line">		log.Error(fmt.Sprintf(<span class="string">&quot;Unhandled trie error: %v&quot;</span>, err))</span><br><span class="line">	&#125;</span><br><span class="line">	<span class="keyword">return</span> res</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="params">(t *Trie)</span> <span class="title">TryGetWithPrefix</span><span class="params">(key []<span class="keyword">byte</span>)</span> <span class="params">([]<span class="keyword">byte</span>, error)</span></span> &#123;</span><br><span class="line">	<span class="keyword">if</span> t.prefix != <span class="literal">nil</span> &#123;</span><br><span class="line">		key = <span class="built_in">append</span>(t.prefix, key...)</span><br><span class="line">	&#125;</span><br><span class="line">	key = keybytesToHex(key)</span><br><span class="line">	value, newroot, didResolve, err := t.tryGet(t.root, key, <span class="number">0</span>)</span><br><span class="line">	<span class="keyword">if</span> err == <span class="literal">nil</span> &amp;&amp; didResolve &#123;</span><br><span class="line">		t.root = newroot</span><br><span class="line">	&#125;</span><br><span class="line">	<span class="keyword">return</span> value, err</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="params">(t *Trie)</span> <span class="title">TryDeleteWithPrefix</span><span class="params">(key []<span class="keyword">byte</span>)</span> <span class="title">error</span></span> &#123;</span><br><span class="line">	<span class="keyword">if</span> t.prefix != <span class="literal">nil</span> &#123;</span><br><span class="line">		key = <span class="built_in">append</span>(t.prefix, key...)</span><br><span class="line">	&#125;</span><br><span class="line">	k := keybytesToHex(key)</span><br><span class="line">	_, n, err := t.<span class="built_in">delete</span>(t.root, <span class="literal">nil</span>, k)</span><br><span class="line">	<span class="keyword">if</span> err != <span class="literal">nil</span> &#123;</span><br><span class="line">		<span class="keyword">return</span> err</span><br><span class="line">	&#125;</span><br><span class="line">	t.root = n</span><br><span class="line">	<span class="keyword">return</span> <span class="literal">nil</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<h3 id="prefix-trie-iterator-go"><a href="#prefix-trie-iterator-go" class="headerlink" title="prefix_trie_iterator.go"></a>prefix_trie_iterator.go</h3><p>对dpos各种trie需要进行遍历，而这个文件就是用来解决这一问题的。整个过程就是根据前缀来查找结果的。代码本身也不复杂，并且也不多，直接上代码：</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">type</span> prefixIterator <span class="keyword">struct</span> &#123;</span><br><span class="line">	prefix       []<span class="keyword">byte</span></span><br><span class="line">	nodeIterator NodeIterator</span><br><span class="line">&#125;</span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">newPrefixIterator</span><span class="params">(trie *Trie, prefix []<span class="keyword">byte</span>)</span> <span class="title">NodeIterator</span></span> &#123;</span><br><span class="line">	<span class="keyword">if</span> trie.Hash() == emptyState &#123;</span><br><span class="line">		<span class="keyword">return</span> <span class="built_in">new</span>(prefixIterator)</span><br><span class="line">	&#125;</span><br><span class="line">	nodeIt := newNodeIterator(trie, prefix)</span><br><span class="line">	prefix = keybytesToHex(prefix)</span><br><span class="line">	<span class="keyword">return</span> &amp;prefixIterator&#123;</span><br><span class="line">		nodeIterator: nodeIt,</span><br><span class="line">		prefix:       prefix[:<span class="built_in">len</span>(prefix)<span class="number">-1</span>],</span><br><span class="line">	&#125;</span><br><span class="line">&#125;</span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="params">(it *prefixIterator)</span> <span class="title">hasPrefix</span><span class="params">()</span> <span class="title">bool</span></span> &#123;</span><br><span class="line">	<span class="keyword">return</span> bytes.HasPrefix(it.nodeIterator.Path(), it.prefix)</span><br><span class="line">&#125;</span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="params">(it *prefixIterator)</span> <span class="title">Next</span><span class="params">(descend <span class="keyword">bool</span>)</span> <span class="title">bool</span></span> &#123;</span><br><span class="line">	<span class="keyword">if</span> it.nodeIterator.Next(descend) &#123;</span><br><span class="line">		<span class="keyword">if</span> it.hasPrefix() &#123;</span><br><span class="line">			<span class="keyword">return</span> <span class="literal">true</span></span><br><span class="line">		&#125;</span><br><span class="line">	&#125;</span><br><span class="line">	<span class="keyword">return</span> <span class="literal">false</span></span><br><span class="line">&#125;</span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="params">(it *prefixIterator)</span> <span class="title">Error</span><span class="params">()</span> <span class="title">error</span></span> &#123;</span><br><span class="line">	<span class="keyword">return</span> it.nodeIterator.Error()</span><br><span class="line">&#125;</span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="params">(it *prefixIterator)</span> <span class="title">Hash</span><span class="params">()</span> <span class="title">common</span>.<span class="title">Hash</span></span> &#123;</span><br><span class="line">	<span class="keyword">if</span> it.hasPrefix() &#123;</span><br><span class="line">		<span class="keyword">return</span> it.nodeIterator.Hash()</span><br><span class="line">	&#125;</span><br><span class="line">	<span class="keyword">return</span> common.Hash&#123;&#125;</span><br><span class="line">&#125;</span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="params">(it *prefixIterator)</span> <span class="title">Parent</span><span class="params">()</span> <span class="title">common</span>.<span class="title">Hash</span></span> &#123;</span><br><span class="line">	<span class="keyword">if</span> it.hasPrefix() &#123;</span><br><span class="line">		it.nodeIterator.Parent()</span><br><span class="line">	&#125;</span><br><span class="line">	<span class="keyword">return</span> common.Hash&#123;&#125;</span><br><span class="line">&#125;</span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="params">(it *prefixIterator)</span> <span class="title">Path</span><span class="params">()</span> []<span class="title">byte</span></span> &#123;</span><br><span class="line">	<span class="keyword">if</span> it.hasPrefix() &#123;</span><br><span class="line">		<span class="keyword">return</span> it.nodeIterator.Path()</span><br><span class="line">	&#125;</span><br><span class="line">	<span class="keyword">return</span> <span class="literal">nil</span></span><br><span class="line">&#125;</span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="params">(it *prefixIterator)</span> <span class="title">Leaf</span><span class="params">()</span> <span class="title">bool</span></span> &#123;</span><br><span class="line">	<span class="keyword">if</span> it.hasPrefix() &#123;</span><br><span class="line">		<span class="keyword">return</span> it.nodeIterator.Leaf()</span><br><span class="line">	&#125;</span><br><span class="line">	<span class="keyword">return</span> <span class="literal">false</span></span><br><span class="line">&#125;</span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="params">(it *prefixIterator)</span> <span class="title">LeafKey</span><span class="params">()</span> []<span class="title">byte</span></span> &#123;</span><br><span class="line">	<span class="keyword">if</span> it.hasPrefix() &#123;</span><br><span class="line">		<span class="keyword">return</span> it.nodeIterator.LeafKey()</span><br><span class="line">	&#125;</span><br><span class="line">	<span class="keyword">return</span> <span class="literal">nil</span></span><br><span class="line">&#125;</span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="params">(it *prefixIterator)</span> <span class="title">LeafBlob</span><span class="params">()</span> []<span class="title">byte</span></span> &#123;</span><br><span class="line">	<span class="keyword">if</span> it.hasPrefix() &#123;</span><br><span class="line">		<span class="keyword">return</span> it.nodeIterator.LeafBlob()</span><br><span class="line">	&#125;</span><br><span class="line">	<span class="keyword">return</span> <span class="literal">nil</span></span><br><span class="line">&#125;</span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="params">(it *prefixIterator)</span> <span class="title">LeafProof</span><span class="params">()</span> [][]<span class="title">byte</span></span> &#123;</span><br><span class="line">	<span class="comment">//TODO 该方法暂时未用到</span></span><br><span class="line">	<span class="built_in">panic</span>(<span class="string">&quot;implement me&quot;</span>)</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<h2 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h2><ol>
+<li>以太坊的理念是，每个功能都模块化，但是dpos的改造，将其中的内容都被扩散到不同的模块，耦合度过高。</li>
+<li>本文中，更多描述的是dpos在以太坊共识模块中的实现，这个过程相对来说要好理解，但是，如果将以太坊切换为dpos，这才是工程中的难点，这个过程小编也正在验证，后续会发出新的文章来专门讲解这一过程。</li>
+<li>补充一下，上面提到的每个模块，都有对应的单元测试，可以快速验证每个方法。</li>
+</ol>
+ 
+      <!-- reward -->
+      
+    </div>
+    
+
+    <!-- copyright -->
+    
+    <div class="declare">
+      <ul class="post-copyright">
+        <li>
+          <i class="ri-copyright-line"></i>
+          <strong>Copyright： </strong>
+          
+          Copyright is owned by the author. For commercial reprints, please contact the author for authorization. For non-commercial reprints, please indicate the source.
+          
+        </li>
+      </ul>
+    </div>
+    
+    <footer class="article-footer">
+       
+<div class="share-btn">
+      <span class="share-sns share-outer">
+        <i class="ri-share-forward-line"></i>
+        分享
+      </span>
+      <div class="share-wrap">
+        <i class="arrow"></i>
+        <div class="share-icons">
+          
+          <a class="weibo share-sns" href="javascript:;" data-type="weibo">
+            <i class="ri-weibo-fill"></i>
+          </a>
+          <a class="weixin share-sns wxFab" href="javascript:;" data-type="weixin">
+            <i class="ri-wechat-fill"></i>
+          </a>
+          <a class="qq share-sns" href="javascript:;" data-type="qq">
+            <i class="ri-qq-fill"></i>
+          </a>
+          <a class="douban share-sns" href="javascript:;" data-type="douban">
+            <i class="ri-douban-line"></i>
+          </a>
+          <!-- <a class="qzone share-sns" href="javascript:;" data-type="qzone">
+            <i class="icon icon-qzone"></i>
+          </a> -->
+          
+          <a class="facebook share-sns" href="javascript:;" data-type="facebook">
+            <i class="ri-facebook-circle-fill"></i>
+          </a>
+          <a class="twitter share-sns" href="javascript:;" data-type="twitter">
+            <i class="ri-twitter-fill"></i>
+          </a>
+          <a class="google share-sns" href="javascript:;" data-type="google">
+            <i class="ri-google-fill"></i>
+          </a>
+        </div>
+      </div>
+</div>
+
+<div class="wx-share-modal">
+    <a class="modal-close" href="javascript:;"><i class="ri-close-circle-line"></i></a>
+    <p>扫一扫，分享到微信</p>
+    <div class="wx-qrcode">
+      <img src="//api.qrserver.com/v1/create-qr-code/?size=150x150&data=http://jason-wj.gitee.io/articles/2092aa9f/" alt="微信分享二维码">
+    </div>
+</div>
+
+<div id="share-mask"></div>  
+  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/ethereum/" rel="tag">ethereum</a></li></ul>
+
+    </footer>
+  </div>
+
+   
+  <nav class="article-nav">
+    
+      <a href="/articles/e71eb575/" class="article-nav-link">
+        <strong class="article-nav-caption">上一篇</strong>
+        <div class="article-nav-title">
+          
+            区块链的未来究竟是什么？
+          
+        </div>
+      </a>
+    
+    
+      <a href="/articles/a749acc8/" class="article-nav-link">
+        <strong class="article-nav-caption">下一篇</strong>
+        <div class="article-nav-title">以太坊源码解读-第9讲-blockchain</div>
+      </a>
+    
+  </nav>
+
+   
+<!-- valine评论 -->
+<div id="vcomments-box">
+  <div id="vcomments"></div>
+</div>
+<script src="//cdn1.lncld.net/static/js/3.0.4/av-min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/valine@1.4.14/dist/Valine.min.js"></script>
+<script>
+  new Valine({
+    el: "#vcomments",
+    app_id: "gdw0hVSwW3l6KgEMulSAc9Rx-gzGzoHsz",
+    app_key: "M4iiVXe0CuXWQEKuyIzWWDMh",
+    path: window.location.pathname,
+    avatar: "monsterid",
+    placeholder: "给我的文章加点评论吧~",
+    recordIP: true,
+  });
+  const infoEle = document.querySelector("#vcomments .info");
+  if (infoEle && infoEle.childNodes && infoEle.childNodes.length > 0) {
+    infoEle.childNodes.forEach(function (item) {
+      item.parentNode.removeChild(item);
+    });
+  }
+</script>
+<style>
+  #vcomments-box {
+    padding: 5px 30px;
+  }
+
+  @media screen and (max-width: 800px) {
+    #vcomments-box {
+      padding: 5px 0px;
+    }
+  }
+
+  #vcomments-box #vcomments {
+    background-color: #fff;
+  }
+
+  .v .vlist .vcard .vh {
+    padding-right: 20px;
+  }
+
+  .v .vlist .vcard {
+    padding-left: 10px;
+  }
+</style>
+
+ 
+   
+     
+</article>
+
+</section>
+      <footer class="footer">
+  <div class="outer">
+    <ul>
+      <li>
+        Copyrights &copy;
+        2017-2021
+        <i class="ri-heart-fill heart_icon"></i> Jason
+      </li>
+    </ul>
+    <ul>
+      <li>
+        
+      </li>
+    </ul>
+    <ul>
+      <li>
+        
+        
+        <span>
+  <span><i class="ri-user-3-fill"></i>Visitors:<span id="busuanzi_value_site_uv"></span></s>
+  <span class="division">|</span>
+  <span><i class="ri-eye-fill"></i>Views:<span id="busuanzi_value_page_pv"></span></span>
+</span>
+        
+      </li>
+    </ul>
+    <ul>
+      
+    </ul>
+    <ul>
+      
+    </ul>
+    <ul>
+      <li>
+        <!-- cnzz统计 -->
+        
+        <script type="text/javascript" src='https://s4.cnzz.com/z_stat.php?id=1279593399&amp;web_id=1279593399'></script>
+        
+      </li>
+    </ul>
+  </div>
+</footer>
+      <div class="float_btns">
+        <div class="totop" id="totop">
+  <i class="ri-arrow-up-line"></i>
+</div>
+
+<div class="todark" id="todark">
+  <i class="ri-moon-line"></i>
+</div>
+
+      </div>
+    </main>
+    <aside class="sidebar on">
+      <button class="navbar-toggle"></button>
+<nav class="navbar">
+  
+  <div class="logo">
+    <a href="/"><img src="/images/my_head-touch-icon-next.png" alt="Jason漫谈区块链"></a>
+  </div>
+  
+  <ul class="nav nav-main">
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/">主页</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/archives">归档</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/categories">分类</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/tags">标签</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/friends">友链</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/about">关于我</a>
+    </li>
+    
+  </ul>
+</nav>
+<nav class="navbar navbar-bottom">
+  <ul class="nav">
+    <li class="nav-item">
+      
+      <a class="nav-item-link nav-item-search"  title="Search">
+        <i class="ri-search-line"></i>
+      </a>
+      
+      
+    </li>
+  </ul>
+</nav>
+<div class="search-form-wrap">
+  <div class="local-search local-search-plugin">
+  <input type="search" id="local-search-input" class="local-search-input" placeholder="Search...">
+  <div id="local-search-result" class="local-search-result"></div>
+</div>
+</div>
+    </aside>
+    <script>
+      if (window.matchMedia("(max-width: 768px)").matches) {
+        document.querySelector('.content').classList.remove('on');
+        document.querySelector('.sidebar').classList.remove('on');
+      }
+    </script>
+    <div id="mask"></div>
+
+<!-- #reward -->
+<div id="reward">
+  <span class="close"><i class="ri-close-line"></i></span>
+  <p class="reward-p"><i class="ri-cup-line"></i>请我喝杯咖啡吧~</p>
+  <div class="reward-box">
+    
+    <div class="reward-item">
+      <img class="reward-img" src="/images/pay_ali.jpg">
+      <span class="reward-type">支付宝</span>
+    </div>
+    
+    
+    <div class="reward-item">
+      <img class="reward-img" src="/images/pay_wechat.jpg">
+      <span class="reward-type">微信</span>
+    </div>
+    
+  </div>
+</div>
+    
+<script src="/js/jquery-2.0.3.min.js"></script>
+
+
+<script src="/js/lazyload.min.js"></script>
+
+<!-- Tocbot -->
+
+
+<script src="/js/tocbot.min.js"></script>
+
+<script>
+  tocbot.init({
+    tocSelector: '.tocbot',
+    contentSelector: '.article-entry',
+    headingSelector: 'h1, h2, h3, h4, h5, h6',
+    hasInnerContainers: true,
+    scrollSmooth: true,
+    scrollContainer: 'main',
+    positionFixedSelector: '.tocbot',
+    positionFixedClass: 'is-position-fixed',
+    fixedSidebarOffset: 'auto'
+  });
+</script>
+
+<script src="https://cdn.jsdelivr.net/npm/jquery-modal@0.9.2/jquery.modal.min.js"></script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/jquery-modal@0.9.2/jquery.modal.min.css">
+<script src="https://cdn.jsdelivr.net/npm/justifiedGallery@3.7.0/dist/js/jquery.justifiedGallery.min.js"></script>
+
+<script src="/dist/main.js"></script>
+
+<!-- ImageViewer -->
+
+<!-- Root element of PhotoSwipe. Must have class pswp. -->
+<div class="pswp" tabindex="-1" role="dialog" aria-hidden="true">
+
+    <!-- Background of PhotoSwipe. 
+         It's a separate element as animating opacity is faster than rgba(). -->
+    <div class="pswp__bg"></div>
+
+    <!-- Slides wrapper with overflow:hidden. -->
+    <div class="pswp__scroll-wrap">
+
+        <!-- Container that holds slides. 
+            PhotoSwipe keeps only 3 of them in the DOM to save memory.
+            Don't modify these 3 pswp__item elements, data is added later on. -->
+        <div class="pswp__container">
+            <div class="pswp__item"></div>
+            <div class="pswp__item"></div>
+            <div class="pswp__item"></div>
+        </div>
+
+        <!-- Default (PhotoSwipeUI_Default) interface on top of sliding area. Can be changed. -->
+        <div class="pswp__ui pswp__ui--hidden">
+
+            <div class="pswp__top-bar">
+
+                <!--  Controls are self-explanatory. Order can be changed. -->
+
+                <div class="pswp__counter"></div>
+
+                <button class="pswp__button pswp__button--close" title="Close (Esc)"></button>
+
+                <button class="pswp__button pswp__button--share" style="display:none" title="Share"></button>
+
+                <button class="pswp__button pswp__button--fs" title="Toggle fullscreen"></button>
+
+                <button class="pswp__button pswp__button--zoom" title="Zoom in/out"></button>
+
+                <!-- Preloader demo http://codepen.io/dimsemenov/pen/yyBWoR -->
+                <!-- element will get class pswp__preloader--active when preloader is running -->
+                <div class="pswp__preloader">
+                    <div class="pswp__preloader__icn">
+                        <div class="pswp__preloader__cut">
+                            <div class="pswp__preloader__donut"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="pswp__share-modal pswp__share-modal--hidden pswp__single-tap">
+                <div class="pswp__share-tooltip"></div>
+            </div>
+
+            <button class="pswp__button pswp__button--arrow--left" title="Previous (arrow left)">
+            </button>
+
+            <button class="pswp__button pswp__button--arrow--right" title="Next (arrow right)">
+            </button>
+
+            <div class="pswp__caption">
+                <div class="pswp__caption__center"></div>
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe.min.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/default-skin/default-skin.min.css">
+<script src="https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe-ui-default.min.js"></script>
+
+<script>
+    function viewer_init() {
+        let pswpElement = document.querySelectorAll('.pswp')[0];
+        let $imgArr = document.querySelectorAll(('.article-entry img:not(.reward-img)'))
+
+        $imgArr.forEach(($em, i) => {
+            $em.onclick = () => {
+                // slider展开状态
+                // todo: 这样不好，后面改成状态
+                if (document.querySelector('.left-col.show')) return
+                let items = []
+                $imgArr.forEach(($em2, i2) => {
+                    let img = $em2.getAttribute('data-idx', i2)
+                    let src = $em2.getAttribute('data-target') || $em2.getAttribute('src')
+                    let title = $em2.getAttribute('alt')
+                    // 获得原图尺寸
+                    const image = new Image()
+                    image.src = src
+                    items.push({
+                        src: src,
+                        w: image.width || $em2.width,
+                        h: image.height || $em2.height,
+                        title: title
+                    })
+                })
+                var gallery = new PhotoSwipe(pswpElement, PhotoSwipeUI_Default, items, {
+                    index: parseInt(i)
+                });
+                gallery.init()
+            }
+        })
+    }
+    viewer_init()
+</script>
+
+<!-- MathJax -->
+
+<!-- Katex -->
+
+<!-- busuanzi  -->
+
+
+<script src="/js/busuanzi-2.3.pure.min.js"></script>
+
+
+<!-- ClickLove -->
+
+<!-- ClickBoom1 -->
+
+<!-- ClickBoom2 -->
+
+<!-- CodeCopy -->
+
+
+<link rel="stylesheet" href="/css/clipboard.css">
+
+<script src="https://cdn.jsdelivr.net/npm/clipboard@2/dist/clipboard.min.js"></script>
+<script>
+  function wait(callback, seconds) {
+    var timelag = null;
+    timelag = window.setTimeout(callback, seconds);
+  }
+  !function (e, t, a) {
+    var initCopyCode = function(){
+      var copyHtml = '';
+      copyHtml += '<button class="btn-copy" data-clipboard-snippet="">';
+      copyHtml += '<i class="ri-file-copy-2-line"></i><span>COPY</span>';
+      copyHtml += '</button>';
+      $(".highlight .code pre").before(copyHtml);
+      $(".article pre code").before(copyHtml);
+      var clipboard = new ClipboardJS('.btn-copy', {
+        target: function(trigger) {
+          return trigger.nextElementSibling;
+        }
+      });
+      clipboard.on('success', function(e) {
+        let $btn = $(e.trigger);
+        $btn.addClass('copied');
+        let $icon = $($btn.find('i'));
+        $icon.removeClass('ri-file-copy-2-line');
+        $icon.addClass('ri-checkbox-circle-line');
+        let $span = $($btn.find('span'));
+        $span[0].innerText = 'COPIED';
+        
+        wait(function () { // 等待两秒钟后恢复
+          $icon.removeClass('ri-checkbox-circle-line');
+          $icon.addClass('ri-file-copy-2-line');
+          $span[0].innerText = 'COPY';
+        }, 2000);
+      });
+      clipboard.on('error', function(e) {
+        e.clearSelection();
+        let $btn = $(e.trigger);
+        $btn.addClass('copy-failed');
+        let $icon = $($btn.find('i'));
+        $icon.removeClass('ri-file-copy-2-line');
+        $icon.addClass('ri-time-line');
+        let $span = $($btn.find('span'));
+        $span[0].innerText = 'COPY FAILED';
+        
+        wait(function () { // 等待两秒钟后恢复
+          $icon.removeClass('ri-time-line');
+          $icon.addClass('ri-file-copy-2-line');
+          $span[0].innerText = 'COPY';
+        }, 2000);
+      });
+    }
+    initCopyCode();
+  }(window, document);
+</script>
+
+
+<!-- CanvasBackground -->
+
+
+    
+  </div>
+</body>
+
+</html>

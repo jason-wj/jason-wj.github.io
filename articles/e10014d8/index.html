@@ -1,0 +1,706 @@
+<!DOCTYPE html>
+
+
+<html lang="zh-Hans">
+
+
+<head>
+  <meta charset="utf-8" />
+    
+  <meta name="description" content="谈天谈地，谈古谈今，一起谈谈我们的未来。" />
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
+  <title>
+    以太坊源码解读-第5.2讲-rpc源码解读 |  Jason漫谈区块链
+  </title>
+  <meta name="generator" content="hexo-theme-ayer">
+  
+  <link rel="shortcut icon" href="/images/my_head-16x16-next.ico" />
+  
+  
+<link rel="stylesheet" href="/dist/main.css">
+
+  
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/Shen-Yu/cdn/css/remixicon.min.css">
+
+  
+<link rel="stylesheet" href="/css/custom.css">
+
+  
+  
+<script src="https://cdn.jsdelivr.net/npm/pace-js@1.0.2/pace.min.js"></script>
+
+  
+  
+
+  
+
+</head>
+
+</html>
+
+<body>
+  <div id="app">
+    
+      
+    <main class="content on">
+      <section class="outer">
+  <article
+  id="post-ethereum/src_analysis/以太坊源码解读-第5.2讲-rpc源码解读"
+  class="article article-type-post"
+  itemscope
+  itemprop="blogPost"
+  data-scroll-reveal
+>
+  <div class="article-inner">
+    
+    <header class="article-header">
+       
+<h1 class="article-title sea-center" style="border-left:0" itemprop="name">
+  以太坊源码解读-第5.2讲-rpc源码解读
+</h1>
+ 
+
+    </header>
+     
+    <div class="article-meta">
+      <a href="/articles/e10014d8/" class="article-date">
+  <time datetime="2018-05-03T06:04:01.000Z" itemprop="datePublished">2018-05-03</time>
+</a> 
+  <div class="article-category">
+    <a class="article-category-link" href="/categories/%E4%BB%A5%E5%A4%AA%E5%9D%8A/">以太坊</a> / <a class="article-category-link" href="/categories/%E4%BB%A5%E5%A4%AA%E5%9D%8A/%E6%BA%90%E7%A0%81%E8%A7%A3%E8%AF%BB/">源码解读</a>
+  </div>
+  
+<div class="word_count">
+    <span class="post-time">
+        <span class="post-meta-item-icon">
+            <i class="ri-quill-pen-line"></i>
+            <span class="post-meta-item-text"> Word count:</span>
+            <span class="post-count">7.5k</span>
+        </span>
+    </span>
+
+    <span class="post-time">
+        &nbsp; | &nbsp;
+        <span class="post-meta-item-icon">
+            <i class="ri-book-open-line"></i>
+            <span class="post-meta-item-text"> Reading time≈</span>
+            <span class="post-count">32 min</span>
+        </span>
+    </span>
+</div>
+ 
+    </div>
+      
+    <div class="tocbot"></div>
+
+
+
+
+  
+    <div class="article-entry" itemprop="articleBody">
+       
+  <h2 id="前言"><a href="#前言" class="headerlink" title="前言"></a>前言</h2><p>本文我们将分析rpc模块的源码，如果对rpc概念还不是很清楚的同学，建议先看看这篇文章<a href="/articles/original/ethereum/src_analysis/%E4%BB%A5%E5%A4%AA%E5%9D%8A%E6%BA%90%E7%A0%81%E8%A7%A3%E8%AF%BB-%E7%AC%AC5.1%E8%AE%B2-rpc%E5%AE%98%E7%BF%BB%E5%8F%8A%E4%B8%AA%E4%BA%BA%E7%90%86%E8%A7%A3.html"><code>以太坊源码解读-第5.1讲-rpc官翻及个人理解</code></a></p>
+<a id="more"></a>
+<p>本文后半部分解释有误，本文可对rpc了解大概，然后看之后的内容<br>先来看看该模块下有哪些文件：<br>.<br>|____ipc_unix.go<br>|____ipc_windows.go<br>|____ipc.go<br>|____http.go<br>|____doc.go<br>|____inproc.go<br>|____utils.go<br>|____websocket.go<br>|____errors.go<br>|____server.go<br>|____server_test.go<br>|____client.go<br>|____client_example_test.go<br>|____client_test.go<br>|____subscription.go<br>|____subscription_test.go<br>|____utils_test.go<br>|____http_test.go<br>|____types.go<br>|____types_test.go<br>|____json.go<br>|____json_test.go</p>
+<p>文件很多，一眼看去真的很头大，小编借鉴<a target="_blank" rel="noopener" href="https://github.com/ZtesoftCS/go-ethereum-code-analysis/blob/master/rpc%E6%BA%90%E7%A0%81%E5%88%86%E6%9E%90.md">rpc源码分析-github</a>中提供的一张图片先全局的介绍一下rpc模块中整体的文件结构，这样方便后面的理解：</p>
+<img src="/articles/e10014d8/1.png" class="" title="rpc模块文件结构">
+<p>图中<code>网络协议channels</code>和<code>Json</code>两部分，其请求和回应的编码和解码都是同时与服务端和客户端打交道的类。<code>网络协议channels</code>主要提供连接和数据传输的功能。 <code>json</code>的编码和解码主要提供请求和回应的序列化和反序列化功能(Json -&gt; Go的对象)。<br>另外需要知道，各种对外的服务都是被注册到server中的。<br><code>ps</code>：要区分server和service的区别，server表示服务实体，service表示被注册到server中的一项服务</p>
+<h2 id="types-go源码"><a href="#types-go源码" class="headerlink" title="types.go源码"></a>types.go源码</h2><p>要了解rpc，得先要了解rpc中对各大类的定义，因此我们很有必要先来看下这个文件。</p>
+<h3 id="对外开放的API定义"><a href="#对外开放的API定义" class="headerlink" title="对外开放的API定义"></a>对外开放的API定义</h3><p>外部访问rpc的server进行通信是通过调用这个API来实现。<br>分析过geth启动rpc的过程后，就会发现，所有的模块，都会把自己的api放在其中。</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">type</span> API <span class="keyword">struct</span> &#123;</span><br><span class="line">	Namespace <span class="keyword">string</span>      <span class="comment">// 在该命名空间下，service的方法被公开</span></span><br><span class="line">	Version   <span class="keyword">string</span>      <span class="comment">// 给dapp展示的api版本号</span></span><br><span class="line">	Service   <span class="keyword">interface</span>&#123;&#125; <span class="comment">// 带有方法的service实例</span></span><br><span class="line">	Public    <span class="keyword">bool</span>        <span class="comment">// 在公共使用中，指示方法是否为安全的</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<h3 id="service的定义"><a href="#service的定义" class="headerlink" title="service的定义"></a>service的定义</h3><p>service定义了一个用来被注册到server中的服务，需要知道它内部结构是如何的：</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">type</span> service <span class="keyword">struct</span> &#123;</span><br><span class="line">	name          <span class="keyword">string</span>        <span class="comment">// service的名称</span></span><br><span class="line">	typ           reflect.Type  <span class="comment">// 类型，反射的</span></span><br><span class="line">	callbacks     callbacks     <span class="comment">// 回调方法的集合</span></span><br><span class="line">	subscriptions subscriptions <span class="comment">// 订阅/发布集合</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>发现callbacks和subscriptions都是集合，它是如下定义的：</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">type</span> callbacks <span class="keyword">map</span>[<span class="keyword">string</span>]*callback      <span class="comment">// 回调方法的集合，可以看出是一个map</span></span><br><span class="line"><span class="keyword">type</span> subscriptions <span class="keyword">map</span>[<span class="keyword">string</span>]*callback  <span class="comment">// 订阅的集合，也可以看出是一个map</span></span><br></pre></td></tr></table></figure>
+<p>这两个集合都是map类型的，而它们个体本身其实就是一个callback，它的结构如下：</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">type</span> callback <span class="keyword">struct</span> &#123;</span><br><span class="line">	rcvr        reflect.Value  <span class="comment">// 反射出方法的值</span></span><br><span class="line">	method      reflect.Method <span class="comment">// 反射出方法本身</span></span><br><span class="line">	argTypes    []reflect.Type <span class="comment">// 输入的参数</span></span><br><span class="line">	hasCtx      <span class="keyword">bool</span>           <span class="comment">// 检测第一个参数是否为context，</span></span><br><span class="line">	errPos      <span class="keyword">int</span>            <span class="comment">// 返回错误的索引err，无法返回则为-1</span></span><br><span class="line">	isSubscribe <span class="keyword">bool</span>           <span class="comment">// 该callback是否为订阅</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>可以看出，该callback主要就是使用反射来确定回调本身的。代码注释解释的可能不太好，大意上是那么一回事。。</p>
+<h3 id="server的定义"><a href="#server的定义" class="headerlink" title="server的定义"></a>server的定义</h3><p>上面说的service可以理解为一项服务，而server可以理解成是各种服务的容器，service最终是要被注册到server中的，而server的定义如下：</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">type</span> Server <span class="keyword">struct</span> &#123;</span><br><span class="line">	services serviceRegistry  <span class="comment">//用来存储service</span></span><br><span class="line">	run      <span class="keyword">int32</span>  <span class="comment">//用来控制server是否可运行，1为运行，非1为不可运行</span></span><br><span class="line">	codecsMu sync.  <span class="comment">//用来保护多线程访问codecs的锁</span></span><br><span class="line">	codecs   *set.Set  <span class="comment">//用来存储所有的编码解码器，其实就是所有的连接。</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>其中的services就是用来存储service集合的，可以看出它是通过serviceRegistry来定义的，而serviceRegistry本身是如下定义的：</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">type</span> serviceRegistry <span class="keyword">map</span>[<span class="keyword">string</span>]*service </span><br></pre></td></tr></table></figure>
+<p>呵呵，这下知道了，service在server中是存在map中的</p>
+<h3 id="ServerCodec的定义"><a href="#ServerCodec的定义" class="headerlink" title="ServerCodec的定义"></a>ServerCodec的定义</h3><p>server中的方法会用到这个东东，客户端发出的请求，对请求的处理，返回响应等过程，都是通过它来进行的。<br>这个东西很重要，它贯穿了客户端和服务器端的交流，重要的不得了。<br>先来看看它的定义：</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">type</span> ServerCodec <span class="keyword">interface</span> &#123;</span><br><span class="line">	ReadRequestHeaders() ([]rpcRequest, <span class="keyword">bool</span>, Error)    <span class="comment">//读取客户端发来的请求</span></span><br><span class="line">	<span class="comment">//根据给定的类型解析请求参数</span></span><br><span class="line">	ParseRequestArguments(argTypes []reflect.Type, params <span class="keyword">interface</span>&#123;&#125;) ([]reflect.Value, Error)</span><br><span class="line">	CreateResponse(id <span class="keyword">interface</span>&#123;&#125;, reply <span class="keyword">interface</span>&#123;&#125;) <span class="keyword">interface</span>&#123;&#125;  <span class="comment">//response返回成功</span></span><br><span class="line">	CreateErrorResponse(id <span class="keyword">interface</span>&#123;&#125;, err Error) <span class="keyword">interface</span>&#123;&#125;   <span class="comment">//response返回失败</span></span><br><span class="line">	<span class="comment">//response返回失败，包括一些别的信息</span></span><br><span class="line">	CreateErrorResponseWithInfo(id <span class="keyword">interface</span>&#123;&#125;, err Error, info <span class="keyword">interface</span>&#123;&#125;) <span class="keyword">interface</span>&#123;&#125;</span><br><span class="line">	CreateNotification(id, namespace <span class="keyword">string</span>, event <span class="keyword">interface</span>&#123;&#125;) <span class="keyword">interface</span>&#123;&#125;  <span class="comment">// 创建发布响应</span></span><br><span class="line">	Write(msg <span class="keyword">interface</span>&#123;&#125;) error  <span class="comment">// 写信息到客户端</span></span><br><span class="line">	Close()  <span class="comment">// 关闭底层的数据流</span></span><br><span class="line">	Closed() &lt;-<span class="keyword">chan</span> <span class="keyword">interface</span>&#123;&#125;  <span class="comment">// 当底层连接关闭后，则执行该接口方法</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>期间涉及到了两个比较重要的结构体：</p>
+<ul>
+<li>rpcRequest，它里面包含具体的请求信息：<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">type</span> rpcRequest <span class="keyword">struct</span> &#123;</span><br><span class="line">	service  <span class="keyword">string</span></span><br><span class="line">	method   <span class="keyword">string</span></span><br><span class="line">	id       <span class="keyword">interface</span>&#123;&#125;</span><br><span class="line">	isPubSub <span class="keyword">bool</span></span><br><span class="line">	params   <span class="keyword">interface</span>&#123;&#125;</span><br><span class="line">	err      Error <span class="comment">// invalid batch element</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></li>
+<li>Error，错误信息结构：<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">type</span> Error <span class="keyword">interface</span> &#123;</span><br><span class="line">	Error() <span class="keyword">string</span>  <span class="comment">// 返回错误信息</span></span><br><span class="line">	ErrorCode() <span class="keyword">int</span> <span class="comment">// 返回错误代码</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<h3 id="BlockNumber的定义"><a href="#BlockNumber的定义" class="headerlink" title="BlockNumber的定义"></a>BlockNumber的定义</h3>这个就是块号的解析，根据输入的byte[]来判断返回的BlockNumber是多少。这个后面大家可以了解下。</li>
+</ul>
+<h2 id="json-go"><a href="#json-go" class="headerlink" title="json.go"></a>json.go</h2><p>还记得我们前面提到的那个<code>ServerCodec</code>吗，它其实只是一个接口定义，真正其实是该文件中的<code>jsonCodec</code>生成的，<code>jsonCodec</code>实现了<code>ServerCodec</code>的所有接口</p>
+<h3 id="jsonCodec结构"><a href="#jsonCodec结构" class="headerlink" title="jsonCodec结构"></a>jsonCodec结构</h3><p>rpc消息的请求和响应，以及序列化和解析都是这个结构来实现的，这</p>
+<figure class="highlight golang"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">type</span> jsonCodec <span class="keyword">struct</span> &#123;</span><br><span class="line">	closer sync.Once                 <span class="comment">// close closed channel once</span></span><br><span class="line">	closed <span class="keyword">chan</span> <span class="keyword">interface</span>&#123;&#125;          <span class="comment">// closed on Close</span></span><br><span class="line">	decMu  sync.Mutex                <span class="comment">// guards the decoder</span></span><br><span class="line">	decode <span class="function"><span class="keyword">func</span><span class="params">(v <span class="keyword">interface</span>&#123;&#125;)</span> <span class="title">error</span> // <span class="title">decoder</span> <span class="title">to</span> <span class="title">allow</span> <span class="title">multiple</span> <span class="title">transports</span></span></span><br><span class="line">	encMu  sync.Mutex                <span class="comment">// guards the encoder</span></span><br><span class="line">	encode <span class="function"><span class="keyword">func</span><span class="params">(v <span class="keyword">interface</span>&#123;&#125;)</span> <span class="title">error</span> // <span class="title">encoder</span> <span class="title">to</span> <span class="title">allow</span> <span class="title">multiple</span> <span class="title">transports</span></span></span><br><span class="line">	rw     io.ReadWriteCloser        <span class="comment">// connection</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<h3 id="创建jsonCodec的重要的两个方法"><a href="#创建jsonCodec的重要的两个方法" class="headerlink" title="创建jsonCodec的重要的两个方法"></a>创建jsonCodec的重要的两个方法</h3><p>可以通过<code>NewCodec()</code>方法和<code>NewJSONCodec()</code>方法来创建jsonCodec，方法本身很简单，小编就不解释了，注意编码和解码就行。</p>
+<h3 id="jsonCodec方法"><a href="#jsonCodec方法" class="headerlink" title="jsonCodec方法"></a>jsonCodec方法</h3><p>这些方法都是具体实现了<code>ServerCodec</code>的接口，想了解具体是怎么实现的，可以看看代码去，小编在这就不详述了。</p>
+<h2 id="server-go和server-test-go源码"><a href="#server-go和server-test-go源码" class="headerlink" title="server.go和server_test.go源码"></a>server.go和server_test.go源码</h2><p>对上面的定义有了整体把握后，小编结合着server_test.go文件来讲解一下server.go源码。</p>
+<h3 id="先来看看server-test-go"><a href="#先来看看server-test-go" class="headerlink" title="先来看看server_test.go"></a>先来看看server_test.go</h3><p>为了方便测试，server_test.go中定义了一个<code>Service</code>，这个<code>Service</code>用来被注册到server中，关于这个Service很有必要知道是如何定义的：</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">type</span> Service <span class="keyword">struct</span>&#123;&#125;</span><br><span class="line"></span><br><span class="line"><span class="keyword">type</span> Args <span class="keyword">struct</span> &#123;</span><br><span class="line">	S <span class="keyword">string</span></span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="keyword">type</span> Result <span class="keyword">struct</span> &#123;</span><br><span class="line">	String <span class="keyword">string</span></span><br><span class="line">	Int    <span class="keyword">int</span></span><br><span class="line">	Args   *Args</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="params">(s *Service)</span> <span class="title">NoArgsRets</span><span class="params">()</span></span> &#123;&#125;  <span class="comment">//第1个有效的回调方法</span></span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="params">(s *Service)</span> <span class="title">Echo</span><span class="params">(str <span class="keyword">string</span>, i <span class="keyword">int</span>, args *Args)</span> <span class="title">Result</span></span> &#123; <span class="comment">//第2个有效的回调方法</span></span><br><span class="line">	<span class="keyword">return</span> Result&#123;str, i, args&#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="params">(s *Service)</span> <span class="title">EchoWithCtx</span><span class="params">(ctx context.Context, str <span class="keyword">string</span>, i <span class="keyword">int</span>, args *Args)</span> <span class="title">Result</span></span> &#123;  <span class="comment">//第3个有效的回调方法</span></span><br><span class="line">	<span class="keyword">return</span> Result&#123;str, i, args&#125;  </span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="params">(s *Service)</span> <span class="title">Sleep</span><span class="params">(ctx context.Context, duration time.Duration)</span></span> &#123;  <span class="comment">//第4个有效的回调方法</span></span><br><span class="line">	<span class="keyword">select</span> &#123;</span><br><span class="line">	<span class="keyword">case</span> &lt;-time.After(duration):</span><br><span class="line">	<span class="keyword">case</span> &lt;-ctx.Done():</span><br><span class="line">	&#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="params">(s *Service)</span> <span class="title">Rets</span><span class="params">()</span> <span class="params">(<span class="keyword">string</span>, error)</span></span> &#123; <span class="comment">//第5个有效的回调方法</span></span><br><span class="line">	<span class="keyword">return</span> <span class="string">&quot;&quot;</span>, <span class="literal">nil</span></span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="params">(s *Service)</span> <span class="title">InvalidRets1</span><span class="params">()</span> <span class="params">(error, <span class="keyword">string</span>)</span></span> &#123; <span class="comment">//无效的回调方法</span></span><br><span class="line">	<span class="keyword">return</span> <span class="literal">nil</span>, <span class="string">&quot;&quot;</span></span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="params">(s *Service)</span> <span class="title">InvalidRets2</span><span class="params">()</span> <span class="params">(<span class="keyword">string</span>, <span class="keyword">string</span>)</span></span> &#123; <span class="comment">//无效的回调方法</span></span><br><span class="line">	<span class="keyword">return</span> <span class="string">&quot;&quot;</span>, <span class="string">&quot;&quot;</span></span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="params">(s *Service)</span> <span class="title">InvalidRets3</span><span class="params">()</span> <span class="params">(<span class="keyword">string</span>, <span class="keyword">string</span>, error)</span></span> &#123; <span class="comment">//无效的回调方法</span></span><br><span class="line">	<span class="keyword">return</span> <span class="string">&quot;&quot;</span>, <span class="string">&quot;&quot;</span>, <span class="literal">nil</span></span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="params">(s *Service)</span> <span class="title">Subscription</span><span class="params">(ctx context.Context)</span> <span class="params">(*Subscription, error)</span></span> &#123; <span class="comment">//一个有效的订阅</span></span><br><span class="line">	<span class="keyword">return</span> <span class="literal">nil</span>, <span class="literal">nil</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>根据<a href="/articles/original/ethereum/src_analysis/%E4%BB%A5%E5%A4%AA%E5%9D%8A%E6%BA%90%E7%A0%81%E8%A7%A3%E8%AF%BB-%E7%AC%AC5.1%E8%AE%B2-rpc%E5%AE%98%E7%BF%BB%E5%8F%8A%E4%B8%AA%E4%BA%BA%E7%90%86%E8%A7%A3.html"><code>以太坊源码解读-第5.1讲-rpc官翻及个人理解</code></a>中描述，我们知道上述代码中，<code>Service</code>对应的共有5个有效回调方法（也就是开放的方法），3个无效的回调方法，还有1个有效的订阅方法。在server.services中，是有两个服务的，是不是很好奇，其实在NewServer()时候，就会有一个rpc服务被添加进去的，具体可以看小编后面的介绍。<br>需要知道，首字母为大写的方法名，被认为是对外开放的方法，不要问我为什么，后面代码里就是这么个逻辑。<br>我们通过下面的测试用例来验证有效还是无效：</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">TestServerRegisterName</span><span class="params">(t *testing.T)</span></span> &#123;</span><br><span class="line">	server := NewServer()  <span class="comment">//server新实例</span></span><br><span class="line">	service := <span class="built_in">new</span>(Service)  <span class="comment">//具体某服务的实例</span></span><br><span class="line">	<span class="keyword">if</span> err := server.RegisterName(<span class="string">&quot;calc&quot;</span>, service); err != <span class="literal">nil</span> <span class="comment">//根据名称将某服务注册</span></span><br><span class="line">		t.Fatalf(<span class="string">&quot;%v&quot;</span>, err)</span><br><span class="line">	<span class="keyword">if</span> <span class="built_in">len</span>(server.services) != <span class="number">2</span>  <span class="comment">//是否有两个服务，其中一个是在NewServer)()时候添加的</span></span><br><span class="line">		t.Fatalf(<span class="string">&quot;Expected 2 service entries, got %d&quot;</span>, <span class="built_in">len</span>(server.services))</span><br><span class="line">	svc, ok := server.services[<span class="string">&quot;calc&quot;</span>]  <span class="comment">//获取某服务</span></span><br><span class="line">	<span class="keyword">if</span> !ok </span><br><span class="line">		t.Fatalf(<span class="string">&quot;Expected service calc to be registered&quot;</span>)</span><br><span class="line">	<span class="keyword">if</span> <span class="built_in">len</span>(svc.callbacks) != <span class="number">5</span> <span class="comment">//是否有5个有效方法</span></span><br><span class="line">		t.Errorf(<span class="string">&quot;Expected 5 callbacks for service &#x27;calc&#x27;, got %d&quot;</span>, <span class="built_in">len</span>(svc.callbacks))</span><br><span class="line">	<span class="keyword">if</span> <span class="built_in">len</span>(svc.subscriptions) != <span class="number">1</span>  <span class="comment">//是否有1个有效订阅方法</span></span><br><span class="line">		t.Errorf(<span class="string">&quot;Expected 1 subscription for service &#x27;calc&#x27;, got %d&quot;</span>, <span class="built_in">len</span>(svc.subscriptions))</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>然后server_test.go中还有3个测试方法是用来测试<code>Service</code>中的每个方法是否正确，其中涉及到了rpc的方方面面。这几个测试方法小编就不列出来了，大家可以去看看，方法本身还是很容易理解的。</p>
+<h3 id="server-go介绍"><a href="#server-go介绍" class="headerlink" title="server.go介绍"></a>server.go介绍</h3><p>经过前面这么多的讲解，大家对rpc的server已经有了一些较为深刻的映像了吧？那我们就来看一下server.go中是如何实现server的。</p>
+<h4 id="创建一个新server"><a href="#创建一个新server" class="headerlink" title="创建一个新server"></a>创建一个新server</h4><p>需要先创建一个server，这样才能将service注册到该server中，具体是这样创建的，看代码：</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">NewServer</span><span class="params">()</span> *<span class="title">Server</span></span> &#123;</span><br><span class="line">	server := &amp;Server&#123; <span class="comment">//server先实例化</span></span><br><span class="line">		services: <span class="built_in">make</span>(serviceRegistry),  <span class="comment">//开辟存储service的空间</span></span><br><span class="line">		codecs:   set.New(),  <span class="comment">//不解释，看前面</span></span><br><span class="line">		run:      <span class="number">1</span>,  <span class="comment">//1,运行；非1不运行</span></span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	<span class="comment">//注册一个默认的rpc服务，该服务可以提供server的一些基本信息，具体看前面小编描述的</span></span><br><span class="line">	rpcService := &amp;RPCService&#123;server&#125;  <span class="comment">//利用server生成一个rpcService，</span></span><br><span class="line">	server.RegisterName(MetadataApi, rpcService) <span class="comment">//MetadataApi=“rpc”</span></span><br><span class="line">	<span class="keyword">return</span> server</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>代码里，需要注意的是，初始化一个server，然后利用这个server生成一个rpcService，最后在用server把RPCService注册进去。<br>RPCService的目的是给出server中的一些基本参数信息，目前来说，貌似只能给出拥有的service名称和对应的版本号，而且都是1.0。。。<br>RPCService的定义以及它的方法如下：</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">type</span> RPCService <span class="keyword">struct</span> &#123;   <span class="comment">//这个是RPCService的定义结构，很简单吧。。不解释</span></span><br><span class="line">	server *Server  <span class="comment">//可以看出，该server是指针引用进来的</span></span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="params">(s *RPCService)</span> <span class="title">Modules</span><span class="params">()</span> <span class="title">map</span>[<span class="title">string</span>]<span class="title">string</span></span> &#123;</span><br><span class="line">	modules := <span class="built_in">make</span>(<span class="keyword">map</span>[<span class="keyword">string</span>]<span class="keyword">string</span>)</span><br><span class="line">	<span class="keyword">for</span> name := <span class="keyword">range</span> s.server.services &#123;</span><br><span class="line">		modules[name] = <span class="string">&quot;1.0&quot;</span></span><br><span class="line">	&#125;</span><br><span class="line">	<span class="keyword">return</span> modules <span class="comment">//其实只是返回每个service的名称和其版本号。。。</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>个人感觉，有点鸡肋额，，</p>
+<h4 id="server所拥有的方法"><a href="#server所拥有的方法" class="headerlink" title="server所拥有的方法"></a>server所拥有的方法</h4><p>server.go文件中，剩下的内容都是server结构体所对应的方法，都比较重要，我们一个个来介绍</p>
+<h5 id="注册服务"><a href="#注册服务" class="headerlink" title="注册服务"></a>注册服务</h5><p>前面我们一直在用server.RegisterName()来注册一个服务，但这个服务具体是怎么来执行呢？来，上一坨代码你就知道了：</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">func</span> <span class="params">(s *Server)</span> <span class="title">RegisterName</span><span class="params">(name <span class="keyword">string</span>, rcvr <span class="keyword">interface</span>&#123;&#125;)</span> <span class="title">error</span></span> &#123;</span><br><span class="line">	<span class="keyword">if</span> s.services == <span class="literal">nil</span> &#123;</span><br><span class="line">		s.services = <span class="built_in">make</span>(serviceRegistry)  <span class="comment">//开辟存储service的空间</span></span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	svc := <span class="built_in">new</span>(service)</span><br><span class="line">	svc.typ = reflect.TypeOf(rcvr)</span><br><span class="line">	rcvrVal := reflect.ValueOf(rcvr)</span><br><span class="line"></span><br><span class="line">	<span class="keyword">if</span> name == <span class="string">&quot;&quot;</span> &#123;</span><br><span class="line">		<span class="keyword">return</span> fmt.Errorf(<span class="string">&quot;no service name for type %s&quot;</span>, svc.typ.String())</span><br><span class="line">	&#125;</span><br><span class="line">	<span class="keyword">if</span> !isExported(reflect.Indirect(rcvrVal).Type().Name()) &#123; <span class="comment">//方法名中，首字母大写的被认为是对外开放的方法</span></span><br><span class="line">		<span class="keyword">return</span> fmt.Errorf(<span class="string">&quot;%s is not exported&quot;</span>, reflect.Indirect(rcvrVal).Type().Name())</span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	methods, subscriptions := suitableCallbacks(rcvrVal, svc.typ)  <span class="comment">//将方法和订阅都反射解析出来</span></span><br><span class="line"></span><br><span class="line">	<span class="comment">// 若services中已经有了该service，则直接合并方法和订阅</span></span><br><span class="line">	<span class="keyword">if</span> regsvc, present := s.services[name]; present &#123;</span><br><span class="line">		<span class="keyword">if</span> <span class="built_in">len</span>(methods) == <span class="number">0</span> &amp;&amp; <span class="built_in">len</span>(subscriptions) == <span class="number">0</span> &#123;</span><br><span class="line">			<span class="keyword">return</span> fmt.Errorf(<span class="string">&quot;Service %T doesn&#x27;t have any suitable methods/subscriptions to expose&quot;</span>, rcvr)</span><br><span class="line">		&#125;</span><br><span class="line">		<span class="keyword">for</span> _, m := <span class="keyword">range</span> methods &#123;</span><br><span class="line">			regsvc.callbacks[formatName(m.method.Name)] = m</span><br><span class="line">		&#125;</span><br><span class="line">		<span class="keyword">for</span> _, s := <span class="keyword">range</span> subscriptions &#123;</span><br><span class="line">			regsvc.subscriptions[formatName(s.method.Name)] = s</span><br><span class="line">		&#125;</span><br><span class="line">		<span class="keyword">return</span> <span class="literal">nil</span></span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	svc.name = name</span><br><span class="line">	svc.callbacks, svc.subscriptions = methods, subscriptions</span><br><span class="line"></span><br><span class="line">	<span class="keyword">if</span> <span class="built_in">len</span>(svc.callbacks) == <span class="number">0</span> &amp;&amp; <span class="built_in">len</span>(svc.subscriptions) == <span class="number">0</span> &#123;</span><br><span class="line">		<span class="keyword">return</span> fmt.Errorf(<span class="string">&quot;Service %T doesn&#x27;t have any suitable methods/subscriptions to expose&quot;</span>, rcvr)</span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	s.services[svc.name] =   <span class="comment">//根据名称存入服务</span></span><br><span class="line">	<span class="keyword">return</span> <span class="literal">nil</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>可以发现：</p>
+<ul>
+<li>方法或订阅如果是对外开放的，首先要满足其名称的首字母是大写</li>
+<li>调用utils.go中的suitableCallbacks()方法，使用service反射后的结果来判断是属于对外开放的方法还是订阅</li>
+<li>如果server中先前已经注册过该服务，则将新传入的service和该服务合并。</li>
+</ul>
+<h5 id="ServeCodec-方法，异步处理请求"><a href="#ServeCodec-方法，异步处理请求" class="headerlink" title="ServeCodec()方法，异步处理请求"></a>ServeCodec()方法，异步处理请求</h5><p>先来看代码：</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">func</span> <span class="params">(s *Server)</span> <span class="title">ServeCodec</span><span class="params">(codec ServerCodec, options CodecOption)</span></span> &#123;</span><br><span class="line">	<span class="keyword">defer</span> codec.Close()</span><br><span class="line">	s.serveRequest(codec, <span class="literal">false</span>, options) <span class="comment">//具体实现后面再讲</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>参数codec中存储的是客户端发来的请求，经过处理后，会将响应结果写入codec中并返回给客户端。<br>该方法处理完codec中的内容后，会调用codec.Close()接口方法，处理请求结束时候的一些操作。<br>注意，看<code>s.serveRequest(codec, false, options)</code>，里面的<code>false</code>表示该方法是并发处理请求的</p>
+<h5 id="ServeSingleRequest-方法，同步处理请求"><a href="#ServeSingleRequest-方法，同步处理请求" class="headerlink" title="ServeSingleRequest()方法，同步处理请求"></a>ServeSingleRequest()方法，同步处理请求</h5><p>呵呵，这个方法和上面的那个方法刚好相反，是同步处理请求的，等处理结束后，整个过程才会结束。此结束不提供codec.Close()方法，不用想也该明白，同步结束了，后面该干嘛就干嘛。<br>代码就不列出来了，自己YY。</p>
+<h5 id="serveRequest-方法，具体处理客户端发来的请求"><a href="#serveRequest-方法，具体处理客户端发来的请求" class="headerlink" title="serveRequest()方法，具体处理客户端发来的请求"></a>serveRequest()方法，具体处理客户端发来的请求</h5><p>前面讲的两个方法，其实里面都是在调用这个方法的，这个也是我们服务器端的核心，下面小编就来好好探索一下。<br>在讲之前，小编建议大家好好了解下go语言中并发与并行的一些机制，也是为了更好的读懂这一部分代码，小编整理了下面几篇文章，希望大家先好好读读：<br><a href="/articles/reprint/go/golang%E8%AF%AD%E8%A8%80%E5%B9%B6%E5%8F%91%E4%B8%8E%E5%B9%B6%E8%A1%8C%E2%80%94%E2%80%94goroutine%E5%92%8Cchannel%E7%9A%84%E8%AF%A6%E7%BB%86%E7%90%86%E8%A7%A3%EF%BC%88%E4%B8%80%EF%BC%89.html">golang语言并发与并行——goroutine和channel的详细理解（一）</a><br><a href="/articles/reprint/go/golang%E8%AF%AD%E8%A8%80%E5%B9%B6%E5%8F%91%E4%B8%8E%E5%B9%B6%E8%A1%8C%E2%80%94%E2%80%94goroutine%E5%92%8Cchannel%E7%9A%84%E8%AF%A6%E7%BB%86%E7%90%86%E8%A7%A3%EF%BC%88%E4%BA%8C%EF%BC%89.html">golang语言并发与并行——goroutine和channel的详细理解（二）</a><br><a href="/articles/reprint/go/golang%E8%AF%AD%E8%A8%80%E5%B9%B6%E5%8F%91%E4%B8%8E%E5%B9%B6%E8%A1%8C%E2%80%94%E2%80%94goroutine%E5%92%8Cchannel%E7%9A%84%E8%AF%A6%E7%BB%86%E7%90%86%E8%A7%A3%EF%BC%88%E4%B8%89%EF%BC%89.html">golang语言并发与并行——goroutine和channel的详细理解（三）</a></p>
+<p>这个方法，其实主要就执行了两个过程：解析读取发来的请求，执行处理请求。期间用到了很多锁和协程的概念，把该方法的主要代码列出来：</p>
+<figure class="highlight golang"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">func</span> <span class="params">(s *Server)</span> <span class="title">serveRequest</span><span class="params">(codec ServerCodec, singleShot <span class="keyword">bool</span>, options CodecOption)</span> <span class="title">error</span></span> &#123;</span><br><span class="line">	<span class="comment">/**</span></span><br><span class="line"><span class="comment">	 * golang中的同步是通过sync.WaitGroup来实现的．WaitGroup的功能：它实现了一个类似队列的结构，可以一直向队列中添加任务，当任务完成后便从队列中删除，如果队列中的任务没有完全完成，可以通过Wait()函数来出发阻塞，防止程序继续进行，直到所有的队列任务都完成为止．</span></span><br><span class="line"><span class="comment">	 * WaitGroup的特点是Wait()可以用来阻塞直到队列中的所有任务都完成时才解除阻塞，而不需要sleep一个固定的时间来等待．但是其缺点是无法指定固定的goroutine数目．可能通过使用channel解决此问题。</span></span><br><span class="line"><span class="comment">	 */</span></span><br><span class="line">	<span class="keyword">var</span> pend  sync.WaitGroup</span><br><span class="line"></span><br><span class="line">	<span class="comment">//结束时候的调用</span></span><br><span class="line">	<span class="keyword">defer</span> <span class="function"><span class="keyword">func</span><span class="params">()</span></span> &#123;  </span><br><span class="line">		<span class="keyword">if</span> err := <span class="built_in">recover</span>(); err != <span class="literal">nil</span> &#123;</span><br><span class="line">			<span class="keyword">const</span> size = <span class="number">64</span> &lt;&lt; <span class="number">10</span></span><br><span class="line">			buf := <span class="built_in">make</span>([]<span class="keyword">byte</span>, size)</span><br><span class="line">			buf = buf[:runtime.Stack(buf, <span class="literal">false</span>)]</span><br><span class="line">			log.Error(<span class="keyword">string</span>(buf))</span><br><span class="line">		&#125;</span><br><span class="line">		s.codecsMu.Lock()</span><br><span class="line">		s.codecs.Remove(codec)</span><br><span class="line">		s.codecsMu.Unlock()</span><br><span class="line">	&#125;()</span><br><span class="line"></span><br><span class="line">	<span class="comment">//context.Background() 返回一个空的Context，这个空的Context一般用于整个Context树的根节点。</span></span><br><span class="line">	ctx, cancel := context.WithCancel(context.Background())  <span class="comment">//创建一个可取消的子Context</span></span><br><span class="line">	<span class="keyword">defer</span> cancel()</span><br><span class="line"></span><br><span class="line">	<span class="keyword">if</span> options&amp;OptionSubscriptions == OptionSubscriptions &#123;</span><br><span class="line">		ctx = context.WithValue(ctx, notifierKey&#123;&#125;, newNotifier(codec))</span><br><span class="line">	&#125;</span><br><span class="line">	s.codecsMu.Lock()</span><br><span class="line">	<span class="comment">//接受一个*int32类型的指针值,并会返回该指针值指向的那个值</span></span><br><span class="line">	<span class="keyword">if</span> atomic.LoadInt32(&amp;s.run) != <span class="number">1</span> &#123; <span class="comment">// server stopped</span></span><br><span class="line">		s.codecsMu.Unlock()</span><br><span class="line">		<span class="keyword">return</span> &amp;shutdownError&#123;&#125;</span><br><span class="line">	&#125;</span><br><span class="line">	s.codecs.Add(codec)  <span class="comment">//把请求加入集合</span></span><br><span class="line">	s.codecsMu.Unlock()</span><br><span class="line"></span><br><span class="line">	<span class="comment">// test if the server is ordered to stop</span></span><br><span class="line">	<span class="keyword">for</span> atomic.LoadInt32(&amp;s.run) == <span class="number">1</span> &#123;  <span class="comment">//确保当前server没有停止</span></span><br><span class="line">		reqs, batch, err := s.readRequest(codec) <span class="comment">//从其中读到请求信息</span></span><br><span class="line">		<span class="keyword">if</span> err != <span class="literal">nil</span> &#123;</span><br><span class="line">			<span class="keyword">if</span> err.Error() != <span class="string">&quot;EOF&quot;</span> &#123;</span><br><span class="line">				log.Debug(fmt.Sprintf(<span class="string">&quot;read error %v\n&quot;</span>, err))</span><br><span class="line">				codec.Write(codec.CreateErrorResponse(<span class="literal">nil</span>, err))</span><br><span class="line">			&#125;</span><br><span class="line">			pend.Wait()</span><br><span class="line">			<span class="keyword">return</span> <span class="literal">nil</span></span><br><span class="line">		&#125;</span><br><span class="line"></span><br><span class="line">		<span class="comment">//又是一堆验证</span></span><br><span class="line">		<span class="keyword">if</span> atomic.LoadInt32(&amp;s.run) != <span class="number">1</span> &#123; </span><br><span class="line">			err = &amp;shutdownError&#123;&#125;</span><br><span class="line">			<span class="keyword">if</span> batch &#123;</span><br><span class="line">				resps := <span class="built_in">make</span>([]<span class="keyword">interface</span>&#123;&#125;, <span class="built_in">len</span>(reqs))</span><br><span class="line">				<span class="keyword">for</span> i, r := <span class="keyword">range</span> reqs &#123;</span><br><span class="line">					resps[i] = codec.CreateErrorResponse(&amp;r.id, err)</span><br><span class="line">				&#125;</span><br><span class="line">				codec.Write(resps)</span><br><span class="line">			&#125; <span class="keyword">else</span> &#123;</span><br><span class="line">				codec.Write(codec.CreateErrorResponse(&amp;reqs[<span class="number">0</span>].id, err))</span><br><span class="line">			&#125;</span><br><span class="line">			<span class="keyword">return</span> <span class="literal">nil</span></span><br><span class="line">		&#125;</span><br><span class="line">		</span><br><span class="line">		<span class="keyword">if</span> singleShot &#123;  <span class="comment">//非并发</span></span><br><span class="line">			<span class="keyword">if</span> batch &#123;</span><br><span class="line">				s.execBatch(ctx, codec, reqs)  <span class="comment">//批处理请求</span></span><br><span class="line">			&#125; <span class="keyword">else</span> &#123;</span><br><span class="line">				s.exec(ctx, codec, reqs[<span class="number">0</span>])</span><br><span class="line">			&#125;</span><br><span class="line">			<span class="keyword">return</span> <span class="literal">nil</span></span><br><span class="line">		&#125;</span><br><span class="line">		pend.Add(<span class="number">1</span>) <span class="comment">//添加一个阻塞任务</span></span><br><span class="line"></span><br><span class="line">		<span class="keyword">go</span> <span class="function"><span class="keyword">func</span><span class="params">(reqs []*serverRequest, batch <span class="keyword">bool</span>)</span></span> &#123;</span><br><span class="line">			<span class="keyword">defer</span> pend.Done()  <span class="comment">//处理一个阻塞任务</span></span><br><span class="line">			<span class="keyword">if</span> batch &#123;</span><br><span class="line">				s.execBatch(ctx, codec, reqs) <span class="comment">//这个批处理请求</span></span><br><span class="line">			&#125; <span class="keyword">else</span> &#123;</span><br><span class="line">				s.exec(ctx, codec, reqs[<span class="number">0</span>])  <span class="comment">//处理单个请求</span></span><br><span class="line">			&#125;</span><br><span class="line">		&#125;(reqs, batch)</span><br><span class="line">	&#125;</span><br><span class="line">	<span class="keyword">return</span> <span class="literal">nil</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>从中我们得知，主要涉及到两个方法：</p>
+<ul>
+<li>readRequest(codec)<br>该方法解析并读取有效的客户端请求，会区分哪些是方法，哪些是订阅，根据不同状况，将这些信息都组装到requests[]中；</li>
+<li>execBatch()/exec()，用于处理requests[]请求。一个批量处理，一个是单一处理，然后回调。具体的解析，稍后专门来讲。</li>
+</ul>
+<h5 id="execBatch-exec"><a href="#execBatch-exec" class="headerlink" title="execBatch()/exec()"></a>execBatch()/exec()</h5><p>这也是server的方法，前面也说了，这两个方法类似，都是处理请求的，一个批量处理，一个单个处理。<br>小编就只列一下exec()的源码了：</p>
+<figure class="highlight golang"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">func</span> <span class="params">(s *Server)</span> <span class="title">exec</span><span class="params">(ctx context.Context, codec ServerCodec, req *serverRequest)</span></span> &#123;</span><br><span class="line">	<span class="keyword">var</span> response <span class="keyword">interface</span>&#123;&#125;</span><br><span class="line">	<span class="keyword">var</span> callback <span class="function"><span class="keyword">func</span><span class="params">()</span></span></span><br><span class="line">	<span class="keyword">if</span> req.err != <span class="literal">nil</span> &#123;</span><br><span class="line">		response = codec.CreateErrorResponse(&amp;req.id, req.err)</span><br><span class="line">	&#125; <span class="keyword">else</span> &#123;</span><br><span class="line">		response, callback = s.handle(ctx, codec, req) <span class="comment">//处理请求</span></span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	<span class="keyword">if</span> err := codec.Write(response); err != <span class="literal">nil</span> &#123;</span><br><span class="line">		log.Error(fmt.Sprintf(<span class="string">&quot;%v\n&quot;</span>, err))</span><br><span class="line">		codec.Close()</span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	<span class="keyword">if</span> callback != <span class="literal">nil</span> &#123;</span><br><span class="line">		callback()  <span class="comment">//执行回调</span></span><br><span class="line">	&#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>方法很简单，从头到尾，能入得了法眼的也只有里面涉及到的<code>handle()</code>方法了。这个<code>handle()</code>真正的处理了请求内容。<br>接下来那就看一下这个handle()到底执行了哪些东西。</p>
+<h5 id="handle-方法"><a href="#handle-方法" class="headerlink" title="handle()方法"></a>handle()方法</h5><p>server中最长最重要的一个方法，用于真正的处理数据，代码如下：</p>
+<figure class="highlight golang"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">func</span> <span class="params">(s *Server)</span> <span class="title">handle</span><span class="params">(ctx context.Context, codec ServerCodec, req *serverRequest)</span> <span class="params">(<span class="keyword">interface</span>&#123;&#125;, <span class="keyword">func</span>()</span>)</span> &#123;</span><br><span class="line">	<span class="keyword">if</span> req.err != <span class="literal">nil</span> &#123;</span><br><span class="line">		<span class="keyword">return</span> codec.CreateErrorResponse(&amp;req.id, req.err), <span class="literal">nil</span></span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	<span class="keyword">if</span> req.isUnsubscribe &#123; <span class="comment">// 取消订阅, 第一个参数必须是订阅id</span></span><br><span class="line">		<span class="keyword">if</span> <span class="built_in">len</span>(req.args) &gt;= <span class="number">1</span> &amp;&amp; req.args[<span class="number">0</span>].Kind() == reflect.String &#123;</span><br><span class="line">			notifier, supported := NotifierFromContext(ctx)</span><br><span class="line">			<span class="keyword">if</span> !supported &#123; <span class="comment">// interface doesn&#x27;t support subscriptions (e.g. http)</span></span><br><span class="line">				<span class="keyword">return</span> codec.CreateErrorResponse(&amp;req.id, &amp;callbackError&#123;ErrNotificationsUnsupported.Error()&#125;), <span class="literal">nil</span></span><br><span class="line">			&#125;</span><br><span class="line"></span><br><span class="line">			subid := ID(req.args[<span class="number">0</span>].String())</span><br><span class="line">			<span class="keyword">if</span> err := notifier.unsubscribe(subid); err != <span class="literal">nil</span> &#123;</span><br><span class="line">				<span class="keyword">return</span> codec.CreateErrorResponse(&amp;req.id, &amp;callbackError&#123;err.Error()&#125;), <span class="literal">nil</span></span><br><span class="line">			&#125;</span><br><span class="line"></span><br><span class="line">			<span class="keyword">return</span> codec.CreateResponse(req.id, <span class="literal">true</span>), <span class="literal">nil</span></span><br><span class="line">		&#125;</span><br><span class="line">		<span class="keyword">return</span> codec.CreateErrorResponse(&amp;req.id, &amp;invalidParamsError&#123;<span class="string">&quot;Expected subscription id as first argument&quot;</span>&#125;), <span class="literal">nil</span></span><br><span class="line">	&#125;</span><br><span class="line">	<span class="comment">//如果是订阅消息。 那么创建订阅。并激活订阅</span></span><br><span class="line">	<span class="keyword">if</span> req.callb.isSubscribe &#123;</span><br><span class="line">		subid, err := s.createSubscription(ctx, codec, req)</span><br><span class="line">		<span class="keyword">if</span> err != <span class="literal">nil</span> &#123;</span><br><span class="line">			<span class="keyword">return</span> codec.CreateErrorResponse(&amp;req.id, &amp;callbackError&#123;err.Error()&#125;), <span class="literal">nil</span></span><br><span class="line">		&#125;</span><br><span class="line"></span><br><span class="line">		<span class="comment">// active the subscription after the sub id was successfully sent to the client</span></span><br><span class="line">		activateSub := <span class="function"><span class="keyword">func</span><span class="params">()</span></span> &#123;</span><br><span class="line">			notifier, _ := NotifierFromContext(ctx)</span><br><span class="line">			notifier.activate(subid, req.svcname)</span><br><span class="line">		&#125;</span><br><span class="line"></span><br><span class="line">		<span class="keyword">return</span> codec.CreateResponse(req.id, subid), activateSub</span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	<span class="comment">// regular RPC call, prepare arguments</span></span><br><span class="line">	<span class="keyword">if</span> <span class="built_in">len</span>(req.args) != <span class="built_in">len</span>(req.callb.argTypes) &#123;</span><br><span class="line">		rpcErr := &amp;invalidParamsError&#123;fmt.Sprintf(<span class="string">&quot;%s%s%s expects %d parameters, got %d&quot;</span>,</span><br><span class="line">			req.svcname, serviceMethodSeparator, req.callb.method.Name,</span><br><span class="line">			<span class="built_in">len</span>(req.callb.argTypes), <span class="built_in">len</span>(req.args))&#125;</span><br><span class="line">		<span class="keyword">return</span> codec.CreateErrorResponse(&amp;req.id, rpcErr), <span class="literal">nil</span></span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	arguments := []reflect.Value&#123;req.callb.rcvr&#125;</span><br><span class="line">	<span class="keyword">if</span> req.callb.hasCtx &#123;</span><br><span class="line">		arguments = <span class="built_in">append</span>(arguments, reflect.ValueOf(ctx))</span><br><span class="line">	&#125;</span><br><span class="line">	<span class="keyword">if</span> <span class="built_in">len</span>(req.args) &gt; <span class="number">0</span> &#123;</span><br><span class="line">		arguments = <span class="built_in">append</span>(arguments, req.args...)</span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	<span class="comment">//调用提供的rpc方法，并获取reply</span></span><br><span class="line">	reply := req.callb.method.Func.Call(arguments)</span><br><span class="line">	<span class="keyword">if</span> <span class="built_in">len</span>(reply) == <span class="number">0</span> &#123;</span><br><span class="line">		<span class="keyword">return</span> codec.CreateResponse(req.id, <span class="literal">nil</span>), <span class="literal">nil</span></span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	<span class="keyword">if</span> req.callb.errPos &gt;= <span class="number">0</span> &#123; <span class="comment">// test if method returned an error</span></span><br><span class="line">		<span class="keyword">if</span> !reply[req.callb.errPos].IsNil() &#123;</span><br><span class="line">			e := reply[req.callb.errPos].Interface().(error)</span><br><span class="line">			res := codec.CreateErrorResponse(&amp;req.id, &amp;callbackError&#123;e.Error()&#125;)</span><br><span class="line">			<span class="keyword">return</span> res, <span class="literal">nil</span></span><br><span class="line">		&#125;</span><br><span class="line">	&#125;</span><br><span class="line">	<span class="keyword">return</span> codec.CreateResponse(req.id, reply[<span class="number">0</span>].Interface()), <span class="literal">nil</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<h5 id="Stop-方法"><a href="#Stop-方法" class="headerlink" title="Stop()方法"></a>Stop()方法</h5><p>好吧，server的最后一个方法，调用后，将停止接收请求，并且当阻塞队列中的消息处理结束后，则完整停止。代码就不列了。</p>
+<p>至此，server.go内容到此结束。</p>
+<h2 id="subscription-go"><a href="#subscription-go" class="headerlink" title="subscription.go"></a>subscription.go</h2><p>发布/订阅相关，这里面封装了消息结构，是否订阅等操作，这块的代码其实很简单，有兴趣的再进一步研读吧，小编精力有限，这里就不细看了，待有机会需要了，再来好好读读。</p>
+<h2 id="client-go-client-example-test-go-client-test-go源码"><a href="#client-go-client-example-test-go-client-test-go源码" class="headerlink" title="client.go/client_example_test.go/client_test.go源码"></a>client.go/client_example_test.go/client_test.go源码</h2><p>大家有没有发现，前面一直在讲server相关，看得越多反而越迷茫，越往后，小编越迫切的想知道,client到底是怎样对接到server端的？<br>这次，小编打算从client_example_test.go源码开始阅读代码了，这样子更容易理解<br>打开<code>lient_example_test.go</code>你会发现，里面有一个客户端订阅消息的例子。来，还是先瞅一眼吧：</p>
+<figure class="highlight golang"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">type</span> Block <span class="keyword">struct</span> &#123;</span><br><span class="line">	Number *big.Int</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">ExampleClientSubscription</span><span class="params">()</span></span> &#123;</span><br><span class="line">	client, _ := rpc.Dial(<span class="string">&quot;ws://127.0.0.1:8485&quot;</span>) <span class="comment">//客户端连接，</span></span><br><span class="line">	subch := <span class="built_in">make</span>(<span class="keyword">chan</span> Block)</span><br><span class="line">	<span class="keyword">go</span> <span class="function"><span class="keyword">func</span><span class="params">()</span></span> &#123;</span><br><span class="line">		<span class="keyword">for</span> i := <span class="number">0</span>; ; i++ &#123;</span><br><span class="line">			<span class="keyword">if</span> i &gt; <span class="number">0</span> &#123;</span><br><span class="line">				time.Sleep(<span class="number">2</span> * time.Second)</span><br><span class="line">			&#125;</span><br><span class="line">			subscribeBlocks(client, subch)</span><br><span class="line">		&#125;</span><br><span class="line">	&#125;()</span><br><span class="line">	<span class="keyword">for</span> block := <span class="keyword">range</span> subch &#123;</span><br><span class="line">		fmt.Println(<span class="string">&quot;latest block:&quot;</span>, block.Number)</span><br><span class="line">	&#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">subscribeBlocks</span><span class="params">(client *rpc.Client, subch <span class="keyword">chan</span> Block)</span></span> &#123;</span><br><span class="line">	ctx, cancel := context.WithTimeout(context.Background(), <span class="number">10</span>*time.Second)</span><br><span class="line">	<span class="keyword">defer</span> cancel()</span><br><span class="line"></span><br><span class="line">	sub, err := client.EthSubscribe(ctx, subch, <span class="string">&quot;newBlocks&quot;</span>)</span><br><span class="line">	<span class="keyword">if</span> err != <span class="literal">nil</span> &#123;</span><br><span class="line">		fmt.Println(<span class="string">&quot;subscribe error:&quot;</span>, err)</span><br><span class="line">		<span class="keyword">return</span></span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	<span class="keyword">var</span> lastBlock Block</span><br><span class="line">	<span class="keyword">if</span> err := client.CallContext(ctx, &amp;lastBlock, <span class="string">&quot;eth_getBlockByNumber&quot;</span>, <span class="string">&quot;latest&quot;</span>); err != <span class="literal">nil</span> &#123;</span><br><span class="line">		fmt.Println(<span class="string">&quot;can&#x27;t get latest block:&quot;</span>, err)</span><br><span class="line">		<span class="keyword">return</span></span><br><span class="line">	&#125;</span><br><span class="line">	subch &lt;- lastBlock</span><br><span class="line">	fmt.Println(<span class="string">&quot;connection lost: &quot;</span>, &lt;-sub.Err())</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<h3 id="第1步–客户端连接"><a href="#第1步–客户端连接" class="headerlink" title="第1步–客户端连接"></a>第1步–客户端连接</h3><p>首先映入眼帘的是<code>rpc.Dial(&quot;ws://127.0.0.1:8485&quot;)</code>，它是要连接到websocket服务器端，可以理解为<code>它就是为了建立起一个客户端</code>。我们跟着进入到<code>client.go</code>文件中，会发现它调用的是<code>DialContext()</code>方法，而该方法会根据传入的不同的url类型，选择具体的网络进行连接，可以看出它目前支持的是”http”, “https”, “ws” 以及 “wss”，若url没有头部，则认为是本地进行IPC连接。从上面例子我们可知传入的是<code>ws</code>协议的连接，因此，需要接入<code>DialWebsocket(ctx, rawurl, &quot;&quot;)</code>这个方法，具体来看一下该方法吧：</p>
+<figure class="highlight golang"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">DialWebsocket</span><span class="params">(ctx context.Context, endpoint, origin <span class="keyword">string</span>)</span> <span class="params">(*Client, error)</span></span> &#123;</span><br><span class="line">	<span class="keyword">if</span> origin == <span class="string">&quot;&quot;</span> &#123;</span><br><span class="line">		<span class="keyword">var</span> err error</span><br><span class="line">		<span class="keyword">if</span> origin, err = os.Hostname(); err != <span class="literal">nil</span> &#123;</span><br><span class="line">			<span class="keyword">return</span> <span class="literal">nil</span>, err</span><br><span class="line">		&#125;</span><br><span class="line">		<span class="keyword">if</span> strings.HasPrefix(endpoint, <span class="string">&quot;wss&quot;</span>) &#123; </span><br><span class="line">			origin = <span class="string">&quot;https://&quot;</span> + strings.ToLower(origin) <span class="comment">//origin为websocket客户端源</span></span><br><span class="line">		&#125; <span class="keyword">else</span> &#123;</span><br><span class="line">			origin = <span class="string">&quot;http://&quot;</span> + strings.ToLower(origin)  <span class="comment">//</span></span><br><span class="line">		&#125;</span><br><span class="line">	&#125;</span><br><span class="line">	config, err := websocket.NewConfig(endpoint, origin)</span><br><span class="line">	<span class="keyword">if</span> err != <span class="literal">nil</span> &#123;</span><br><span class="line">		<span class="keyword">return</span> <span class="literal">nil</span>, err</span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	<span class="keyword">return</span> newClient(ctx, <span class="function"><span class="keyword">func</span><span class="params">(ctx context.Context)</span> <span class="params">(net.Conn, error)</span></span> &#123;</span><br><span class="line">		<span class="keyword">return</span> wsDialContext(ctx, config)</span><br><span class="line">	&#125;)</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>代码中可知，生成对应的origin，然后进一步配置websocket。origin官方的描述意思是<code>一个WebSocket客户端源</code>。<br>一切准备就绪以后，就会执行newClient()方法来生成客户端，下面来讲一下该方法。</p>
+<h3 id="第2步–客户端连接内部机制"><a href="#第2步–客户端连接内部机制" class="headerlink" title="第2步–客户端连接内部机制"></a>第2步–客户端连接内部机制</h3><p>好吧，真正整合建立客户端连接的方法还是newClient()，该方法有两个参数，一个是上下文，一个是某协议生成并返回连接的方法（ws或者http）<br>先来看代码：</p>
+<figure class="highlight golang"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">newClient</span><span class="params">(initctx context.Context, connectFunc <span class="keyword">func</span>(context.Context)</span> <span class="params">(net.Conn, error)</span>) <span class="params">(*Client, error)</span></span> &#123;</span><br><span class="line">	conn, err := connectFunc(initctx)</span><br><span class="line">	<span class="keyword">if</span> err != <span class="literal">nil</span> &#123;</span><br><span class="line">		<span class="keyword">return</span> <span class="literal">nil</span>, err</span><br><span class="line">	&#125;</span><br><span class="line">	_, isHTTP := conn.(*httpConn)</span><br><span class="line"></span><br><span class="line">	c := &amp;Client&#123;</span><br><span class="line">		writeConn:   conn,</span><br><span class="line"></span><br><span class="line">		isHTTP:      isHTTP,</span><br><span class="line">		connectFunc: connectFunc,</span><br><span class="line">		<span class="built_in">close</span>:       <span class="built_in">make</span>(<span class="keyword">chan</span> <span class="keyword">struct</span>&#123;&#125;),</span><br><span class="line">		didQuit:     <span class="built_in">make</span>(<span class="keyword">chan</span> <span class="keyword">struct</span>&#123;&#125;),</span><br><span class="line">		reconnected: <span class="built_in">make</span>(<span class="keyword">chan</span> net.Conn),</span><br><span class="line">		readErr:     <span class="built_in">make</span>(<span class="keyword">chan</span> error),</span><br><span class="line">		readResp:    <span class="built_in">make</span>(<span class="keyword">chan</span> []*jsonrpcMessage),</span><br><span class="line">		requestOp:   <span class="built_in">make</span>(<span class="keyword">chan</span> *requestOp),</span><br><span class="line">		sendDone:    <span class="built_in">make</span>(<span class="keyword">chan</span> error, <span class="number">1</span>),</span><br><span class="line">		respWait:    <span class="built_in">make</span>(<span class="keyword">map</span>[<span class="keyword">string</span>]*requestOp),</span><br><span class="line">		subs:        <span class="built_in">make</span>(<span class="keyword">map</span>[<span class="keyword">string</span>]*ClientSubscription),</span><br><span class="line">	&#125;</span><br><span class="line">	<span class="keyword">if</span> !isHTTP &#123;</span><br><span class="line">		<span class="keyword">go</span> c.dispatch(conn)</span><br><span class="line">	&#125;</span><br><span class="line">	<span class="keyword">return</span> c, <span class="literal">nil</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>代码主要就是两个意思，先判断某协议的连接是不是http形式的，如果不是，则会启动一个goroutine调用dispatch方法。 这个方法下一个步骤专门来讲。<br>另外在此小编补充一句，HTTP协议和非HTTP协议有不同的处理流程， HTTP协议不支持长连接， 只支持一个请求对应一个回应的这种模式，同时也不支持发布/订阅模式。<br>这里还涉及到了client的结构，为了更好的理解，小编还是把这个结构列出来吧：</p>
+<figure class="highlight golang"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">type</span> Client <span class="keyword">struct</span> &#123;</span><br><span class="line">	idCounter   <span class="keyword">uint32</span></span><br><span class="line">	<span class="comment">//生成连接的函数，客户端会调用这个函数生成一个网络连接对象。</span></span><br><span class="line">	connectFunc <span class="function"><span class="keyword">func</span><span class="params">(ctx context.Context)</span> <span class="params">(net.Conn, error)</span></span></span><br><span class="line">	<span class="comment">//HTTP协议和非HTTP协议有不同的处理流程， HTTP协议不支持长连接， 只支持一个请求对应一个回应的这种模式，同时也不支持发布/订阅模式。 </span></span><br><span class="line">	isHTTP      <span class="keyword">bool</span></span><br><span class="line"></span><br><span class="line">	<span class="comment">//通过这里的注释可以看到，writeConn是调用这用来写入请求的网络连接对象，</span></span><br><span class="line">	<span class="comment">//只有在dispatch方法外面调用才是安全的，而且需要通过给requestOp队列发送请求来获取锁，</span></span><br><span class="line">	<span class="comment">//获取锁之后就可以把请求写入网络，写入完成后发送请求给sendDone队列来释放锁，供其它的请求使用。</span></span><br><span class="line">	writeConn net.Conn</span><br><span class="line"></span><br><span class="line">	<span class="comment">// for dispatch</span></span><br><span class="line">	<span class="comment">//下面有很多的channel，channel一般来说是goroutine之间用来通信的通道，后续会随着代码介绍channel是如何使用的。</span></span><br><span class="line">	<span class="built_in">close</span>       <span class="keyword">chan</span> <span class="keyword">struct</span>&#123;&#125;</span><br><span class="line">	didQuit     <span class="keyword">chan</span> <span class="keyword">struct</span>&#123;&#125;                  <span class="comment">// closed when client quits</span></span><br><span class="line">	reconnected <span class="keyword">chan</span> net.Conn                  <span class="comment">// where write/reconnect sends the new connection</span></span><br><span class="line">	readErr     <span class="keyword">chan</span> error                     <span class="comment">// errors from read</span></span><br><span class="line">	readResp    <span class="keyword">chan</span> []*jsonrpcMessage         <span class="comment">// valid messages from read</span></span><br><span class="line">	requestOp   <span class="keyword">chan</span> *requestOp                <span class="comment">// for registering response IDs</span></span><br><span class="line">	sendDone    <span class="keyword">chan</span> error                     <span class="comment">// signals write completion, releases write lock</span></span><br><span class="line">	respWait    <span class="keyword">map</span>[<span class="keyword">string</span>]*requestOp          <span class="comment">// active requests</span></span><br><span class="line">	subs        <span class="keyword">map</span>[<span class="keyword">string</span>]*ClientSubscription <span class="comment">// active subscriptions</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<h3 id="第3步–非http协议的dispatch处理"><a href="#第3步–非http协议的dispatch处理" class="headerlink" title="第3步–非http协议的dispatch处理"></a>第3步–非http协议的dispatch处理</h3><p>上一步中我们得知，因为我们的协议是<code>ws</code>因此会启动一个goroutine调用dispatch方法。dispatch方法是整个client的指挥中心，通过channel来和其他的goroutine来进行通信，获取信息，根据信息做出各种决策。<br>这个方法是客户端的一个核心方法，先来看代码吧：</p>
+<figure class="highlight golang"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br><span class="line">95</span><br><span class="line">96</span><br><span class="line">97</span><br><span class="line">98</span><br><span class="line">99</span><br><span class="line">100</span><br><span class="line">101</span><br><span class="line">102</span><br><span class="line">103</span><br><span class="line">104</span><br><span class="line">105</span><br><span class="line">106</span><br><span class="line">107</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// dispatch is the main loop of the client.</span></span><br><span class="line"><span class="comment">// It sends read messages to waiting calls to Call and BatchCall</span></span><br><span class="line"><span class="comment">// and subscription notifications to registered subscriptions.</span></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="params">(c *Client)</span> <span class="title">dispatch</span><span class="params">(conn net.Conn)</span></span> &#123;</span><br><span class="line">	<span class="comment">// Spawn the initial read loop.</span></span><br><span class="line">	<span class="keyword">go</span> c.read(conn)</span><br><span class="line"></span><br><span class="line">	<span class="keyword">var</span> (</span><br><span class="line">		lastOp        *requestOp    <span class="comment">// tracks last send operation</span></span><br><span class="line">		requestOpLock = c.requestOp <span class="comment">// nil while the send lock is held</span></span><br><span class="line">		reading       = <span class="literal">true</span>        <span class="comment">// if true, a read loop is running</span></span><br><span class="line">	)</span><br><span class="line">	<span class="keyword">defer</span> <span class="built_in">close</span>(c.didQuit)</span><br><span class="line">	<span class="keyword">defer</span> <span class="function"><span class="keyword">func</span><span class="params">()</span></span> &#123;</span><br><span class="line">		c.closeRequestOps(ErrClientQuit)</span><br><span class="line">		conn.Close()</span><br><span class="line">		<span class="keyword">if</span> reading &#123;</span><br><span class="line">			<span class="comment">// Empty read channels until read is dead.</span></span><br><span class="line">			<span class="keyword">for</span> &#123;</span><br><span class="line">				<span class="keyword">select</span> &#123;</span><br><span class="line">				<span class="keyword">case</span> &lt;-c.readResp:</span><br><span class="line">				<span class="keyword">case</span> &lt;-c.readErr:</span><br><span class="line">					<span class="keyword">return</span></span><br><span class="line">				&#125;</span><br><span class="line">			&#125;</span><br><span class="line">		&#125;</span><br><span class="line">	&#125;()</span><br><span class="line"></span><br><span class="line">	<span class="keyword">for</span> &#123;</span><br><span class="line">		<span class="keyword">select</span> &#123;</span><br><span class="line">		<span class="keyword">case</span> &lt;-c.<span class="built_in">close</span>:</span><br><span class="line">			<span class="keyword">return</span></span><br><span class="line"></span><br><span class="line">		<span class="comment">// Read path.</span></span><br><span class="line">		<span class="keyword">case</span> batch := &lt;-c.readResp:</span><br><span class="line">			<span class="comment">//读取到一个回应。调用相应的方法处理</span></span><br><span class="line">			<span class="keyword">for</span> _, msg := <span class="keyword">range</span> batch &#123;</span><br><span class="line">				<span class="keyword">switch</span> &#123;</span><br><span class="line">				<span class="keyword">case</span> msg.isNotification():</span><br><span class="line">					log.Trace(<span class="string">&quot;&quot;</span>, <span class="string">&quot;msg&quot;</span>, log.Lazy&#123;Fn: <span class="function"><span class="keyword">func</span><span class="params">()</span> <span class="title">string</span></span> &#123;</span><br><span class="line">						<span class="keyword">return</span> fmt.Sprint(<span class="string">&quot;&lt;-readResp: notification &quot;</span>, msg)</span><br><span class="line">					&#125;&#125;)</span><br><span class="line">					c.handleNotification(msg)</span><br><span class="line">				<span class="keyword">case</span> msg.isResponse():</span><br><span class="line">					log.Trace(<span class="string">&quot;&quot;</span>, <span class="string">&quot;msg&quot;</span>, log.Lazy&#123;Fn: <span class="function"><span class="keyword">func</span><span class="params">()</span> <span class="title">string</span></span> &#123;</span><br><span class="line">						<span class="keyword">return</span> fmt.Sprint(<span class="string">&quot;&lt;-readResp: response &quot;</span>, msg)</span><br><span class="line">					&#125;&#125;)</span><br><span class="line">					c.handleResponse(msg)</span><br><span class="line">				<span class="keyword">default</span>:</span><br><span class="line">					log.Debug(<span class="string">&quot;&quot;</span>, <span class="string">&quot;msg&quot;</span>, log.Lazy&#123;Fn: <span class="function"><span class="keyword">func</span><span class="params">()</span> <span class="title">string</span></span> &#123;</span><br><span class="line">						<span class="keyword">return</span> fmt.Sprint(<span class="string">&quot;&lt;-readResp: dropping weird message&quot;</span>, msg)</span><br><span class="line">					&#125;&#125;)</span><br><span class="line">					<span class="comment">// <span class="doctag">TODO:</span> maybe close</span></span><br><span class="line">				&#125;</span><br><span class="line">			&#125;</span><br><span class="line"></span><br><span class="line">		<span class="keyword">case</span> err := &lt;-c.readErr:</span><br><span class="line">			<span class="comment">//接收到读取失败信息，这个是read线程传递过来的。</span></span><br><span class="line">			log.Debug(fmt.Sprintf(<span class="string">&quot;&lt;-readErr: %v&quot;</span>, err))</span><br><span class="line">			c.closeRequestOps(err)</span><br><span class="line">			conn.Close()</span><br><span class="line">			reading = <span class="literal">false</span></span><br><span class="line"></span><br><span class="line">		<span class="keyword">case</span> newconn := &lt;-c.reconnected:</span><br><span class="line">			<span class="comment">//接收到一个重连接信息</span></span><br><span class="line">			log.Debug(fmt.Sprintf(<span class="string">&quot;&lt;-reconnected: (reading=%t) %v&quot;</span>, reading, conn.RemoteAddr()))</span><br><span class="line">			<span class="keyword">if</span> reading &#123;</span><br><span class="line">				<span class="comment">//等待之前的连接读取完成。</span></span><br><span class="line">				<span class="comment">// Wait for the previous read loop to exit. This is a rare case.</span></span><br><span class="line">				conn.Close()</span><br><span class="line">				&lt;-c.readErr</span><br><span class="line">			&#125;</span><br><span class="line">			<span class="comment">//开启阅读的goroutine</span></span><br><span class="line">			<span class="keyword">go</span> c.read(newconn)</span><br><span class="line">			reading = <span class="literal">true</span></span><br><span class="line">			conn = newconn</span><br><span class="line"></span><br><span class="line">		<span class="comment">// Send path.</span></span><br><span class="line">		<span class="keyword">case</span> op := &lt;-requestOpLock:</span><br><span class="line">			<span class="comment">// Stop listening for further send ops until the current one is done.</span></span><br><span class="line">			<span class="comment">//接收到一个requestOp消息，那么设置requestOpLock为空，</span></span><br><span class="line">			<span class="comment">//这个时候如果有其他人也希望发送op到requestOp，会因为没有人处理而阻塞。</span></span><br><span class="line">			requestOpLock = <span class="literal">nil</span></span><br><span class="line">			lastOp = op</span><br><span class="line">			<span class="comment">//把这个op加入等待队列。</span></span><br><span class="line">			<span class="keyword">for</span> _, id := <span class="keyword">range</span> op.ids &#123;</span><br><span class="line">				c.respWait[<span class="keyword">string</span>(id)] = op</span><br><span class="line">			&#125;</span><br><span class="line"></span><br><span class="line">		<span class="keyword">case</span> err := &lt;-c.sendDone:</span><br><span class="line">			<span class="comment">//当op的请求信息已经发送到网络上。会发送信息到sendDone。如果发送过程出错，那么err !=nil。</span></span><br><span class="line">			<span class="keyword">if</span> err != <span class="literal">nil</span> &#123;</span><br><span class="line">				<span class="comment">// Remove response handlers for the last send. We remove those here</span></span><br><span class="line">				<span class="comment">// because the error is already handled in Call or BatchCall. When the</span></span><br><span class="line">				<span class="comment">// read loop goes down, it will signal all other current operations.</span></span><br><span class="line">				<span class="comment">//把所有的id从等待队列删除。</span></span><br><span class="line">				<span class="keyword">for</span> _, id := <span class="keyword">range</span> lastOp.ids &#123;</span><br><span class="line">					<span class="built_in">delete</span>(c.respWait, <span class="keyword">string</span>(id))</span><br><span class="line">				&#125;</span><br><span class="line">			&#125;</span><br><span class="line">			<span class="comment">// Listen for send ops again.</span></span><br><span class="line">			<span class="comment">//重新开始处理requestOp的消息。</span></span><br><span class="line">			requestOpLock = c.requestOp</span><br><span class="line">			lastOp = <span class="literal">nil</span></span><br><span class="line">		&#125;</span><br><span class="line">	&#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p><code>ps：由于工作上的一些意外，小编需要尽早结束本篇文章，后面剩余部分内容就全是[github-ZtesoftCS](https://github.com/ZtesoftCS/go-ethereum-code-analysis/blob/master/rpc%E6%BA%90%E7%A0%81%E5%88%86%E6%9E%90.md)中的了，在此先感谢该作者了</code><br>下面通过下面这种图来说明dispatch的主要流程。下面图片中圆形是线程。 蓝色矩形是channel。 箭头代表了channel的数据流动方向。</p>
+<img src="/articles/e10014d8/1.png" class="" title="dispatch流程">
+<ul>
+<li>多线程串行发送请求到网络上的流程 首先发送requestOp请求到dispatch获取到锁， 然后把请求信息写入到网络，然后发送sendDone信息到dispatch解除锁。 通过requestOp和sendDone这两个channel以及dispatch代码的配合完成了串行的发送请求到网络上的功能。</li>
+<li>读取返回信息然后返回给调用者的流程。 把请求信息发送到网络上之后， 内部的goroutine read会持续不断的从网络上读取信息。 read读取到返回信息之后，通过readResp队列发送给dispatch。 dispatch查找到对应的调用者，然后把返回信息写入调用者的resp队列中。完成返回信息的流程。</li>
+<li>重连接流程。 重连接在外部调用者写入失败的情况下被外部调用者主动调用。 调用完成后发送新的连接给dispatch。 dispatch收到新的连接之后，会终止之前的连接，然后启动新的read goroutine来从新的连接上读取信息。</li>
+<li>关闭流程。 调用者调用Close方法，Close方法会写入信息到close队列。 dispatch接收到close信息之后。 关闭didQuit队列，关闭连接，等待read goroutine停止。 所有等待在didQuit队列上面的客户端调用全部返回。</li>
+</ul>
+<p>订阅部分小编暂时就不讲了。</p>
+<h2 id="全文总结"><a href="#全文总结" class="headerlink" title="全文总结"></a>全文总结</h2><p>本篇写的有点仓促，小编也认为写的很不合格，由于一些意外，小编源码阅读暂时停止更新。<br>后面若有机会，会修正本文内容的。</p>
+ 
+      <!-- reward -->
+      
+    </div>
+    
+
+    <!-- copyright -->
+    
+    <div class="declare">
+      <ul class="post-copyright">
+        <li>
+          <i class="ri-copyright-line"></i>
+          <strong>Copyright： </strong>
+          
+          Copyright is owned by the author. For commercial reprints, please contact the author for authorization. For non-commercial reprints, please indicate the source.
+          
+        </li>
+      </ul>
+    </div>
+    
+    <footer class="article-footer">
+       
+<div class="share-btn">
+      <span class="share-sns share-outer">
+        <i class="ri-share-forward-line"></i>
+        分享
+      </span>
+      <div class="share-wrap">
+        <i class="arrow"></i>
+        <div class="share-icons">
+          
+          <a class="weibo share-sns" href="javascript:;" data-type="weibo">
+            <i class="ri-weibo-fill"></i>
+          </a>
+          <a class="weixin share-sns wxFab" href="javascript:;" data-type="weixin">
+            <i class="ri-wechat-fill"></i>
+          </a>
+          <a class="qq share-sns" href="javascript:;" data-type="qq">
+            <i class="ri-qq-fill"></i>
+          </a>
+          <a class="douban share-sns" href="javascript:;" data-type="douban">
+            <i class="ri-douban-line"></i>
+          </a>
+          <!-- <a class="qzone share-sns" href="javascript:;" data-type="qzone">
+            <i class="icon icon-qzone"></i>
+          </a> -->
+          
+          <a class="facebook share-sns" href="javascript:;" data-type="facebook">
+            <i class="ri-facebook-circle-fill"></i>
+          </a>
+          <a class="twitter share-sns" href="javascript:;" data-type="twitter">
+            <i class="ri-twitter-fill"></i>
+          </a>
+          <a class="google share-sns" href="javascript:;" data-type="google">
+            <i class="ri-google-fill"></i>
+          </a>
+        </div>
+      </div>
+</div>
+
+<div class="wx-share-modal">
+    <a class="modal-close" href="javascript:;"><i class="ri-close-circle-line"></i></a>
+    <p>扫一扫，分享到微信</p>
+    <div class="wx-qrcode">
+      <img src="//api.qrserver.com/v1/create-qr-code/?size=150x150&data=http://jason-wj.gitee.io/articles/e10014d8/" alt="微信分享二维码">
+    </div>
+</div>
+
+<div id="share-mask"></div>  
+  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/ethereum/" rel="tag">ethereum</a></li></ul>
+
+    </footer>
+  </div>
+
+   
+  <nav class="article-nav">
+    
+      <a href="/articles/bbe43e3f/" class="article-nav-link">
+        <strong class="article-nav-caption">上一篇</strong>
+        <div class="article-nav-title">
+          
+            委托股权证明原理(DPOS)--翻译及解读
+          
+        </div>
+      </a>
+    
+    
+      <a href="/articles/25c7447/" class="article-nav-link">
+        <strong class="article-nav-caption">下一篇</strong>
+        <div class="article-nav-title">以太坊源码解读-第5.1讲-rpc官翻及个人理解</div>
+      </a>
+    
+  </nav>
+
+   
+<!-- valine评论 -->
+<div id="vcomments-box">
+  <div id="vcomments"></div>
+</div>
+<script src="//cdn1.lncld.net/static/js/3.0.4/av-min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/valine@1.4.14/dist/Valine.min.js"></script>
+<script>
+  new Valine({
+    el: "#vcomments",
+    app_id: "gdw0hVSwW3l6KgEMulSAc9Rx-gzGzoHsz",
+    app_key: "M4iiVXe0CuXWQEKuyIzWWDMh",
+    path: window.location.pathname,
+    avatar: "monsterid",
+    placeholder: "给我的文章加点评论吧~",
+    recordIP: true,
+  });
+  const infoEle = document.querySelector("#vcomments .info");
+  if (infoEle && infoEle.childNodes && infoEle.childNodes.length > 0) {
+    infoEle.childNodes.forEach(function (item) {
+      item.parentNode.removeChild(item);
+    });
+  }
+</script>
+<style>
+  #vcomments-box {
+    padding: 5px 30px;
+  }
+
+  @media screen and (max-width: 800px) {
+    #vcomments-box {
+      padding: 5px 0px;
+    }
+  }
+
+  #vcomments-box #vcomments {
+    background-color: #fff;
+  }
+
+  .v .vlist .vcard .vh {
+    padding-right: 20px;
+  }
+
+  .v .vlist .vcard {
+    padding-left: 10px;
+  }
+</style>
+
+ 
+   
+     
+</article>
+
+</section>
+      <footer class="footer">
+  <div class="outer">
+    <ul>
+      <li>
+        Copyrights &copy;
+        2017-2021
+        <i class="ri-heart-fill heart_icon"></i> Jason
+      </li>
+    </ul>
+    <ul>
+      <li>
+        
+      </li>
+    </ul>
+    <ul>
+      <li>
+        
+        
+        <span>
+  <span><i class="ri-user-3-fill"></i>Visitors:<span id="busuanzi_value_site_uv"></span></s>
+  <span class="division">|</span>
+  <span><i class="ri-eye-fill"></i>Views:<span id="busuanzi_value_page_pv"></span></span>
+</span>
+        
+      </li>
+    </ul>
+    <ul>
+      
+    </ul>
+    <ul>
+      
+    </ul>
+    <ul>
+      <li>
+        <!-- cnzz统计 -->
+        
+        <script type="text/javascript" src='https://s4.cnzz.com/z_stat.php?id=1279593399&amp;web_id=1279593399'></script>
+        
+      </li>
+    </ul>
+  </div>
+</footer>
+      <div class="float_btns">
+        <div class="totop" id="totop">
+  <i class="ri-arrow-up-line"></i>
+</div>
+
+<div class="todark" id="todark">
+  <i class="ri-moon-line"></i>
+</div>
+
+      </div>
+    </main>
+    <aside class="sidebar on">
+      <button class="navbar-toggle"></button>
+<nav class="navbar">
+  
+  <div class="logo">
+    <a href="/"><img src="/images/my_head-touch-icon-next.png" alt="Jason漫谈区块链"></a>
+  </div>
+  
+  <ul class="nav nav-main">
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/">主页</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/archives">归档</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/categories">分类</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/tags">标签</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/friends">友链</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/about">关于我</a>
+    </li>
+    
+  </ul>
+</nav>
+<nav class="navbar navbar-bottom">
+  <ul class="nav">
+    <li class="nav-item">
+      
+      <a class="nav-item-link nav-item-search"  title="Search">
+        <i class="ri-search-line"></i>
+      </a>
+      
+      
+    </li>
+  </ul>
+</nav>
+<div class="search-form-wrap">
+  <div class="local-search local-search-plugin">
+  <input type="search" id="local-search-input" class="local-search-input" placeholder="Search...">
+  <div id="local-search-result" class="local-search-result"></div>
+</div>
+</div>
+    </aside>
+    <script>
+      if (window.matchMedia("(max-width: 768px)").matches) {
+        document.querySelector('.content').classList.remove('on');
+        document.querySelector('.sidebar').classList.remove('on');
+      }
+    </script>
+    <div id="mask"></div>
+
+<!-- #reward -->
+<div id="reward">
+  <span class="close"><i class="ri-close-line"></i></span>
+  <p class="reward-p"><i class="ri-cup-line"></i>请我喝杯咖啡吧~</p>
+  <div class="reward-box">
+    
+    <div class="reward-item">
+      <img class="reward-img" src="/images/pay_ali.jpg">
+      <span class="reward-type">支付宝</span>
+    </div>
+    
+    
+    <div class="reward-item">
+      <img class="reward-img" src="/images/pay_wechat.jpg">
+      <span class="reward-type">微信</span>
+    </div>
+    
+  </div>
+</div>
+    
+<script src="/js/jquery-2.0.3.min.js"></script>
+
+
+<script src="/js/lazyload.min.js"></script>
+
+<!-- Tocbot -->
+
+
+<script src="/js/tocbot.min.js"></script>
+
+<script>
+  tocbot.init({
+    tocSelector: '.tocbot',
+    contentSelector: '.article-entry',
+    headingSelector: 'h1, h2, h3, h4, h5, h6',
+    hasInnerContainers: true,
+    scrollSmooth: true,
+    scrollContainer: 'main',
+    positionFixedSelector: '.tocbot',
+    positionFixedClass: 'is-position-fixed',
+    fixedSidebarOffset: 'auto'
+  });
+</script>
+
+<script src="https://cdn.jsdelivr.net/npm/jquery-modal@0.9.2/jquery.modal.min.js"></script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/jquery-modal@0.9.2/jquery.modal.min.css">
+<script src="https://cdn.jsdelivr.net/npm/justifiedGallery@3.7.0/dist/js/jquery.justifiedGallery.min.js"></script>
+
+<script src="/dist/main.js"></script>
+
+<!-- ImageViewer -->
+
+<!-- Root element of PhotoSwipe. Must have class pswp. -->
+<div class="pswp" tabindex="-1" role="dialog" aria-hidden="true">
+
+    <!-- Background of PhotoSwipe. 
+         It's a separate element as animating opacity is faster than rgba(). -->
+    <div class="pswp__bg"></div>
+
+    <!-- Slides wrapper with overflow:hidden. -->
+    <div class="pswp__scroll-wrap">
+
+        <!-- Container that holds slides. 
+            PhotoSwipe keeps only 3 of them in the DOM to save memory.
+            Don't modify these 3 pswp__item elements, data is added later on. -->
+        <div class="pswp__container">
+            <div class="pswp__item"></div>
+            <div class="pswp__item"></div>
+            <div class="pswp__item"></div>
+        </div>
+
+        <!-- Default (PhotoSwipeUI_Default) interface on top of sliding area. Can be changed. -->
+        <div class="pswp__ui pswp__ui--hidden">
+
+            <div class="pswp__top-bar">
+
+                <!--  Controls are self-explanatory. Order can be changed. -->
+
+                <div class="pswp__counter"></div>
+
+                <button class="pswp__button pswp__button--close" title="Close (Esc)"></button>
+
+                <button class="pswp__button pswp__button--share" style="display:none" title="Share"></button>
+
+                <button class="pswp__button pswp__button--fs" title="Toggle fullscreen"></button>
+
+                <button class="pswp__button pswp__button--zoom" title="Zoom in/out"></button>
+
+                <!-- Preloader demo http://codepen.io/dimsemenov/pen/yyBWoR -->
+                <!-- element will get class pswp__preloader--active when preloader is running -->
+                <div class="pswp__preloader">
+                    <div class="pswp__preloader__icn">
+                        <div class="pswp__preloader__cut">
+                            <div class="pswp__preloader__donut"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="pswp__share-modal pswp__share-modal--hidden pswp__single-tap">
+                <div class="pswp__share-tooltip"></div>
+            </div>
+
+            <button class="pswp__button pswp__button--arrow--left" title="Previous (arrow left)">
+            </button>
+
+            <button class="pswp__button pswp__button--arrow--right" title="Next (arrow right)">
+            </button>
+
+            <div class="pswp__caption">
+                <div class="pswp__caption__center"></div>
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe.min.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/default-skin/default-skin.min.css">
+<script src="https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe-ui-default.min.js"></script>
+
+<script>
+    function viewer_init() {
+        let pswpElement = document.querySelectorAll('.pswp')[0];
+        let $imgArr = document.querySelectorAll(('.article-entry img:not(.reward-img)'))
+
+        $imgArr.forEach(($em, i) => {
+            $em.onclick = () => {
+                // slider展开状态
+                // todo: 这样不好，后面改成状态
+                if (document.querySelector('.left-col.show')) return
+                let items = []
+                $imgArr.forEach(($em2, i2) => {
+                    let img = $em2.getAttribute('data-idx', i2)
+                    let src = $em2.getAttribute('data-target') || $em2.getAttribute('src')
+                    let title = $em2.getAttribute('alt')
+                    // 获得原图尺寸
+                    const image = new Image()
+                    image.src = src
+                    items.push({
+                        src: src,
+                        w: image.width || $em2.width,
+                        h: image.height || $em2.height,
+                        title: title
+                    })
+                })
+                var gallery = new PhotoSwipe(pswpElement, PhotoSwipeUI_Default, items, {
+                    index: parseInt(i)
+                });
+                gallery.init()
+            }
+        })
+    }
+    viewer_init()
+</script>
+
+<!-- MathJax -->
+
+<!-- Katex -->
+
+<!-- busuanzi  -->
+
+
+<script src="/js/busuanzi-2.3.pure.min.js"></script>
+
+
+<!-- ClickLove -->
+
+<!-- ClickBoom1 -->
+
+<!-- ClickBoom2 -->
+
+<!-- CodeCopy -->
+
+
+<link rel="stylesheet" href="/css/clipboard.css">
+
+<script src="https://cdn.jsdelivr.net/npm/clipboard@2/dist/clipboard.min.js"></script>
+<script>
+  function wait(callback, seconds) {
+    var timelag = null;
+    timelag = window.setTimeout(callback, seconds);
+  }
+  !function (e, t, a) {
+    var initCopyCode = function(){
+      var copyHtml = '';
+      copyHtml += '<button class="btn-copy" data-clipboard-snippet="">';
+      copyHtml += '<i class="ri-file-copy-2-line"></i><span>COPY</span>';
+      copyHtml += '</button>';
+      $(".highlight .code pre").before(copyHtml);
+      $(".article pre code").before(copyHtml);
+      var clipboard = new ClipboardJS('.btn-copy', {
+        target: function(trigger) {
+          return trigger.nextElementSibling;
+        }
+      });
+      clipboard.on('success', function(e) {
+        let $btn = $(e.trigger);
+        $btn.addClass('copied');
+        let $icon = $($btn.find('i'));
+        $icon.removeClass('ri-file-copy-2-line');
+        $icon.addClass('ri-checkbox-circle-line');
+        let $span = $($btn.find('span'));
+        $span[0].innerText = 'COPIED';
+        
+        wait(function () { // 等待两秒钟后恢复
+          $icon.removeClass('ri-checkbox-circle-line');
+          $icon.addClass('ri-file-copy-2-line');
+          $span[0].innerText = 'COPY';
+        }, 2000);
+      });
+      clipboard.on('error', function(e) {
+        e.clearSelection();
+        let $btn = $(e.trigger);
+        $btn.addClass('copy-failed');
+        let $icon = $($btn.find('i'));
+        $icon.removeClass('ri-file-copy-2-line');
+        $icon.addClass('ri-time-line');
+        let $span = $($btn.find('span'));
+        $span[0].innerText = 'COPY FAILED';
+        
+        wait(function () { // 等待两秒钟后恢复
+          $icon.removeClass('ri-time-line');
+          $icon.addClass('ri-file-copy-2-line');
+          $span[0].innerText = 'COPY';
+        }, 2000);
+      });
+    }
+    initCopyCode();
+  }(window, document);
+</script>
+
+
+<!-- CanvasBackground -->
+
+
+    
+  </div>
+</body>
+
+</html>

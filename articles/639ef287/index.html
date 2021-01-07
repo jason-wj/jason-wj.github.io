@@ -1,0 +1,703 @@
+<!DOCTYPE html>
+
+
+<html lang="zh-Hans">
+
+
+<head>
+  <meta charset="utf-8" />
+    
+  <meta name="description" content="谈天谈地，谈古谈今，一起谈谈我们的未来。" />
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
+  <title>
+    以太坊vm系列4-动态数据处理 |  Jason漫谈区块链
+  </title>
+  <meta name="generator" content="hexo-theme-ayer">
+  
+  <link rel="shortcut icon" href="/images/my_head-16x16-next.ico" />
+  
+  
+<link rel="stylesheet" href="/dist/main.css">
+
+  
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/Shen-Yu/cdn/css/remixicon.min.css">
+
+  
+<link rel="stylesheet" href="/css/custom.css">
+
+  
+  
+<script src="https://cdn.jsdelivr.net/npm/pace-js@1.0.2/pace.min.js"></script>
+
+  
+  
+
+  
+
+</head>
+
+</html>
+
+<body>
+  <div id="app">
+    
+      
+    <main class="content on">
+      <section class="outer">
+  <article
+  id="post-ethereum/src_analysis/vm/以太坊vm系列4-动态数据处理"
+  class="article article-type-post"
+  itemscope
+  itemprop="blogPost"
+  data-scroll-reveal
+>
+  <div class="article-inner">
+    
+    <header class="article-header">
+       
+<h1 class="article-title sea-center" style="border-left:0" itemprop="name">
+  以太坊vm系列4-动态数据处理
+</h1>
+ 
+
+    </header>
+     
+    <div class="article-meta">
+      <a href="/articles/639ef287/" class="article-date">
+  <time datetime="2018-07-20T03:40:28.000Z" itemprop="datePublished">2018-07-20</time>
+</a> 
+  <div class="article-category">
+    <a class="article-category-link" href="/categories/%E4%BB%A5%E5%A4%AA%E5%9D%8A/">以太坊</a> / <a class="article-category-link" href="/categories/%E4%BB%A5%E5%A4%AA%E5%9D%8A/%E6%BA%90%E7%A0%81%E8%A7%A3%E8%AF%BB/">源码解读</a>
+  </div>
+  
+<div class="word_count">
+    <span class="post-time">
+        <span class="post-meta-item-icon">
+            <i class="ri-quill-pen-line"></i>
+            <span class="post-meta-item-text"> Word count:</span>
+            <span class="post-count">3.7k</span>
+        </span>
+    </span>
+
+    <span class="post-time">
+        &nbsp; | &nbsp;
+        <span class="post-meta-item-icon">
+            <i class="ri-book-open-line"></i>
+            <span class="post-meta-item-text"> Reading time≈</span>
+            <span class="post-count">15 min</span>
+        </span>
+    </span>
+</div>
+ 
+    </div>
+      
+    <div class="tocbot"></div>
+
+
+
+
+  
+    <div class="article-entry" itemprop="articleBody">
+       
+  <h2 id="前言"><a href="#前言" class="headerlink" title="前言"></a>前言</h2><p>本文主要是讲Solidity以及EVM对动态数据的复杂的数据类型的处理方式，了解了这些基本情况，对我们编写经济的合约或者设计新的vm，都有极大的帮助。<br>动态数据分为这三大类：</p>
+<ol>
+<li>映射(Mappings)：mapping(bytes32 =&gt; uint256)， mapping(address =&gt; string)等等</li>
+<li>数组(Arrays)：[]uint256，[]byte等等</li>
+<li>字节数组(Byte arrays)：只有两种类型：string，bytes<a id="more"></a>
+本文参考的是Howard是量子链的大神的文章，末尾处有文章出处，根据小编的理解，做了大量的调整和补充。<br>指令集可参考：<a href="/articles/715e1612">以太坊vm系列1-指令集汇总</a>，里面有详细的汇总和解释<br>讲之前，小编先要给大家脑补一点：<br>把EVM理解为一个键-值(key-value)数据库，而每个key都限制为32字节。<br>另外，本文所有合约都是在Remix上编译的</li>
+</ol>
+<h2 id="映射"><a href="#映射" class="headerlink" title="映射"></a>映射</h2><p>带有映射的一个简单合约：</p>
+<figure class="highlight javascript"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">pragma solidity ^<span class="number">0.4</span><span class="number">.11</span>;</span><br><span class="line">contract Test &#123;</span><br><span class="line">    mapping(<span class="function"><span class="params">uint256</span> =&gt;</span> uint256) items;</span><br><span class="line">    <span class="title">constructor</span>(<span class="params"></span>) <span class="title">public</span> &#123;</span><br><span class="line">      items[<span class="number">0xc0fefe</span>] = <span class="number">0x42</span>;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>编译器开启<code>optimize</code>编译该合约。<br>映射存储相关字节码：<code>62c0fefe600090815260205260427f79826054ee948a209ff4a6c9064d7398508d2c1909a392f899d301c6d232187c55</code><br>对应的汇编指令：</p>
+<figure class="highlight armasm"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line"><span class="symbol">PUSH3</span> <span class="number">0xC0FEFE</span>       <span class="comment">//62 0xc0fefe，  将0xc0fefe压入栈，此时栈中数据stack[c0x0fefe]</span></span><br><span class="line"><span class="symbol">PUSH1</span> <span class="number">0x0</span>            <span class="comment">//60 0x0，       将0x0压入栈，此时栈中数据stack[c0x0fefe，0x0]</span></span><br><span class="line"><span class="symbol">SWAP1</span>                <span class="comment">//90，           从栈顶起，将前两个数据交换。此时栈中数据stack[0x0 c0x0fefe]</span></span><br><span class="line"><span class="symbol">DUP2</span>                 <span class="comment">//81，           栈顶起，将栈中第2个元素复制并加入栈顶。此时栈中数据stack[0x0 c0x0fefe 0x0]</span></span><br><span class="line"><span class="symbol">MSTORE</span>               <span class="comment">//52，           先后pop出两个元素x,y，内存中将y存在x对应地址。此时栈中数据stack[0x0]，内存数据memory&#123;&#x27;0x0位置存储c0x0fefe&#x27;&#125;</span></span><br><span class="line"><span class="symbol">PUSH1</span> <span class="number">0x20</span>           <span class="comment">//60 0x20，      将0x20压入栈，此时栈中数据stack[0x0 0x20]</span></span><br><span class="line"><span class="symbol">MSTORE</span>               <span class="comment">//52，           先后pop出两个元素x,y，内存中将y存在x对应地址。此时栈中数据stack[]，内存数据memory&#123;&#x27;0x0位置存储c0x0fefe&#x27;，&#x27;0x20位置存储0x0&#x27;&#125;</span></span><br><span class="line"><span class="symbol">PUSH1</span> <span class="number">0x42</span>           <span class="comment">//60 0x42，      将0x20压入栈，此时栈中数据stack[0x42]，内存数据memory&#123;&#x27;0x0位置存储c0x0fefe&#x27;，&#x27;0x20位置存储0x0&#x27;&#125;</span></span><br><span class="line"><span class="symbol">PUSH32</span> <span class="number">0x7982</span>...     <span class="comment">//60 0x7982...， 将0x79826054EE948A209FF4A6C9064D7398508D2C1909A392F899D301C6D232187C压入栈，此时栈中数据stack[0x42 0x79826054EE948A209FF4A6C9064D7398508D2C1909A392F899D301C6D232187C]，内存数据memory&#123;&#x27;0x0位置存储c0x0fefe&#x27;，&#x27;0x20位置存储0x0&#x27;&#125;</span></span><br><span class="line"><span class="symbol">SSTORE</span>               <span class="comment">//55，           栈顶推出两位，将数值0x42存储在存储器的0x79826054EE948A209FF4A6C9064D7398508D2C1909A392F899D301C6D232187C的位置上。此时栈为空stack[]，内存数据memory&#123;&#x27;0x0位置存储c0x0fefe&#x27;，&#x27;0x20位置存储0x0&#x27;&#125;，此处发现这个内存貌似没什么用处。。。</span></span><br></pre></td></tr></table></figure>
+<p>上面的指令是不是很诡异？还记得我们前面说的，evm看成是个k-v数据库，k有32字节。<br><code>0x7982...（32字节）</code>其实就是<code>0xc0fefe</code>使用<code>keccak256</code>哈希运算后的结果，用它来作为key。因为编译期间我们使用了<code>optimize</code>，Solidity会预先帮我们把<code>0xc0fefe</code>哈希生成<code>0x7982...（32字节）</code><br>也就是说，上面的两条<code>MSTORE</code>指令貌似并没什么卵用，这块Solidity的优化器要是能进一步完善下，没准就又可以省下几个gas了。<br><code>MSTORE</code>指令是进行内存操作，很便宜，操作一次3gas。</p>
+<p>其实，Solidity编译器之所以可以预先将<code>0xc0fefe</code>哈希生成<code>0x7982...（32字节）</code>，是因为直接数组中设置的的常量，但如果改成是变量，那又会变成什么样子？我们继续往下分析。<br>也不是说上面的两个<code>MSTORE</code>没用，等看完小编后面写的内容，就知道若Solidity编译器的hash生成失效，汇编会用这两个内存值来进行汇编层次的hash运算。在上面的汇编代码中，只能说是Solidity优化不彻底。</p>
+<p><code>ps:keccak256是一种hash计算标准，老权威了。。。</code></p>
+<h2 id="汇编代码中的keccak256"><a href="#汇编代码中的keccak256" class="headerlink" title="汇编代码中的keccak256"></a>汇编代码中的<code>keccak256</code></h2><p>改造一下上面的合约，将<code>0xc0fefe</code>提到外部变量：</p>
+<figure class="highlight javascript"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">pragma solidity ^<span class="number">0.4</span><span class="number">.11</span>;</span><br><span class="line">contract Test &#123;</span><br><span class="line">    mapping(<span class="function"><span class="params">uint256</span> =&gt;</span> uint256) items;</span><br><span class="line">    uint256 i = <span class="number">0xC0FEFE</span>;</span><br><span class="line">    <span class="title">constructor</span>(<span class="params"></span>) <span class="title">public</span> &#123;</span><br><span class="line">      items[i] = <span class="number">0x42</span>;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>编译器开启<code>optimize</code>编译该合约。<br>映射存储相关字节码：<code>600154600090815260208190526040902060429055</code><br>对应的汇编指令：<br><code>ps:0xc0fefe存储在存储器0x1地址的汇编过程，小编这里就不列出来了，以下都是该过程完成后的操作</code></p>
+<figure class="highlight armasm"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line"><span class="symbol">PUSH1</span> <span class="number">0x1</span>    <span class="comment">//60 0x1， 将0x0压入栈，此时栈中数据stack[0x1]</span></span><br><span class="line"><span class="symbol">SLOAD</span>        <span class="comment">//54，     取出栈顶元素，转为hash长度（表示在db中的地址），在db中是否存在对应值,并读取出,此处返回`0xc0fefe`，push到栈中。此时栈中数据stack[0xc0fefe]</span></span><br><span class="line"><span class="symbol">PUSH1</span> <span class="number">0x0</span>    <span class="comment">//60 0x0， 将0x0压入栈，此时栈中数据stack[0xc0fefe 0x0]</span></span><br><span class="line"><span class="symbol">SWAP1</span>        <span class="comment">//90，     从栈顶起，将前两个数据交换。此时栈中数据stack[0x0 0xc0fefe]</span></span><br><span class="line"><span class="symbol">DUP2</span>         <span class="comment">//81，     从栈顶起，将栈中第2个元素复制并加入栈顶。此时栈中数据stack[0x0 0xc0fefe 0x0]</span></span><br><span class="line"><span class="symbol">MSTORE</span>       <span class="comment">//52，     先后pop出两个元素x,y，内存中将y存在x对应地址。此时栈中数据stack[0x0]，内存数据memory&#123;&#x27;0x0位置存储0xc0fefe&#x27;&#125;</span></span><br><span class="line"><span class="symbol">PUSH1</span> <span class="number">0x20</span>   <span class="comment">//60 0x20，将0x20压入栈，此时栈中数据stack[0x0 0x20]</span></span><br><span class="line"><span class="symbol">DUP2</span>         <span class="comment">//81，     从栈顶起，将栈中第2个元素复制并加入栈顶。此时栈中数据stack[0x0 0x20 0x0]</span></span><br><span class="line"><span class="symbol">SWAP1</span>        <span class="comment">//90，     从栈顶起，将前两个数据交换。此时栈中数据stack[0x0 0x0 0x20]</span></span><br><span class="line"><span class="symbol">MSTORE</span>       <span class="comment">//52，     先后pop出两个元素x,y，内存中将y存在x对应地址。此时栈中数据stack[0x0]，内存数据memory&#123;&#x27;0x0位置存储0xc0fefe&#x27;,&#x27;0x0位置存储0x20&#x27;&#125;</span></span><br><span class="line"><span class="symbol">PUSH1</span> <span class="number">0x40</span>   <span class="comment">//60 0x40，将0x20压入栈，此时栈中数据stack[0x0 0x40]</span></span><br><span class="line"><span class="symbol">SWAP1</span>        <span class="comment">//90，     从栈顶起，将前两个数据交换。此时栈中数据stack[0x40 0x0]</span></span><br><span class="line"><span class="symbol">KECCAK256</span>    <span class="comment">//20，     该过程在evm中是`SHA3操作`，pop出栈中两个元素偏离值m和大小n，结合内存中的两个数据x,y生成为32字节的hash，然后压入栈。此时栈中数据stack[0x79826054EE948A209FF4A6C9064D7398508D2C1909A392F899D301C6D232187C]，内存数据memory&#123;&#125;</span></span><br><span class="line"><span class="symbol">PUSH1</span> <span class="number">0x42</span>   <span class="comment">//60 0x42，将0x20压入栈，此时栈中数据stack[0x79826054EE948A209FF4A6C9064D7398508D2C1909A392F899D301C6D232187C 0x42]</span></span><br><span class="line"><span class="symbol">SWAP1</span>        <span class="comment">//90，     从栈顶起，将前两个数据交换。此时栈中数据stack[0x42 0x79826054EE948A209FF4A6C9064D7398508D2C1909A392F899D301C6D232187C]</span></span><br><span class="line"><span class="symbol">SSTORE</span>       <span class="comment">//55，     栈顶推出两位，将数值0x42存储在存储器的0x79826054EE948A209FF4A6C9064D7398508D2C1909A392F899D301C6D232187C地址。此时栈中数据stack[]</span></span><br></pre></td></tr></table></figure>
+<p>这下应该知道<code>MSTORE</code>两次操作的目的了吧？<br>KECCAK256主要是操作栈和内存中的数据，成本大体为：</p>
+<ol>
+<li><p>操作一次KECCAK256需要支付30gas</p>
+</li>
+<li><p>每个32字节，需要支付6gas</p>
+<p>小编这么理解KECCAK256从栈中的两个数据，这个过程的费用已经包含在30gas中，而内存中两个32字节的数据操作是需要手续费，每个6gas，总共费用为：30+6x2=42gas。<br>知道优化的重要性了吧？</p>
+<p>are you ok？</p>
+</li>
+</ol>
+<h2 id="映射大数值和打包问题"><a href="#映射大数值和打包问题" class="headerlink" title="映射大数值和打包问题"></a>映射大数值和打包问题</h2><p>只要记着，映射是按照32字节来处理，也就是说，当一个数据小于32字节的时候，按32字节处理，当大于32字节的时候，以32字节为单位递增。而且地址是连续的。<br>对于打包问题，可以这么说，以映射的设计方式，是不存在打包问题的。原因同上。<br>这个不复杂，请自行验证吧。</p>
+<h2 id="动态数组"><a href="#动态数组" class="headerlink" title="动态数组"></a>动态数组</h2><p>动态数组是什么东西？这里就不用问小编了吧？<br>动态数组在Solidity中主要包含两大类：</p>
+<ol>
+<li>数组(Arrays)：[]uint256，[]byte等等</li>
+<li>字节数组(Byte arrays)：只有两种类型：string，bytes</li>
+</ol>
+<p>需要知道的是，在Solidity中，数组是更加昂贵的映射。数组里面的元素会按照顺序排列在存储器中：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">0x290d...e563</span><br><span class="line">0x290d...e564</span><br><span class="line">0x290d...e565</span><br><span class="line">0x290d...e566</span><br></pre></td></tr></table></figure>
+<p>动态数组拥有这样一些信息：</p>
+<ol>
+<li>length表示一共有多少个元素</li>
+<li>边界检查。当读取或写入时索引值大于length就会报错</li>
+<li>比映射更加复杂的存储打包行为</li>
+<li>当数组变小时，自动清除未使用的存储槽</li>
+<li>字节数组bytes和string的特殊优化让短数组(小于32字节)存储更加高效</li>
+</ol>
+<h3 id="一个简单的动态数组"><a href="#一个简单的动态数组" class="headerlink" title="一个简单的动态数组"></a>一个简单的动态数组</h3><p>合约代码：</p>
+<figure class="highlight javascript"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">pragma solidity ^<span class="number">0.4</span><span class="number">.11</span>;</span><br><span class="line">contract Test &#123;</span><br><span class="line">    uint256[] chunks;</span><br><span class="line">    <span class="title">constructor</span>(<span class="params"></span>) <span class="title">public</span> &#123;</span><br><span class="line">      chunks.push(<span class="number">0xAA</span>);</span><br><span class="line">      chunks.push(<span class="number">0xBB</span>);</span><br><span class="line">      chunks.push(<span class="number">0xCC</span>);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>优化器优化后的Solidity进行编译，汇编指令：</p>
+<figure class="highlight armasm"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br></pre></td><td class="code"><pre><span class="line"><span class="symbol">PUSH1</span> <span class="number">0x0</span>       stack[<span class="number">0x0</span>]</span><br><span class="line"><span class="symbol">DUP1</span>            stack[<span class="number">0x0</span> <span class="number">0x0</span>]</span><br><span class="line"><span class="symbol">SLOAD</span>           stack[<span class="number">0x0</span> <span class="number">0x0</span>]</span><br><span class="line"><span class="symbol">PUSH1</span> <span class="number">0x1</span>       stack[<span class="number">0x0</span> <span class="number">0x0</span> <span class="number">0x1</span>]</span><br><span class="line"><span class="symbol">DUP2</span>            stack[<span class="number">0x0</span> <span class="number">0x0</span> <span class="number">0x1</span> <span class="number">0x0</span>]</span><br><span class="line"><span class="symbol">DUP2</span>            stack[<span class="number">0x0</span> <span class="number">0x0</span> <span class="number">0x1</span> <span class="number">0x0</span> <span class="number">0x1</span>]</span><br><span class="line"><span class="keyword">ADD</span>             stack[<span class="number">0x0</span> <span class="number">0x0</span> <span class="number">0x1</span> <span class="number">0x1</span>]</span><br><span class="line"><span class="symbol">DUP4</span>            stack[<span class="number">0x0</span> <span class="number">0x0</span> <span class="number">0x1</span> <span class="number">0x1</span> <span class="number">0x0</span>]</span><br><span class="line"><span class="symbol">SSTORE</span>          stack[<span class="number">0x0</span> <span class="number">0x0</span> <span class="number">0x1</span>] store&#123;<span class="number">0x0</span>地址存入<span class="number">0x1</span>&#125;</span><br><span class="line"><span class="symbol">DUP3</span>            stack[<span class="number">0x0</span> <span class="number">0x0</span> <span class="number">0x1</span> <span class="number">0x0</span>]</span><br><span class="line"><span class="symbol">DUP1</span>            stack[<span class="number">0x0</span> <span class="number">0x0</span> <span class="number">0x1</span> <span class="number">0x0</span> <span class="number">0x0</span>]</span><br><span class="line"><span class="symbol">MSTORE</span>          stack[<span class="number">0x0</span> <span class="number">0x0</span> <span class="number">0x1</span>] memory&#123;<span class="number">0x0</span>地址存入<span class="number">0x0</span>&#125;  此memory无效</span><br><span class="line"><span class="symbol">PUSH1</span> <span class="number">0xAA</span>      stack[<span class="number">0x0</span> <span class="number">0x0</span> <span class="number">0x1</span> <span class="number">0xAA</span>]</span><br><span class="line"><span class="symbol">PUSH32</span> <span class="number">0x290</span>... stack[<span class="number">0x0</span> <span class="number">0x0</span> <span class="number">0x1</span> <span class="number">0xAA</span> <span class="number">0x290DECD9548B62A8D60345A988386FC84BA6BC95484008F6362F93160EF3E563</span>]</span><br><span class="line"><span class="symbol">SWAP3</span>           stack[<span class="number">0x0</span> <span class="number">0x290DECD9548B62A8D60345A988386FC84BA6BC95484008F6362F93160EF3E563</span> <span class="number">0x1</span> <span class="number">0xAA</span> <span class="number">0x0</span>]</span><br><span class="line"><span class="symbol">DUP4</span>            stack[<span class="number">0x0</span> <span class="number">0x290DECD9548B62A8D60345A988386FC84BA6BC95484008F6362F93160EF3E563</span> <span class="number">0x1</span> <span class="number">0xAA</span> <span class="number">0x0</span> <span class="number">0x290DECD9548B62A8D60345A988386FC84BA6BC95484008F6362F93160EF3E563</span>]</span><br><span class="line"><span class="keyword">ADD</span>             stack[<span class="number">0x0</span> <span class="number">0x290DECD9548B62A8D60345A988386FC84BA6BC95484008F6362F93160EF3E563</span> <span class="number">0x1</span> <span class="number">0xAA</span> <span class="number">0x290DECD9548B62A8D60345A988386FC84BA6BC95484008F6362F93160EF3E563</span>] </span><br><span class="line"><span class="symbol">SSTORE</span>          stack[<span class="number">0x0</span> <span class="number">0x290DECD9548B62A8D60345A988386FC84BA6BC95484008F6362F93160EF3E563</span> <span class="number">0x1</span>] store&#123;<span class="string">&#x27;0x0地址存入0x1&#x27;</span>,<span class="string">&#x27;0xAA地址存入0x290DECD9548B62A8D60345A988386FC84BA6BC95484008F6362F93160EF3E563&#x27;</span>&#125;</span><br><span class="line"></span><br><span class="line"><span class="symbol">DUP3</span>            stack[<span class="number">0x0</span> <span class="number">0x290DECD9548B62A8D60345A988386FC84BA6BC95484008F6362F93160EF3E563</span> <span class="number">0x1</span> <span class="number">0x0</span>]</span><br><span class="line"><span class="symbol">SLOAD</span>           stack[<span class="number">0x0</span> <span class="number">0x290DECD9548B62A8D60345A988386FC84BA6BC95484008F6362F93160EF3E563</span> <span class="number">0x1</span> <span class="number">0x1</span>] store&#123;<span class="string">&#x27;0x0地址存入0x1&#x27;</span>,<span class="string">&#x27;0xAA地址存入0x290DECD9548B62A8D60345A988386FC84BA6BC95484008F6362F93160EF3E563&#x27;</span>&#125;</span><br><span class="line"></span><br><span class="line"><span class="symbol">DUP1</span>            stack[<span class="number">0x0</span> <span class="number">0x290DECD9548B62A8D60345A988386FC84BA6BC95484008F6362F93160EF3E563</span> <span class="number">0x1</span> <span class="number">0x1</span> <span class="number">0x1</span>]</span><br><span class="line"><span class="symbol">DUP3</span>            stack[<span class="number">0x0</span> <span class="number">0x290DECD9548B62A8D60345A988386FC84BA6BC95484008F6362F93160EF3E563</span> <span class="number">0x1</span> <span class="number">0x1</span> <span class="number">0x1</span> <span class="number">0x1</span>]</span><br><span class="line"><span class="keyword">ADD</span>             stack[<span class="number">0x0</span> <span class="number">0x290DECD9548B62A8D60345A988386FC84BA6BC95484008F6362F93160EF3E563</span> <span class="number">0x1</span> <span class="number">0x1</span> <span class="number">0x2</span>]</span><br><span class="line"><span class="symbol">DUP5</span>            stack[<span class="number">0x0</span> <span class="number">0x290DECD9548B62A8D60345A988386FC84BA6BC95484008F6362F93160EF3E563</span> <span class="number">0x1</span> <span class="number">0x1</span> <span class="number">0x2</span> <span class="number">0x0</span>]</span><br><span class="line"><span class="symbol">SSTORE</span>          stack[<span class="number">0x0</span> <span class="number">0x290DECD9548B62A8D60345A988386FC84BA6BC95484008F6362F93160EF3E563</span> <span class="number">0x1</span> <span class="number">0x1</span>] store&#123;<span class="string">&#x27;0x0地址存入0x2&#x27;</span>,<span class="string">&#x27;0xAA地址存入0x290DECD9548B62A8D60345A988386FC84BA6BC95484008F6362F93160EF3E563&#x27;</span>&#125;</span><br><span class="line"><span class="symbol">PUSH1</span> <span class="number">0xBB</span>      stack[<span class="number">0x0</span> <span class="number">0x290DECD9548B62A8D60345A988386FC84BA6BC95484008F6362F93160EF3E563</span> <span class="number">0x1</span> <span class="number">0x1</span> <span class="number">0xBB</span>]</span><br><span class="line"><span class="symbol">SWAP1</span>           stack[<span class="number">0x0</span> <span class="number">0x290DECD9548B62A8D60345A988386FC84BA6BC95484008F6362F93160EF3E563</span> <span class="number">0x1</span> <span class="number">0xBB</span> <span class="number">0x1</span>]</span><br><span class="line"><span class="symbol">DUP4</span>            stack[<span class="number">0x0</span> <span class="number">0x290DECD9548B62A8D60345A988386FC84BA6BC95484008F6362F93160EF3E563</span> <span class="number">0x1</span> <span class="number">0xBB</span> <span class="number">0x1</span> <span class="number">0x290DECD9548B62A8D60345A988386FC84BA6BC95484008F6362F93160EF3E563</span>]</span><br><span class="line"><span class="keyword">ADD</span>             stack[<span class="number">0x0</span> <span class="number">0x290DECD9548B62A8D60345A988386FC84BA6BC95484008F6362F93160EF3E563</span> <span class="number">0x1</span> <span class="number">0xBB</span> <span class="number">0x290DECD9548B62A8D60345A988386FC84BA6BC95484008F6362F93160EF3E564</span>]</span><br><span class="line"><span class="symbol">SSTORE</span>          stack[<span class="number">0x0</span> <span class="number">0x290DECD9548B62A8D60345A988386FC84BA6BC95484008F6362F93160EF3E563</span> <span class="number">0x1</span>] store&#123;<span class="string">&#x27;0x0地址存入0x2&#x27;</span>,<span class="string">&#x27;0xAA地址存入0x290DECD9548B62A8D60345A988386FC84BA6BC95484008F6362F93160EF3E563&#x27;</span>,<span class="string">&#x27;0xBB地址存入0x290DECD9548B62A8D60345A988386FC84BA6BC95484008F6362F93160EF3E564&#x27;</span>&#125;</span><br><span class="line"><span class="symbol">DUP3</span>            stack[<span class="number">0x0</span> <span class="number">0x290DECD9548B62A8D60345A988386FC84BA6BC95484008F6362F93160EF3E563</span> <span class="number">0x1</span> <span class="number">0x0</span>]</span><br><span class="line"><span class="symbol">SLOAD</span>           stack[<span class="number">0x0</span> <span class="number">0x290DECD9548B62A8D60345A988386FC84BA6BC95484008F6362F93160EF3E563</span> <span class="number">0x1</span> <span class="number">0x2</span>]</span><br><span class="line"><span class="symbol">SWAP1</span>           stack[<span class="number">0x0</span> <span class="number">0x290DECD9548B62A8D60345A988386FC84BA6BC95484008F6362F93160EF3E563</span> <span class="number">0x2</span> <span class="number">0x1</span>]</span><br><span class="line"><span class="symbol">DUP2</span>            stack[<span class="number">0x0</span> <span class="number">0x290DECD9548B62A8D60345A988386FC84BA6BC95484008F6362F93160EF3E563</span> <span class="number">0x2</span> <span class="number">0x1</span> <span class="number">0x2</span>]</span><br><span class="line"><span class="keyword">ADD</span>             stack[<span class="number">0x0</span> <span class="number">0x290DECD9548B62A8D60345A988386FC84BA6BC95484008F6362F93160EF3E563</span> <span class="number">0x2</span> <span class="number">0x3</span>]</span><br><span class="line"><span class="symbol">SWAP1</span>           stack[<span class="number">0x0</span> <span class="number">0x290DECD9548B62A8D60345A988386FC84BA6BC95484008F6362F93160EF3E563</span> <span class="number">0x3</span> <span class="number">0x2</span>]</span><br><span class="line"><span class="symbol">SWAP3</span>           stack[<span class="number">0x2</span> <span class="number">0x290DECD9548B62A8D60345A988386FC84BA6BC95484008F6362F93160EF3E563</span> <span class="number">0x3</span> <span class="number">0x0</span>]</span><br><span class="line"><span class="symbol">SSTORE</span>          stack[<span class="number">0x2</span> <span class="number">0x290DECD9548B62A8D60345A988386FC84BA6BC95484008F6362F93160EF3E563</span>]  store&#123;<span class="string">&#x27;0x0地址存入0x3&#x27;</span>,<span class="string">&#x27;0xAA地址存入0x290DECD9548B62A8D60345A988386FC84BA6BC95484008F6362F93160EF3E563&#x27;</span>,<span class="string">&#x27;0xBB地址存入0x290DECD9548B62A8D60345A988386FC84BA6BC95484008F6362F93160EF3E564&#x27;</span>&#125;</span><br><span class="line"><span class="symbol">PUSH1</span> <span class="number">0xCC</span>      stack[<span class="number">0x2</span> <span class="number">0x290DECD9548B62A8D60345A988386FC84BA6BC95484008F6362F93160EF3E563</span> <span class="number">0xCC</span>]  store&#123;<span class="string">&#x27;0x0地址存入0x3&#x27;</span>,<span class="string">&#x27;0xAA地址存入0x290DECD9548B62A8D60345A988386FC84BA6BC95484008F6362F93160EF3E563&#x27;</span>,<span class="string">&#x27;0xBB地址存入0x290DECD9548B62A8D60345A988386FC84BA6BC95484008F6362F93160EF3E564&#x27;</span>&#125;</span><br><span class="line"><span class="symbol">SWAP2</span>           stack[<span class="number">0xCC</span> <span class="number">0x290DECD9548B62A8D60345A988386FC84BA6BC95484008F6362F93160EF3E563</span> <span class="number">0x2</span>]</span><br><span class="line"><span class="keyword">ADD</span>             stack[<span class="number">0xCC</span> <span class="number">0x290DECD9548B62A8D60345A988386FC84BA6BC95484008F6362F93160EF3E565</span>]</span><br><span class="line"><span class="symbol">SSTORE</span>          stack[]  store&#123;<span class="string">&#x27;0x0地址存入0x3&#x27;</span>,<span class="string">&#x27;0xAA地址存入0x290DECD9548B62A8D60345A988386FC84BA6BC95484008F6362F93160EF3E563&#x27;</span>,<span class="string">&#x27;0xBB地址存入0x290DECD9548B62A8D60345A988386FC84BA6BC95484008F6362F93160EF3E564&#x27;</span>,<span class="string">&#x27;0xCC地址存入0x290DECD9548B62A8D60345A988386FC84BA6BC95484008F6362F93160EF3E565&#x27;</span>&#125;</span><br></pre></td></tr></table></figure>
+<p>哈哈，是不是crazy？小编把每步执行后，栈stack、内存memory、存储器storage中数据状态记录下了。<br>不想看上面代码的，小编直接来解释吧：</p>
+<ol>
+<li>内存memory没毛用，只是浪费gas。</li>
+<li>总共执行了6次<code>SSTORE</code>指令，总共执行了3次<code>SLOAD</code>指令。小编按先后顺序解释下这几个命令具体干啥了<ol>
+<li>第1次执行<code>SLOAD</code><br>去地址0x0读取当前数组长度，返回0</li>
+<li>第1次执行<code>SSTORE</code><br>在地址0x0记录当前数组长度为1</li>
+<li>第2次执行<code>SSTORE</code><br>在一个hash地址记录数据0xAA</li>
+<li>第2次执行<code>SLOAD</code><br>去地址0x0读取当前数组长度，返回1</li>
+<li>第3次执行<code>SSTORE</code><br>在地址0x0记录当前数组长度为2</li>
+<li>第4次执行<code>SSTORE</code><br>在一个hash地址记录数据0xBB</li>
+<li>第3次执行<code>SLOAD</code><br>去地址0x0读取当前数组长度，返回2</li>
+<li>第5次执行<code>SSTORE</code><br>在地址0x0记录当前数组长度为3</li>
+<li>第6次执行<code>SSTORE</code><br>在一个hash地址记录数据0xCC</li>
+</ol>
+</li>
+</ol>
+<p>看出来了吧，数组长度，每加入一个数据，则更新一次。两种数据都需要<code>sstore</code><br>所以说，相比较于动态数组，反而映射更加节省gas。</p>
+<h2 id="动态数组打包"><a href="#动态数组打包" class="headerlink" title="动态数组打包"></a>动态数组打包</h2><p>这个小编就不详细讲了，前面<a href="/articles/4b0172c1"><code>《以太坊vm系列2-基础篇》</code></a>介绍了一些打包情况，<br>简单说就是，Solidity尽量优先填充满一个32字节的槽，尽量减少sstore的使用。<br>但是需要知道的是，由于数组需要进行边界检查和一些别的因素，动态数组中，每对一个数据存储，都需要执行一次<code>sstore</code>。就是说如下代码：</p>
+<figure class="highlight javascript"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line">pragma solidity ^<span class="number">0.4</span><span class="number">.11</span>;</span><br><span class="line">contract C &#123;</span><br><span class="line">    uint128[] s;</span><br><span class="line">    <span class="function"><span class="keyword">function</span> <span class="title">C</span>(<span class="params"></span>) </span>&#123;</span><br><span class="line">        s.length = <span class="number">4</span>;  <span class="comment">//执行1次sstore，第1个槽</span></span><br><span class="line">        s[<span class="number">0</span>] = <span class="number">0xAA</span>;   <span class="comment">//执行2次sstore，第2个槽</span></span><br><span class="line">        s[<span class="number">1</span>] = <span class="number">0xBB</span>;   <span class="comment">//执行3次sstore，第2个槽</span></span><br><span class="line">        s[<span class="number">2</span>] = <span class="number">0xCC</span>;   <span class="comment">//执行4次sstore，第3个槽</span></span><br><span class="line">        s[<span class="number">3</span>] = <span class="number">0xDD</span>;   <span class="comment">//执行5次sstore，第3个槽</span></span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>可以发现，用了3个槽，执行了5次<code>sstore</code>。占用的槽少了，但sstore次数一点不会少。</p>
+<h2 id="字节数组和字符串"><a href="#字节数组和字符串" class="headerlink" title="字节数组和字符串"></a>字节数组和字符串</h2><p><code>bytes</code>和<code>string</code>是为字节和字符进行优化的特殊数组类型。如果数组的长度不大于31字节，第32个字节存储有效编码的长度（看了下面的实例就懂了）。长一点的字节数组跟正常数组的表示方式差不多。<br><code>string</code>和<code>bytes</code>的情况都一样，这里就只演示<code>bytes</code>了。<br>字节数组赋值短的数据和长的数据，会有什么情况？一个个来试试</p>
+<h3 id="字节数组赋值短数据"><a href="#字节数组赋值短数据" class="headerlink" title="字节数组赋值短数据"></a>字节数组赋值短数据</h3><p>先看合约代码：</p>
+<figure class="highlight javascript"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">pragma solidity ^<span class="number">0.4</span><span class="number">.11</span>;</span><br><span class="line">contract Test &#123;</span><br><span class="line">    bytes s;</span><br><span class="line">    <span class="title">constructor</span>(<span class="params"></span>) <span class="title">public</span> &#123;</span><br><span class="line">        s.push(<span class="number">0xAA</span>);</span><br><span class="line">        s.push(<span class="number">0xBB</span>);</span><br><span class="line">        s.push(<span class="number">0xCC</span>);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>优化器编译后，指令就不展示了，一大坨。直接看看在数据在存储器中的格式：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">key:   0x0000000000000000000000000000000000000000000000000000000000000000</span><br><span class="line">value: 0xaabbcc0000000000000000000000000000000000000000000000000000000006</span><br></pre></td></tr></table></figure>
+<p><code>value</code>最后面的06表示的是存储器此处的编码长度，而s的真实长度(长度问题在下面总结中描述原因)是：<code>编码长度/2=3</code>。<br>另外，也看出value中，数据是从左往右存储的。</p>
+<h3 id="字节数组赋值长数据"><a href="#字节数组赋值长数据" class="headerlink" title="字节数组赋值长数据"></a>字节数组赋值长数据</h3><p>先看合约代码：</p>
+<figure class="highlight javascript"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line">pragma solidity ^<span class="number">0.4</span><span class="number">.11</span>;</span><br><span class="line">contract Test &#123;</span><br><span class="line">    bytes s;</span><br><span class="line">    <span class="title">constructor</span>(<span class="params"></span>) <span class="title">public</span> &#123;</span><br><span class="line">       s.length = <span class="number">32</span> * <span class="number">4</span>;</span><br><span class="line">        s[<span class="number">31</span>] = <span class="number">0x1</span>;</span><br><span class="line">        s[<span class="number">63</span>] = <span class="number">0x2</span>;</span><br><span class="line">        s[<span class="number">95</span>] = <span class="number">0x3</span>;</span><br><span class="line">        s[<span class="number">127</span>] = <span class="number">0x4</span>;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>直接来看在存储器中是如何存储的：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line">key:   0x0000000000000000000000000000000000000000000000000000000000000000</span><br><span class="line">value: 0x0000000000000000000000000000000000000000000000000000000000000101</span><br><span class="line"></span><br><span class="line">key:   0x290decd9548b62a8d60345a988386fc84ba6bc95484008f6362f93160ef3e563</span><br><span class="line">value: 0x0000000000000000000000000000000000000000000000000000000000000001</span><br><span class="line"></span><br><span class="line">key:   0x290decd9548b62a8d60345a988386fc84ba6bc95484008f6362f93160ef3e564</span><br><span class="line">value: 0x0000000000000000000000000000000000000000000000000000000000000002</span><br><span class="line"></span><br><span class="line">key:   0x290decd9548b62a8d60345a988386fc84ba6bc95484008f6362f93160ef3e565</span><br><span class="line">value: 0x0000000000000000000000000000000000000000000000000000000000000003</span><br><span class="line"></span><br><span class="line">key:   0x290decd9548b62a8d60345a988386fc84ba6bc95484008f6362f93160ef3e566</span><br><span class="line">value: 0x0000000000000000000000000000000000000000000000000000000000000004</span><br></pre></td></tr></table></figure>
+<p>可以看出，总共5个地址，也就是在四个槽里存了数据（一个key表示一个地址）：</p>
+<ol>
+<li>第1个0x0地址存储的是数据编码长度。数据的实际长度(长度问题在下面总结中描述原因)：<code>长度=（编码长度-1）/2</code>,也就是0x101 - 1）/2=128</li>
+<li>第2到第5的4个槽，分别存放了数组里的四个数据</li>
+<li>看key的 最后一位，这几个地址都是连续的</li>
+</ol>
+<h3 id="长字节短字节的总结"><a href="#长字节短字节的总结" class="headerlink" title="长字节短字节的总结"></a>长字节短字节的总结</h3><ol>
+<li>字节数组的汇编代码相当多。除了正常的边界检查和数组恢复大小等，它还需要对长度进行编码/解码，以及注意长字节数组和短字节数组之间的转换。</li>
+<li><code>为什么要编码长度？</code><br>因为编码之后，可以很容易的测试出来字节数组是长还是短。注意对于长数组而言编码长度总是奇数，而短数组的编码长度总是偶数。汇编代码只需要查看一下最后一位是否为0，为0就是偶数（短数组），非0就是奇数（长数组）。</li>
+</ol>
+<h2 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h2><ol>
+<li>相比较于动态数组，反而映射更加节省gas。</li>
+<li>使用数组的复杂度超过了想象，</li>
+<li>这一节，小编感觉已经很吃力了。。。</li>
+<li>其实，走到这里，反而问题越来越多，为什么选择256？为什么这么复杂？越来越底层，小编感觉有点吃不消了，毕竟后面跟cpu等硬件兼容性考虑，实在不是小编的长项。只能点到为止了。小编也看了下qtum对evm的见解，想要理解到那种程度，还有好几个境界要走。</li>
+</ol>
+ 
+      <!-- reward -->
+      
+    </div>
+    
+
+    <!-- copyright -->
+    
+    <div class="declare">
+      <ul class="post-copyright">
+        <li>
+          <i class="ri-copyright-line"></i>
+          <strong>Copyright： </strong>
+          
+          Copyright is owned by the author. For commercial reprints, please contact the author for authorization. For non-commercial reprints, please indicate the source.
+          
+        </li>
+      </ul>
+    </div>
+    
+    <footer class="article-footer">
+       
+<div class="share-btn">
+      <span class="share-sns share-outer">
+        <i class="ri-share-forward-line"></i>
+        分享
+      </span>
+      <div class="share-wrap">
+        <i class="arrow"></i>
+        <div class="share-icons">
+          
+          <a class="weibo share-sns" href="javascript:;" data-type="weibo">
+            <i class="ri-weibo-fill"></i>
+          </a>
+          <a class="weixin share-sns wxFab" href="javascript:;" data-type="weixin">
+            <i class="ri-wechat-fill"></i>
+          </a>
+          <a class="qq share-sns" href="javascript:;" data-type="qq">
+            <i class="ri-qq-fill"></i>
+          </a>
+          <a class="douban share-sns" href="javascript:;" data-type="douban">
+            <i class="ri-douban-line"></i>
+          </a>
+          <!-- <a class="qzone share-sns" href="javascript:;" data-type="qzone">
+            <i class="icon icon-qzone"></i>
+          </a> -->
+          
+          <a class="facebook share-sns" href="javascript:;" data-type="facebook">
+            <i class="ri-facebook-circle-fill"></i>
+          </a>
+          <a class="twitter share-sns" href="javascript:;" data-type="twitter">
+            <i class="ri-twitter-fill"></i>
+          </a>
+          <a class="google share-sns" href="javascript:;" data-type="google">
+            <i class="ri-google-fill"></i>
+          </a>
+        </div>
+      </div>
+</div>
+
+<div class="wx-share-modal">
+    <a class="modal-close" href="javascript:;"><i class="ri-close-circle-line"></i></a>
+    <p>扫一扫，分享到微信</p>
+    <div class="wx-qrcode">
+      <img src="//api.qrserver.com/v1/create-qr-code/?size=150x150&data=http://jason-wj.gitee.io/articles/639ef287/" alt="微信分享二维码">
+    </div>
+</div>
+
+<div id="share-mask"></div>  
+  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/EVM/" rel="tag">EVM</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/ethereum/" rel="tag">ethereum</a></li></ul>
+
+    </footer>
+  </div>
+
+   
+  <nav class="article-nav">
+    
+      <a href="/articles/ebac0719/" class="article-nav-link">
+        <strong class="article-nav-caption">上一篇</strong>
+        <div class="article-nav-title">
+          
+            快速实现以太坊免费空投token合约（揭开此类代币的假面）
+          
+        </div>
+      </a>
+    
+    
+      <a href="/articles/8ddcbc00/" class="article-nav-link">
+        <strong class="article-nav-caption">下一篇</strong>
+        <div class="article-nav-title">以太坊vm系列3-固定长度数据类型的处理</div>
+      </a>
+    
+  </nav>
+
+   
+<!-- valine评论 -->
+<div id="vcomments-box">
+  <div id="vcomments"></div>
+</div>
+<script src="//cdn1.lncld.net/static/js/3.0.4/av-min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/valine@1.4.14/dist/Valine.min.js"></script>
+<script>
+  new Valine({
+    el: "#vcomments",
+    app_id: "gdw0hVSwW3l6KgEMulSAc9Rx-gzGzoHsz",
+    app_key: "M4iiVXe0CuXWQEKuyIzWWDMh",
+    path: window.location.pathname,
+    avatar: "monsterid",
+    placeholder: "给我的文章加点评论吧~",
+    recordIP: true,
+  });
+  const infoEle = document.querySelector("#vcomments .info");
+  if (infoEle && infoEle.childNodes && infoEle.childNodes.length > 0) {
+    infoEle.childNodes.forEach(function (item) {
+      item.parentNode.removeChild(item);
+    });
+  }
+</script>
+<style>
+  #vcomments-box {
+    padding: 5px 30px;
+  }
+
+  @media screen and (max-width: 800px) {
+    #vcomments-box {
+      padding: 5px 0px;
+    }
+  }
+
+  #vcomments-box #vcomments {
+    background-color: #fff;
+  }
+
+  .v .vlist .vcard .vh {
+    padding-right: 20px;
+  }
+
+  .v .vlist .vcard {
+    padding-left: 10px;
+  }
+</style>
+
+ 
+   
+     
+</article>
+
+</section>
+      <footer class="footer">
+  <div class="outer">
+    <ul>
+      <li>
+        Copyrights &copy;
+        2017-2021
+        <i class="ri-heart-fill heart_icon"></i> Jason
+      </li>
+    </ul>
+    <ul>
+      <li>
+        
+      </li>
+    </ul>
+    <ul>
+      <li>
+        
+        
+        <span>
+  <span><i class="ri-user-3-fill"></i>Visitors:<span id="busuanzi_value_site_uv"></span></s>
+  <span class="division">|</span>
+  <span><i class="ri-eye-fill"></i>Views:<span id="busuanzi_value_page_pv"></span></span>
+</span>
+        
+      </li>
+    </ul>
+    <ul>
+      
+    </ul>
+    <ul>
+      
+    </ul>
+    <ul>
+      <li>
+        <!-- cnzz统计 -->
+        
+        <script type="text/javascript" src='https://s4.cnzz.com/z_stat.php?id=1279593399&amp;web_id=1279593399'></script>
+        
+      </li>
+    </ul>
+  </div>
+</footer>
+      <div class="float_btns">
+        <div class="totop" id="totop">
+  <i class="ri-arrow-up-line"></i>
+</div>
+
+<div class="todark" id="todark">
+  <i class="ri-moon-line"></i>
+</div>
+
+      </div>
+    </main>
+    <aside class="sidebar on">
+      <button class="navbar-toggle"></button>
+<nav class="navbar">
+  
+  <div class="logo">
+    <a href="/"><img src="/images/my_head-touch-icon-next.png" alt="Jason漫谈区块链"></a>
+  </div>
+  
+  <ul class="nav nav-main">
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/">主页</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/archives">归档</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/categories">分类</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/tags">标签</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/friends">友链</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/about">关于我</a>
+    </li>
+    
+  </ul>
+</nav>
+<nav class="navbar navbar-bottom">
+  <ul class="nav">
+    <li class="nav-item">
+      
+      <a class="nav-item-link nav-item-search"  title="Search">
+        <i class="ri-search-line"></i>
+      </a>
+      
+      
+    </li>
+  </ul>
+</nav>
+<div class="search-form-wrap">
+  <div class="local-search local-search-plugin">
+  <input type="search" id="local-search-input" class="local-search-input" placeholder="Search...">
+  <div id="local-search-result" class="local-search-result"></div>
+</div>
+</div>
+    </aside>
+    <script>
+      if (window.matchMedia("(max-width: 768px)").matches) {
+        document.querySelector('.content').classList.remove('on');
+        document.querySelector('.sidebar').classList.remove('on');
+      }
+    </script>
+    <div id="mask"></div>
+
+<!-- #reward -->
+<div id="reward">
+  <span class="close"><i class="ri-close-line"></i></span>
+  <p class="reward-p"><i class="ri-cup-line"></i>请我喝杯咖啡吧~</p>
+  <div class="reward-box">
+    
+    <div class="reward-item">
+      <img class="reward-img" src="/images/pay_ali.jpg">
+      <span class="reward-type">支付宝</span>
+    </div>
+    
+    
+    <div class="reward-item">
+      <img class="reward-img" src="/images/pay_wechat.jpg">
+      <span class="reward-type">微信</span>
+    </div>
+    
+  </div>
+</div>
+    
+<script src="/js/jquery-2.0.3.min.js"></script>
+
+
+<script src="/js/lazyload.min.js"></script>
+
+<!-- Tocbot -->
+
+
+<script src="/js/tocbot.min.js"></script>
+
+<script>
+  tocbot.init({
+    tocSelector: '.tocbot',
+    contentSelector: '.article-entry',
+    headingSelector: 'h1, h2, h3, h4, h5, h6',
+    hasInnerContainers: true,
+    scrollSmooth: true,
+    scrollContainer: 'main',
+    positionFixedSelector: '.tocbot',
+    positionFixedClass: 'is-position-fixed',
+    fixedSidebarOffset: 'auto'
+  });
+</script>
+
+<script src="https://cdn.jsdelivr.net/npm/jquery-modal@0.9.2/jquery.modal.min.js"></script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/jquery-modal@0.9.2/jquery.modal.min.css">
+<script src="https://cdn.jsdelivr.net/npm/justifiedGallery@3.7.0/dist/js/jquery.justifiedGallery.min.js"></script>
+
+<script src="/dist/main.js"></script>
+
+<!-- ImageViewer -->
+
+<!-- Root element of PhotoSwipe. Must have class pswp. -->
+<div class="pswp" tabindex="-1" role="dialog" aria-hidden="true">
+
+    <!-- Background of PhotoSwipe. 
+         It's a separate element as animating opacity is faster than rgba(). -->
+    <div class="pswp__bg"></div>
+
+    <!-- Slides wrapper with overflow:hidden. -->
+    <div class="pswp__scroll-wrap">
+
+        <!-- Container that holds slides. 
+            PhotoSwipe keeps only 3 of them in the DOM to save memory.
+            Don't modify these 3 pswp__item elements, data is added later on. -->
+        <div class="pswp__container">
+            <div class="pswp__item"></div>
+            <div class="pswp__item"></div>
+            <div class="pswp__item"></div>
+        </div>
+
+        <!-- Default (PhotoSwipeUI_Default) interface on top of sliding area. Can be changed. -->
+        <div class="pswp__ui pswp__ui--hidden">
+
+            <div class="pswp__top-bar">
+
+                <!--  Controls are self-explanatory. Order can be changed. -->
+
+                <div class="pswp__counter"></div>
+
+                <button class="pswp__button pswp__button--close" title="Close (Esc)"></button>
+
+                <button class="pswp__button pswp__button--share" style="display:none" title="Share"></button>
+
+                <button class="pswp__button pswp__button--fs" title="Toggle fullscreen"></button>
+
+                <button class="pswp__button pswp__button--zoom" title="Zoom in/out"></button>
+
+                <!-- Preloader demo http://codepen.io/dimsemenov/pen/yyBWoR -->
+                <!-- element will get class pswp__preloader--active when preloader is running -->
+                <div class="pswp__preloader">
+                    <div class="pswp__preloader__icn">
+                        <div class="pswp__preloader__cut">
+                            <div class="pswp__preloader__donut"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="pswp__share-modal pswp__share-modal--hidden pswp__single-tap">
+                <div class="pswp__share-tooltip"></div>
+            </div>
+
+            <button class="pswp__button pswp__button--arrow--left" title="Previous (arrow left)">
+            </button>
+
+            <button class="pswp__button pswp__button--arrow--right" title="Next (arrow right)">
+            </button>
+
+            <div class="pswp__caption">
+                <div class="pswp__caption__center"></div>
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe.min.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/default-skin/default-skin.min.css">
+<script src="https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe-ui-default.min.js"></script>
+
+<script>
+    function viewer_init() {
+        let pswpElement = document.querySelectorAll('.pswp')[0];
+        let $imgArr = document.querySelectorAll(('.article-entry img:not(.reward-img)'))
+
+        $imgArr.forEach(($em, i) => {
+            $em.onclick = () => {
+                // slider展开状态
+                // todo: 这样不好，后面改成状态
+                if (document.querySelector('.left-col.show')) return
+                let items = []
+                $imgArr.forEach(($em2, i2) => {
+                    let img = $em2.getAttribute('data-idx', i2)
+                    let src = $em2.getAttribute('data-target') || $em2.getAttribute('src')
+                    let title = $em2.getAttribute('alt')
+                    // 获得原图尺寸
+                    const image = new Image()
+                    image.src = src
+                    items.push({
+                        src: src,
+                        w: image.width || $em2.width,
+                        h: image.height || $em2.height,
+                        title: title
+                    })
+                })
+                var gallery = new PhotoSwipe(pswpElement, PhotoSwipeUI_Default, items, {
+                    index: parseInt(i)
+                });
+                gallery.init()
+            }
+        })
+    }
+    viewer_init()
+</script>
+
+<!-- MathJax -->
+
+<!-- Katex -->
+
+<!-- busuanzi  -->
+
+
+<script src="/js/busuanzi-2.3.pure.min.js"></script>
+
+
+<!-- ClickLove -->
+
+<!-- ClickBoom1 -->
+
+<!-- ClickBoom2 -->
+
+<!-- CodeCopy -->
+
+
+<link rel="stylesheet" href="/css/clipboard.css">
+
+<script src="https://cdn.jsdelivr.net/npm/clipboard@2/dist/clipboard.min.js"></script>
+<script>
+  function wait(callback, seconds) {
+    var timelag = null;
+    timelag = window.setTimeout(callback, seconds);
+  }
+  !function (e, t, a) {
+    var initCopyCode = function(){
+      var copyHtml = '';
+      copyHtml += '<button class="btn-copy" data-clipboard-snippet="">';
+      copyHtml += '<i class="ri-file-copy-2-line"></i><span>COPY</span>';
+      copyHtml += '</button>';
+      $(".highlight .code pre").before(copyHtml);
+      $(".article pre code").before(copyHtml);
+      var clipboard = new ClipboardJS('.btn-copy', {
+        target: function(trigger) {
+          return trigger.nextElementSibling;
+        }
+      });
+      clipboard.on('success', function(e) {
+        let $btn = $(e.trigger);
+        $btn.addClass('copied');
+        let $icon = $($btn.find('i'));
+        $icon.removeClass('ri-file-copy-2-line');
+        $icon.addClass('ri-checkbox-circle-line');
+        let $span = $($btn.find('span'));
+        $span[0].innerText = 'COPIED';
+        
+        wait(function () { // 等待两秒钟后恢复
+          $icon.removeClass('ri-checkbox-circle-line');
+          $icon.addClass('ri-file-copy-2-line');
+          $span[0].innerText = 'COPY';
+        }, 2000);
+      });
+      clipboard.on('error', function(e) {
+        e.clearSelection();
+        let $btn = $(e.trigger);
+        $btn.addClass('copy-failed');
+        let $icon = $($btn.find('i'));
+        $icon.removeClass('ri-file-copy-2-line');
+        $icon.addClass('ri-time-line');
+        let $span = $($btn.find('span'));
+        $span[0].innerText = 'COPY FAILED';
+        
+        wait(function () { // 等待两秒钟后恢复
+          $icon.removeClass('ri-time-line');
+          $icon.addClass('ri-file-copy-2-line');
+          $span[0].innerText = 'COPY';
+        }, 2000);
+      });
+    }
+    initCopyCode();
+  }(window, document);
+</script>
+
+
+<!-- CanvasBackground -->
+
+
+    
+  </div>
+</body>
+
+</html>

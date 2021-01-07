@@ -1,0 +1,640 @@
+<!DOCTYPE html>
+
+
+<html lang="zh-Hans">
+
+
+<head>
+  <meta charset="utf-8" />
+    
+  <meta name="description" content="谈天谈地，谈古谈今，一起谈谈我们的未来。" />
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
+  <title>
+    以太坊源码解读-第5.4讲-http rpc server相关源码详解 |  Jason漫谈区块链
+  </title>
+  <meta name="generator" content="hexo-theme-ayer">
+  
+  <link rel="shortcut icon" href="/images/my_head-16x16-next.ico" />
+  
+  
+<link rel="stylesheet" href="/dist/main.css">
+
+  
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/Shen-Yu/cdn/css/remixicon.min.css">
+
+  
+<link rel="stylesheet" href="/css/custom.css">
+
+  
+  
+<script src="https://cdn.jsdelivr.net/npm/pace-js@1.0.2/pace.min.js"></script>
+
+  
+  
+
+  
+
+</head>
+
+</html>
+
+<body>
+  <div id="app">
+    
+      
+    <main class="content on">
+      <section class="outer">
+  <article
+  id="post-ethereum/src_analysis/以太坊源码解读-第5.4讲-http rpc server相关源码详解"
+  class="article article-type-post"
+  itemscope
+  itemprop="blogPost"
+  data-scroll-reveal
+>
+  <div class="article-inner">
+    
+    <header class="article-header">
+       
+<h1 class="article-title sea-center" style="border-left:0" itemprop="name">
+  以太坊源码解读-第5.4讲-http rpc server相关源码详解
+</h1>
+ 
+
+    </header>
+     
+    <div class="article-meta">
+      <a href="/articles/6fa9e36/" class="article-date">
+  <time datetime="2018-11-08T07:10:40.000Z" itemprop="datePublished">2018-11-08</time>
+</a> 
+  <div class="article-category">
+    <a class="article-category-link" href="/categories/%E4%BB%A5%E5%A4%AA%E5%9D%8A/">以太坊</a> / <a class="article-category-link" href="/categories/%E4%BB%A5%E5%A4%AA%E5%9D%8A/%E6%BA%90%E7%A0%81%E8%A7%A3%E8%AF%BB/">源码解读</a>
+  </div>
+  
+<div class="word_count">
+    <span class="post-time">
+        <span class="post-meta-item-icon">
+            <i class="ri-quill-pen-line"></i>
+            <span class="post-meta-item-text"> Word count:</span>
+            <span class="post-count">1.8k</span>
+        </span>
+    </span>
+
+    <span class="post-time">
+        &nbsp; | &nbsp;
+        <span class="post-meta-item-icon">
+            <i class="ri-book-open-line"></i>
+            <span class="post-meta-item-text"> Reading time≈</span>
+            <span class="post-count">7 min</span>
+        </span>
+    </span>
+</div>
+ 
+    </div>
+      
+    <div class="tocbot"></div>
+
+
+
+
+  
+    <div class="article-entry" itemprop="articleBody">
+       
+  <h2 id="前言"><a href="#前言" class="headerlink" title="前言"></a>前言</h2><p>在上一篇文章<a href="/articles/5e9143bf">以太坊源码解读-第5.3讲-http rpc的启动流程分析</a>的基础上，我们继续深入探索以太坊的rpc机制.<br>在<a href="/articles/e10014d8">以太坊源码解读-第5.2讲-rpc源码解读</a>中，小编也介绍过rpc的实现，但涉及的有点广，可能并不太容易理解，为此，本文将结合http rpc的注册流程来讲解一下rpc的实现。</p>
+<a id="more"></a>
+<p>我们已经得知，http rpc的调用流程方式是：<br><code>创建server：rpc.NewServer()</code>-&gt;<code>注册service：handler.RegisterName(api.Namespace, api.Service)</code>-&gt;<code>启动监听：rpc.NewHTTPServer(cors, vhosts, handler).Serve(listener)</code>-&gt;<code>停止监听：n.httpListener.Close()</code>-&gt;<code>服务停止：n.httpHandler.Stop()</code><br>下面我们一步步来了解每个过程是如何进行的。</p>
+<p><code>ps</code>：先前我么已经得知，rpc总共有4类，这里小编由于时间和精力，只介绍<code>http rpc</code>的调用细节。<br><code>pps</code>：注意server和service的区别，下文中很多地方将会涉及到。</p>
+<h2 id="第一步：创建server"><a href="#第一步：创建server" class="headerlink" title="第一步：创建server"></a>第一步：创建server</h2><p>进入到这个<br>先来看一下创建server（<code>rpc-&gt;server.go</code>）的代码</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">NewServer</span><span class="params">()</span> *<span class="title">Server</span></span> &#123;</span><br><span class="line">  <span class="comment">//实例化一个server</span></span><br><span class="line">	server := &amp;Server&#123;</span><br><span class="line">		services: <span class="built_in">make</span>(serviceRegistry),</span><br><span class="line">		codecs:   set.New(),</span><br><span class="line">		run:      <span class="number">1</span>,</span><br><span class="line">  &#125;</span><br><span class="line">  <span class="comment">//先注册一个RPC Service，该services是一个空的</span></span><br><span class="line">  <span class="comment">//将server加入到RPCService中</span></span><br><span class="line">  rpcService := &amp;RPCService&#123;server&#125;</span><br><span class="line">  <span class="comment">//此处MetadataApi=“rpc”</span></span><br><span class="line">	server.RegisterName(MetadataApi, rpcService)</span><br><span class="line">	<span class="keyword">return</span> server</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>这段代码中，可以得知以下几个重要信息：</p>
+<ol>
+<li>创建的server是被加入到<code>RPCService</code>中的。这个<code>RPCService</code>结构体如下：<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">type</span> RPCService <span class="keyword">struct</span> &#123;</span><br><span class="line">	server *Server</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></li>
+<li>返回的是一个server</li>
+<li>可以大胆想象，之后所有的service注册后，都会被添加到第一个<code>RPCService</code>中的server，也就是说，<code>RPCService</code>管理着其余所有的<code>service</code></li>
+</ol>
+<h3 id="第一步：Server相关结构体"><a href="#第一步：Server相关结构体" class="headerlink" title="第一步：Server相关结构体"></a>第一步：Server相关结构体</h3><p>创建过程中，涉及到了Server相关结构，很重要，很有必要掌握。<br>在<code>rpc-&gt;types.go</code>中，对<code>server</code>和<code>service</code>的定义如下：</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">//service使用传入的名称作为key来区分</span></span><br><span class="line"><span class="keyword">type</span> serviceRegistry <span class="keyword">map</span>[<span class="keyword">string</span>]*service </span><br><span class="line"></span><br><span class="line"><span class="comment">//用于标准化注册进来的服务</span></span><br><span class="line"><span class="comment">//这是以太坊每个功能模块提供的服务，都是在模块的api.service中</span></span><br><span class="line"><span class="keyword">type</span> service <span class="keyword">struct</span> &#123;</span><br><span class="line">	name          <span class="keyword">string</span>        <span class="comment">// service的名称</span></span><br><span class="line">	typ           reflect.Type  <span class="comment">// 类型，反射的</span></span><br><span class="line">	callbacks     callbacks     <span class="comment">// 回调方法的集合</span></span><br><span class="line">	subscriptions subscriptions <span class="comment">// 订阅/发布集合</span></span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="keyword">type</span> Server <span class="keyword">struct</span> &#123;</span><br><span class="line">	services serviceRegistry  <span class="comment">//用来存储service</span></span><br><span class="line">	run      <span class="keyword">int32</span>  <span class="comment">//用来控制server是否可运行，1为运行，非1为不可运行</span></span><br><span class="line">	codecsMu sync.  <span class="comment">//用来保护多线程访问codecs的锁</span></span><br><span class="line">	codecs   *set.Set  <span class="comment">//用来存储所有的编码解码器，其实就是所有的连接。</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>可以看出，每一个<code>service</code>都会被装填到<code>server</code>中（也就是注册，具体注册细节后面会专门讲到），了解过geth启动流程后，会明白，这里的<code>service</code>表示的是每个以太坊功能模块api.service中的东西。这个<code>api</code>在rpc中是有定义的(同样是在types.go中)：</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">type</span> API <span class="keyword">struct</span> &#123;</span><br><span class="line">	Namespace <span class="keyword">string</span>      <span class="comment">// 在该命名空间下，service的方法被公开</span></span><br><span class="line">	Version   <span class="keyword">string</span>      <span class="comment">// 给dapp展示的api版本号</span></span><br><span class="line">	Service   <span class="keyword">interface</span>&#123;&#125; <span class="comment">// 这个就是要被注册到server中的service</span></span><br><span class="line">	Public    <span class="keyword">bool</span>        <span class="comment">// 在公共使用中，指示方法是否为安全的</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p><code>service</code>中的callbacks和subscriptions其实都是callbacks，这个是rpc回调用到的。结构如下：</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">type</span> callbacks <span class="keyword">map</span>[<span class="keyword">string</span>]*callback      <span class="comment">// 回调方法的集合，可以看出是一个map</span></span><br><span class="line"><span class="keyword">type</span> subscriptions <span class="keyword">map</span>[<span class="keyword">string</span>]*callback  <span class="comment">// 订阅的集合，也可以看出是一个map</span></span><br><span class="line"></span><br><span class="line"><span class="keyword">type</span> callback <span class="keyword">struct</span> &#123;</span><br><span class="line">	rcvr        reflect.Value  <span class="comment">// 反射出方法的值</span></span><br><span class="line">	method      reflect.Method <span class="comment">// 反射出方法本身</span></span><br><span class="line">	argTypes    []reflect.Type <span class="comment">// 输入的参数</span></span><br><span class="line">	hasCtx      <span class="keyword">bool</span>           <span class="comment">// 检测第一个参数是否为context，</span></span><br><span class="line">	errPos      <span class="keyword">int</span>            <span class="comment">// 返回错误的索引err，无法返回则为-1</span></span><br><span class="line">	isSubscribe <span class="keyword">bool</span>           <span class="comment">// 该callback是否为订阅</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<h2 id="第二步：注册service"><a href="#第二步：注册service" class="headerlink" title="第二步：注册service"></a>第二步：注册service</h2><ol>
+<li>前面创建<code>server</code>时候，我们已经发现其注册了一个<code>RPCService</code>，并且将<code>server</code>填充到了<code>RPCService</code>中。创建返回的结果是该<code>server</code>，之后的<code>service</code>都是在该<code>server</code>下注册的，也就是说，<code>RPCService</code>管理着之后的所有<code>service</code>。</li>
+<li>前面我们也知道了，http rpc会调用<code>rpc-&gt;server.go</code>中的<code>RegisterName()</code>方法来进行注册。</li>
+<li>接下来我们就进一步分析整个注册流程。</li>
+</ol>
+<h3 id="RegisterName"><a href="#RegisterName" class="headerlink" title="RegisterName()"></a><code>RegisterName()</code></h3><p>先来看一下<code>rpc-&gt;server.go</code>注册的源码</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">//RegisterName 注册服务</span></span><br><span class="line"><span class="comment">//传入的rcvr可以是任意的，传入后都会被标准化处理</span></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="params">(s *Server)</span> <span class="title">RegisterName</span><span class="params">(name <span class="keyword">string</span>, rcvr <span class="keyword">interface</span>&#123;&#125;)</span> <span class="title">error</span></span> &#123;</span><br><span class="line">	<span class="keyword">if</span> s.services == <span class="literal">nil</span> &#123;</span><br><span class="line">		s.services = <span class="built_in">make</span>(serviceRegistry)</span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	<span class="comment">//注册进来的rcvr都被标准化为service</span></span><br><span class="line">	svc := <span class="built_in">new</span>(service)</span><br><span class="line">	svc.typ = reflect.TypeOf(rcvr)</span><br><span class="line">	rcvrVal := reflect.ValueOf(rcvr)</span><br><span class="line"></span><br><span class="line">	<span class="keyword">if</span> name == <span class="string">&quot;&quot;</span> &#123;</span><br><span class="line">		<span class="keyword">return</span> fmt.Errorf(<span class="string">&quot;no service name for type %s&quot;</span>, svc.typ.String())</span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	<span class="comment">//判断传进来的服务类型首字母是否为大写</span></span><br><span class="line">	<span class="keyword">if</span> !isExported(reflect.Indirect(rcvrVal).Type().Name()) &#123;</span><br><span class="line">		fmt.Println(reflect.Indirect(rcvrVal).Type().Name())</span><br><span class="line">		<span class="keyword">return</span> fmt.Errorf(<span class="string">&quot;%s is not exported&quot;</span>, reflect.Indirect(rcvrVal).Type().Name())</span><br><span class="line">	&#125;</span><br><span class="line">	<span class="comment">//获取到服务的回调方法和订阅</span></span><br><span class="line">	methods, subscriptions := suitableCallbacks(rcvrVal, svc.typ)</span><br><span class="line"></span><br><span class="line">	<span class="comment">//根据name判断，若services中已经有了该service，则直接更新方法和订阅</span></span><br><span class="line">	<span class="keyword">if</span> regsvc, present := s.services[name]; present &#123;</span><br><span class="line">		<span class="keyword">if</span> <span class="built_in">len</span>(methods) == <span class="number">0</span> &amp;&amp; <span class="built_in">len</span>(subscriptions) == <span class="number">0</span> &#123;</span><br><span class="line">			<span class="keyword">return</span> fmt.Errorf(<span class="string">&quot;service %T doesn&#x27;t have any suitable methods/subscriptions to expose&quot;</span>, rcvr)</span><br><span class="line">		&#125;</span><br><span class="line">		<span class="keyword">for</span> _, m := <span class="keyword">range</span> methods &#123;</span><br><span class="line">			<span class="comment">//使用首字母小写的方法名作为key来保存该service的最新的方法</span></span><br><span class="line">			regsvc.callbacks[formatName(m.method.Name)] = m</span><br><span class="line">		&#125;</span><br><span class="line">		<span class="keyword">for</span> _, s := <span class="keyword">range</span> subscriptions &#123;</span><br><span class="line">			<span class="comment">//使用首字母小写的订阅名作为key来保存该service的最新的订阅</span></span><br><span class="line">			regsvc.subscriptions[formatName(s.method.Name)] = s</span><br><span class="line">		&#125;</span><br><span class="line">		<span class="keyword">return</span> <span class="literal">nil</span> <span class="comment">//更新完后，则退出</span></span><br><span class="line">	&#125;</span><br><span class="line">	svc.name = name</span><br><span class="line">	svc.callbacks, svc.subscriptions = methods, subscriptions</span><br><span class="line">	<span class="keyword">if</span> <span class="built_in">len</span>(svc.callbacks) == <span class="number">0</span> &amp;&amp; <span class="built_in">len</span>(svc.subscriptions) == <span class="number">0</span> &#123;</span><br><span class="line">		<span class="keyword">return</span> fmt.Errorf(<span class="string">&quot;service %T doesn&#x27;t have any suitable methods/subscriptions to expose&quot;</span>, rcvr)</span><br><span class="line">	&#125;</span><br><span class="line">	<span class="comment">//将service保存在server中</span></span><br><span class="line">	s.services[svc.name] = svc</span><br><span class="line">	<span class="keyword">return</span> <span class="literal">nil</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>注册阶段，会反射解析传入的service，有可能是普通的rpc，也有可能是订阅，根据各自的规则进行判断，比如订阅规则，可参考<a href="/articles/eafc7a8a">以太坊源码解读-第5.5讲-rpc 订阅模块解读</a>.<br>从上面代码也可知道，真正解析service的是<code>suitableCallbacks()</code>方法，它会将rpc普通方法和订阅解析出来。</p>
+<h2 id="第三步：启动http监听"><a href="#第三步：启动http监听" class="headerlink" title="第三步：启动http监听"></a>第三步：启动http监听</h2><p>服务器注册完毕后，就该启动网络监听了。<br>在<code>rpc-&gt;http.go</code>中，<code>NewHTTPServer()</code>方法启动监听。<br>再来看看<code>http rpc</code>是怎样启动网络监听的：<code>go rpc.NewHTTPServer(cors, vhosts, handler).Serve(listener)</code><br>异步，开了个goroutine。<br>那就看看<code>NewHTTPServer()</code>的源码是什么：<br><code>ps</code>：大概看了下最新的代码<code>2018.11.09</code>的，结构稍微发生了点变化，但依旧用到了<code>NewHTTPServer()</code>，虽然该方法一直被标注为Deprecated，然并卵。</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">//小编看的代码是两个月前的，貌似和最新版的的有些差距</span></span><br><span class="line"><span class="comment">//最新版本的代码在现有基础上，又加入了延时等操作，但不影响整体阅读</span></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">NewHTTPServer</span><span class="params">(cors []<span class="keyword">string</span>, vhosts []<span class="keyword">string</span>, srv *Server)</span> *<span class="title">http</span>.<span class="title">Server</span></span> &#123;</span><br><span class="line">	handler := newCorsHandler(srv, cors)  <span class="comment">//主要是浏览器读取时候的些问题设置</span></span><br><span class="line">	handler = newVHostHandler(vhosts, handler) <span class="comment">//host的设置</span></span><br><span class="line">	<span class="keyword">return</span> &amp;http.Server&#123;Handler: handler&#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<h2 id="第四、五步：停止监听"><a href="#第四、五步：停止监听" class="headerlink" title="第四、五步：停止监听"></a>第四、五步：停止监听</h2><p>这本身就是http内部的工作机制，<br>net.Listener.Close()<br>server.stop（）这个可以看源码去，不复杂，就不解释了。</p>
+<h2 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h2><p>至此，rpc server端的启动就结束了，应该还好理解吧</p>
+ 
+      <!-- reward -->
+      
+    </div>
+    
+
+    <!-- copyright -->
+    
+    <div class="declare">
+      <ul class="post-copyright">
+        <li>
+          <i class="ri-copyright-line"></i>
+          <strong>Copyright： </strong>
+          
+          Copyright is owned by the author. For commercial reprints, please contact the author for authorization. For non-commercial reprints, please indicate the source.
+          
+        </li>
+      </ul>
+    </div>
+    
+    <footer class="article-footer">
+       
+<div class="share-btn">
+      <span class="share-sns share-outer">
+        <i class="ri-share-forward-line"></i>
+        分享
+      </span>
+      <div class="share-wrap">
+        <i class="arrow"></i>
+        <div class="share-icons">
+          
+          <a class="weibo share-sns" href="javascript:;" data-type="weibo">
+            <i class="ri-weibo-fill"></i>
+          </a>
+          <a class="weixin share-sns wxFab" href="javascript:;" data-type="weixin">
+            <i class="ri-wechat-fill"></i>
+          </a>
+          <a class="qq share-sns" href="javascript:;" data-type="qq">
+            <i class="ri-qq-fill"></i>
+          </a>
+          <a class="douban share-sns" href="javascript:;" data-type="douban">
+            <i class="ri-douban-line"></i>
+          </a>
+          <!-- <a class="qzone share-sns" href="javascript:;" data-type="qzone">
+            <i class="icon icon-qzone"></i>
+          </a> -->
+          
+          <a class="facebook share-sns" href="javascript:;" data-type="facebook">
+            <i class="ri-facebook-circle-fill"></i>
+          </a>
+          <a class="twitter share-sns" href="javascript:;" data-type="twitter">
+            <i class="ri-twitter-fill"></i>
+          </a>
+          <a class="google share-sns" href="javascript:;" data-type="google">
+            <i class="ri-google-fill"></i>
+          </a>
+        </div>
+      </div>
+</div>
+
+<div class="wx-share-modal">
+    <a class="modal-close" href="javascript:;"><i class="ri-close-circle-line"></i></a>
+    <p>扫一扫，分享到微信</p>
+    <div class="wx-qrcode">
+      <img src="//api.qrserver.com/v1/create-qr-code/?size=150x150&data=http://jason-wj.gitee.io/articles/6fa9e36/" alt="微信分享二维码">
+    </div>
+</div>
+
+<div id="share-mask"></div>  
+  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/ethereum/" rel="tag">ethereum</a></li></ul>
+
+    </footer>
+  </div>
+
+   
+  <nav class="article-nav">
+    
+      <a href="/articles/eafc7a8a/" class="article-nav-link">
+        <strong class="article-nav-caption">上一篇</strong>
+        <div class="article-nav-title">
+          
+            以太坊源码解读-第5.5讲-rpc 订阅模块解读
+          
+        </div>
+      </a>
+    
+    
+      <a href="/articles/5e9143bf/" class="article-nav-link">
+        <strong class="article-nav-caption">下一篇</strong>
+        <div class="article-nav-title">以太坊源码解读-第5.3讲-http rpc的启动流程分析</div>
+      </a>
+    
+  </nav>
+
+   
+<!-- valine评论 -->
+<div id="vcomments-box">
+  <div id="vcomments"></div>
+</div>
+<script src="//cdn1.lncld.net/static/js/3.0.4/av-min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/valine@1.4.14/dist/Valine.min.js"></script>
+<script>
+  new Valine({
+    el: "#vcomments",
+    app_id: "gdw0hVSwW3l6KgEMulSAc9Rx-gzGzoHsz",
+    app_key: "M4iiVXe0CuXWQEKuyIzWWDMh",
+    path: window.location.pathname,
+    avatar: "monsterid",
+    placeholder: "给我的文章加点评论吧~",
+    recordIP: true,
+  });
+  const infoEle = document.querySelector("#vcomments .info");
+  if (infoEle && infoEle.childNodes && infoEle.childNodes.length > 0) {
+    infoEle.childNodes.forEach(function (item) {
+      item.parentNode.removeChild(item);
+    });
+  }
+</script>
+<style>
+  #vcomments-box {
+    padding: 5px 30px;
+  }
+
+  @media screen and (max-width: 800px) {
+    #vcomments-box {
+      padding: 5px 0px;
+    }
+  }
+
+  #vcomments-box #vcomments {
+    background-color: #fff;
+  }
+
+  .v .vlist .vcard .vh {
+    padding-right: 20px;
+  }
+
+  .v .vlist .vcard {
+    padding-left: 10px;
+  }
+</style>
+
+ 
+   
+     
+</article>
+
+</section>
+      <footer class="footer">
+  <div class="outer">
+    <ul>
+      <li>
+        Copyrights &copy;
+        2017-2021
+        <i class="ri-heart-fill heart_icon"></i> Jason
+      </li>
+    </ul>
+    <ul>
+      <li>
+        
+      </li>
+    </ul>
+    <ul>
+      <li>
+        
+        
+        <span>
+  <span><i class="ri-user-3-fill"></i>Visitors:<span id="busuanzi_value_site_uv"></span></s>
+  <span class="division">|</span>
+  <span><i class="ri-eye-fill"></i>Views:<span id="busuanzi_value_page_pv"></span></span>
+</span>
+        
+      </li>
+    </ul>
+    <ul>
+      
+    </ul>
+    <ul>
+      
+    </ul>
+    <ul>
+      <li>
+        <!-- cnzz统计 -->
+        
+        <script type="text/javascript" src='https://s4.cnzz.com/z_stat.php?id=1279593399&amp;web_id=1279593399'></script>
+        
+      </li>
+    </ul>
+  </div>
+</footer>
+      <div class="float_btns">
+        <div class="totop" id="totop">
+  <i class="ri-arrow-up-line"></i>
+</div>
+
+<div class="todark" id="todark">
+  <i class="ri-moon-line"></i>
+</div>
+
+      </div>
+    </main>
+    <aside class="sidebar on">
+      <button class="navbar-toggle"></button>
+<nav class="navbar">
+  
+  <div class="logo">
+    <a href="/"><img src="/images/my_head-touch-icon-next.png" alt="Jason漫谈区块链"></a>
+  </div>
+  
+  <ul class="nav nav-main">
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/">主页</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/archives">归档</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/categories">分类</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/tags">标签</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/friends">友链</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/about">关于我</a>
+    </li>
+    
+  </ul>
+</nav>
+<nav class="navbar navbar-bottom">
+  <ul class="nav">
+    <li class="nav-item">
+      
+      <a class="nav-item-link nav-item-search"  title="Search">
+        <i class="ri-search-line"></i>
+      </a>
+      
+      
+    </li>
+  </ul>
+</nav>
+<div class="search-form-wrap">
+  <div class="local-search local-search-plugin">
+  <input type="search" id="local-search-input" class="local-search-input" placeholder="Search...">
+  <div id="local-search-result" class="local-search-result"></div>
+</div>
+</div>
+    </aside>
+    <script>
+      if (window.matchMedia("(max-width: 768px)").matches) {
+        document.querySelector('.content').classList.remove('on');
+        document.querySelector('.sidebar').classList.remove('on');
+      }
+    </script>
+    <div id="mask"></div>
+
+<!-- #reward -->
+<div id="reward">
+  <span class="close"><i class="ri-close-line"></i></span>
+  <p class="reward-p"><i class="ri-cup-line"></i>请我喝杯咖啡吧~</p>
+  <div class="reward-box">
+    
+    <div class="reward-item">
+      <img class="reward-img" src="/images/pay_ali.jpg">
+      <span class="reward-type">支付宝</span>
+    </div>
+    
+    
+    <div class="reward-item">
+      <img class="reward-img" src="/images/pay_wechat.jpg">
+      <span class="reward-type">微信</span>
+    </div>
+    
+  </div>
+</div>
+    
+<script src="/js/jquery-2.0.3.min.js"></script>
+
+
+<script src="/js/lazyload.min.js"></script>
+
+<!-- Tocbot -->
+
+
+<script src="/js/tocbot.min.js"></script>
+
+<script>
+  tocbot.init({
+    tocSelector: '.tocbot',
+    contentSelector: '.article-entry',
+    headingSelector: 'h1, h2, h3, h4, h5, h6',
+    hasInnerContainers: true,
+    scrollSmooth: true,
+    scrollContainer: 'main',
+    positionFixedSelector: '.tocbot',
+    positionFixedClass: 'is-position-fixed',
+    fixedSidebarOffset: 'auto'
+  });
+</script>
+
+<script src="https://cdn.jsdelivr.net/npm/jquery-modal@0.9.2/jquery.modal.min.js"></script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/jquery-modal@0.9.2/jquery.modal.min.css">
+<script src="https://cdn.jsdelivr.net/npm/justifiedGallery@3.7.0/dist/js/jquery.justifiedGallery.min.js"></script>
+
+<script src="/dist/main.js"></script>
+
+<!-- ImageViewer -->
+
+<!-- Root element of PhotoSwipe. Must have class pswp. -->
+<div class="pswp" tabindex="-1" role="dialog" aria-hidden="true">
+
+    <!-- Background of PhotoSwipe. 
+         It's a separate element as animating opacity is faster than rgba(). -->
+    <div class="pswp__bg"></div>
+
+    <!-- Slides wrapper with overflow:hidden. -->
+    <div class="pswp__scroll-wrap">
+
+        <!-- Container that holds slides. 
+            PhotoSwipe keeps only 3 of them in the DOM to save memory.
+            Don't modify these 3 pswp__item elements, data is added later on. -->
+        <div class="pswp__container">
+            <div class="pswp__item"></div>
+            <div class="pswp__item"></div>
+            <div class="pswp__item"></div>
+        </div>
+
+        <!-- Default (PhotoSwipeUI_Default) interface on top of sliding area. Can be changed. -->
+        <div class="pswp__ui pswp__ui--hidden">
+
+            <div class="pswp__top-bar">
+
+                <!--  Controls are self-explanatory. Order can be changed. -->
+
+                <div class="pswp__counter"></div>
+
+                <button class="pswp__button pswp__button--close" title="Close (Esc)"></button>
+
+                <button class="pswp__button pswp__button--share" style="display:none" title="Share"></button>
+
+                <button class="pswp__button pswp__button--fs" title="Toggle fullscreen"></button>
+
+                <button class="pswp__button pswp__button--zoom" title="Zoom in/out"></button>
+
+                <!-- Preloader demo http://codepen.io/dimsemenov/pen/yyBWoR -->
+                <!-- element will get class pswp__preloader--active when preloader is running -->
+                <div class="pswp__preloader">
+                    <div class="pswp__preloader__icn">
+                        <div class="pswp__preloader__cut">
+                            <div class="pswp__preloader__donut"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="pswp__share-modal pswp__share-modal--hidden pswp__single-tap">
+                <div class="pswp__share-tooltip"></div>
+            </div>
+
+            <button class="pswp__button pswp__button--arrow--left" title="Previous (arrow left)">
+            </button>
+
+            <button class="pswp__button pswp__button--arrow--right" title="Next (arrow right)">
+            </button>
+
+            <div class="pswp__caption">
+                <div class="pswp__caption__center"></div>
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe.min.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/default-skin/default-skin.min.css">
+<script src="https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe-ui-default.min.js"></script>
+
+<script>
+    function viewer_init() {
+        let pswpElement = document.querySelectorAll('.pswp')[0];
+        let $imgArr = document.querySelectorAll(('.article-entry img:not(.reward-img)'))
+
+        $imgArr.forEach(($em, i) => {
+            $em.onclick = () => {
+                // slider展开状态
+                // todo: 这样不好，后面改成状态
+                if (document.querySelector('.left-col.show')) return
+                let items = []
+                $imgArr.forEach(($em2, i2) => {
+                    let img = $em2.getAttribute('data-idx', i2)
+                    let src = $em2.getAttribute('data-target') || $em2.getAttribute('src')
+                    let title = $em2.getAttribute('alt')
+                    // 获得原图尺寸
+                    const image = new Image()
+                    image.src = src
+                    items.push({
+                        src: src,
+                        w: image.width || $em2.width,
+                        h: image.height || $em2.height,
+                        title: title
+                    })
+                })
+                var gallery = new PhotoSwipe(pswpElement, PhotoSwipeUI_Default, items, {
+                    index: parseInt(i)
+                });
+                gallery.init()
+            }
+        })
+    }
+    viewer_init()
+</script>
+
+<!-- MathJax -->
+
+<!-- Katex -->
+
+<!-- busuanzi  -->
+
+
+<script src="/js/busuanzi-2.3.pure.min.js"></script>
+
+
+<!-- ClickLove -->
+
+<!-- ClickBoom1 -->
+
+<!-- ClickBoom2 -->
+
+<!-- CodeCopy -->
+
+
+<link rel="stylesheet" href="/css/clipboard.css">
+
+<script src="https://cdn.jsdelivr.net/npm/clipboard@2/dist/clipboard.min.js"></script>
+<script>
+  function wait(callback, seconds) {
+    var timelag = null;
+    timelag = window.setTimeout(callback, seconds);
+  }
+  !function (e, t, a) {
+    var initCopyCode = function(){
+      var copyHtml = '';
+      copyHtml += '<button class="btn-copy" data-clipboard-snippet="">';
+      copyHtml += '<i class="ri-file-copy-2-line"></i><span>COPY</span>';
+      copyHtml += '</button>';
+      $(".highlight .code pre").before(copyHtml);
+      $(".article pre code").before(copyHtml);
+      var clipboard = new ClipboardJS('.btn-copy', {
+        target: function(trigger) {
+          return trigger.nextElementSibling;
+        }
+      });
+      clipboard.on('success', function(e) {
+        let $btn = $(e.trigger);
+        $btn.addClass('copied');
+        let $icon = $($btn.find('i'));
+        $icon.removeClass('ri-file-copy-2-line');
+        $icon.addClass('ri-checkbox-circle-line');
+        let $span = $($btn.find('span'));
+        $span[0].innerText = 'COPIED';
+        
+        wait(function () { // 等待两秒钟后恢复
+          $icon.removeClass('ri-checkbox-circle-line');
+          $icon.addClass('ri-file-copy-2-line');
+          $span[0].innerText = 'COPY';
+        }, 2000);
+      });
+      clipboard.on('error', function(e) {
+        e.clearSelection();
+        let $btn = $(e.trigger);
+        $btn.addClass('copy-failed');
+        let $icon = $($btn.find('i'));
+        $icon.removeClass('ri-file-copy-2-line');
+        $icon.addClass('ri-time-line');
+        let $span = $($btn.find('span'));
+        $span[0].innerText = 'COPY FAILED';
+        
+        wait(function () { // 等待两秒钟后恢复
+          $icon.removeClass('ri-time-line');
+          $icon.addClass('ri-file-copy-2-line');
+          $span[0].innerText = 'COPY';
+        }, 2000);
+      });
+    }
+    initCopyCode();
+  }(window, document);
+</script>
+
+
+<!-- CanvasBackground -->
+
+
+    
+  </div>
+</body>
+
+</html>

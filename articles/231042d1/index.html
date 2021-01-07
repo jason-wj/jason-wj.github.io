@@ -1,0 +1,702 @@
+<!DOCTYPE html>
+
+
+<html lang="zh-Hans">
+
+
+<head>
+  <meta charset="utf-8" />
+    
+  <meta name="description" content="谈天谈地，谈古谈今，一起谈谈我们的未来。" />
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
+  <title>
+    以太坊源码解读-第6.2讲-pow共识算法实现 |  Jason漫谈区块链
+  </title>
+  <meta name="generator" content="hexo-theme-ayer">
+  
+  <link rel="shortcut icon" href="/images/my_head-16x16-next.ico" />
+  
+  
+<link rel="stylesheet" href="/dist/main.css">
+
+  
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/Shen-Yu/cdn/css/remixicon.min.css">
+
+  
+<link rel="stylesheet" href="/css/custom.css">
+
+  
+  
+<script src="https://cdn.jsdelivr.net/npm/pace-js@1.0.2/pace.min.js"></script>
+
+  
+  
+
+  
+
+</head>
+
+</html>
+
+<body>
+  <div id="app">
+    
+      
+    <main class="content on">
+      <section class="outer">
+  <article
+  id="post-ethereum/src_analysis/以太坊源码解读-第6.2讲-pow共识算法实现"
+  class="article article-type-post"
+  itemscope
+  itemprop="blogPost"
+  data-scroll-reveal
+>
+  <div class="article-inner">
+    
+    <header class="article-header">
+       
+<h1 class="article-title sea-center" style="border-left:0" itemprop="name">
+  以太坊源码解读-第6.2讲-pow共识算法实现
+</h1>
+ 
+
+    </header>
+     
+    <div class="article-meta">
+      <a href="/articles/231042d1/" class="article-date">
+  <time datetime="2018-11-15T06:03:00.000Z" itemprop="datePublished">2018-11-15</time>
+</a> 
+  <div class="article-category">
+    <a class="article-category-link" href="/categories/%E4%BB%A5%E5%A4%AA%E5%9D%8A/">以太坊</a> / <a class="article-category-link" href="/categories/%E4%BB%A5%E5%A4%AA%E5%9D%8A/%E6%BA%90%E7%A0%81%E8%A7%A3%E8%AF%BB/">源码解读</a>
+  </div>
+  
+<div class="word_count">
+    <span class="post-time">
+        <span class="post-meta-item-icon">
+            <i class="ri-quill-pen-line"></i>
+            <span class="post-meta-item-text"> Word count:</span>
+            <span class="post-count">6.5k</span>
+        </span>
+    </span>
+
+    <span class="post-time">
+        &nbsp; | &nbsp;
+        <span class="post-meta-item-icon">
+            <i class="ri-book-open-line"></i>
+            <span class="post-meta-item-text"> Reading time≈</span>
+            <span class="post-count">27 min</span>
+        </span>
+    </span>
+</div>
+ 
+    </div>
+      
+    <div class="tocbot"></div>
+
+
+
+
+  
+    <div class="article-entry" itemprop="articleBody">
+       
+  <h2 id="前言"><a href="#前言" class="headerlink" title="前言"></a>前言</h2><p>这一部分，我们主要是来了解一下pow共识引擎的具体实现。<br>本文主要是梳理引擎主要方法的流程。</p>
+<a id="more"></a>
+<p>在<code>consensus模块-&gt;ethash-&gt;ethash.go</code>文件中，列出了pow共识具体实现的结构体<code>Ethash</code>。本文将着重介绍该结构体以及其对应实现的方法。其余问题，我们放在后续文章中讲解。</p>
+<h2 id="结构体Ethash"><a href="#结构体Ethash" class="headerlink" title="结构体Ethash"></a>结构体<code>Ethash</code></h2><p>先来看看这个结构体，它本身就是pow算法的具体描述：</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">//以下几种挖矿模式</span></span><br><span class="line"><span class="keyword">const</span> (</span><br><span class="line">	ModeNormal Mode = <span class="literal">iota</span></span><br><span class="line">	ModeShared    <span class="comment">//分享模式，避免缓存干扰</span></span><br><span class="line">	ModeTest      <span class="comment">//测试模式</span></span><br><span class="line">	ModeFake      <span class="comment">//伪模式？</span></span><br><span class="line">	ModeFullFake  <span class="comment">//完全伪模式，完全不验证块，提高速度</span></span><br><span class="line">)</span><br><span class="line"></span><br><span class="line"><span class="keyword">type</span> Config <span class="keyword">struct</span> &#123;</span><br><span class="line">	CacheDir       <span class="keyword">string</span></span><br><span class="line">	CachesInMem    <span class="keyword">int</span></span><br><span class="line">	CachesOnDisk   <span class="keyword">int</span></span><br><span class="line">	DatasetDir     <span class="keyword">string</span></span><br><span class="line">	DatasetsInMem  <span class="keyword">int</span></span><br><span class="line">	DatasetsOnDisk <span class="keyword">int</span></span><br><span class="line">	PowMode        Mode   <span class="comment">//从此处可以设置不同的挖矿模式</span></span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="keyword">type</span> Ethash <span class="keyword">struct</span> &#123;</span><br><span class="line">	config Config <span class="comment">//pow的一些基本配置，比如缓存路径、数据库路径等</span></span><br><span class="line"></span><br><span class="line">	caches   *lru <span class="comment">// 在内存中存放的缓存信息</span></span><br><span class="line">    datasets *lru <span class="comment">// 在内存中存放的数据库信息</span></span><br><span class="line">    </span><br><span class="line">	<span class="comment">// 挖矿相关</span></span><br><span class="line">	rand     *rand.Rand    <span class="comment">// nonces的随机种子</span></span><br><span class="line">	threads  <span class="keyword">int</span>           <span class="comment">// 有多少条线程在挖矿</span></span><br><span class="line">	update   <span class="keyword">chan</span> <span class="keyword">struct</span>&#123;&#125; <span class="comment">// 通知更新挖矿参数</span></span><br><span class="line">	hashrate metrics.Meter <span class="comment">// 跟踪hash相关的速率，应该是用来监控，保证难度恒定</span></span><br><span class="line"></span><br><span class="line">	<span class="comment">// Remote sealer related fields，之后的翻译，等我具体了解了细节再来解释</span></span><br><span class="line">	workCh       <span class="keyword">chan</span> *sealTask   <span class="comment">// Notification channel to push new work and relative result channel to remote sealer</span></span><br><span class="line">	fetchWorkCh  <span class="keyword">chan</span> *sealWork   <span class="comment">// Channel used for remote sealer to fetch mining work</span></span><br><span class="line">	submitWorkCh <span class="keyword">chan</span> *mineResult <span class="comment">// Channel used for remote sealer to submit their mining result</span></span><br><span class="line">	fetchRateCh  <span class="keyword">chan</span> <span class="keyword">chan</span> <span class="keyword">uint64</span> <span class="comment">// Channel used to gather submitted hash rate for local or remote sealer.</span></span><br><span class="line">	submitRateCh <span class="keyword">chan</span> *hashrate   <span class="comment">// Channel used for remote sealer to submit their mining hashrate</span></span><br><span class="line"></span><br><span class="line">	<span class="comment">// 以下都是测试时候使用到的参数</span></span><br><span class="line">	shared    *Ethash       <span class="comment">// Shared PoW verifier to avoid cache regeneration</span></span><br><span class="line">	fakeFail  <span class="keyword">uint64</span>        <span class="comment">// Block number which fails PoW check even in fake mode</span></span><br><span class="line">	fakeDelay time.Duration <span class="comment">// Time delay to sleep for before returning from verify</span></span><br><span class="line"></span><br><span class="line">	lock      sync.Mutex      <span class="comment">// Ensures thread safety for the in-memory caches and mining fields</span></span><br><span class="line">	closeOnce sync.Once       <span class="comment">// Ensures exit channel will not be closed twice.</span></span><br><span class="line">	exitCh    <span class="keyword">chan</span> <span class="keyword">chan</span> error <span class="comment">// Notification channel to exiting backend threads</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>由于要使用到大量的数据集，所以有两个指向lru的指针，一个指向db，一个指向内存。并且通过threads控制挖矿线程数。并在测试模式或fake模式下，简单快速处理，使之快速得到结果。</p>
+<h2 id="共识算法接口实现"><a href="#共识算法接口实现" class="headerlink" title="共识算法接口实现"></a>共识算法接口实现</h2><p>上一篇文章<a href="/articles/3673b530">以太坊源码解读-第6.1讲-共识模块入口设计</a>我们得知，共识算法是实现<code>Engine接口</code>中的方法。也就是说结构体<code>Ethash</code>要实现其中的每一个接口，又因为它是POW的具体实现，还得实现pow中另一个接口<code>Hashrate()</code>。<br>而具体的实现是在<code>consensus.go</code>文件中。<br>下面我们一个个来解释。</p>
+<h3 id="Author"><a href="#Author" class="headerlink" title="Author()"></a>Author()</h3><p>获取挖出当前块的矿工地址</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">func</span> <span class="params">(ethash *Ethash)</span> <span class="title">Author</span><span class="params">(header *types.Header)</span> <span class="params">(common.Address, error)</span></span> &#123;</span><br><span class="line">	<span class="keyword">return</span> header.Coinbase, <span class="literal">nil</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<h3 id="VerifyHeader"><a href="#VerifyHeader" class="headerlink" title="VerifyHeader()"></a>VerifyHeader()</h3><p>用于校验区块头部信息是否符合ethash共识引擎规则，</p>
+<h4 id="先总结校验流程"><a href="#先总结校验流程" class="headerlink" title="先总结校验流程"></a>先总结校验流程</h4><p>后续涉及到块批量校验，叔块的校验等，都是执行下面类似的步骤。<br>该方法校验流程（具体细节看下面代码解析，该流程只用作梳理）：</p>
+<ol>
+<li>校验是否为<code>ModeFullFake</code>模式，是则返回成功，否则继续。</li>
+<li>根据该块的块号和hash在链中判断，是否能找到该块，能则返回，否则继续</li>
+<li>根据该块的父块的hash和块号，检测能否在链中找到该父块，不能则返回错误，否则继续。（此时说明该块是一个新块）</li>
+<li>获取到父块后，进一步对该新块做更细的校验。<ol>
+<li>块头部额外数据(head.extra)的长度是否超过了最大限制长度（据了解extra表示可以让矿工加入有限字符，dao分叉后这个extra被占用了）</li>
+<li>判断该块是否为叔块（true、false）。<ol>
+<li>该块若是叔块，则判断时间戳是否超过了256位长度，是则返回异常否则继续</li>
+<li>该块若不是叔块，则判断该块时间戳是否超过当前时间（+15秒，可得知<code>每15秒左右出一个块</code>），若是则返回异常，否则继续</li>
+</ol>
+</li>
+<li>判断该块的时间戳是否比父块的时间戳大，不是则返回异常，否则继续</li>
+<li>根据该块和它父块难度计算预期的困难度，判断该预期困难度和该块中原先记录的困难度是否一致，不一致则返回异常，否则继续</li>
+<li>判断<code>gaslimit</code>是否大于<code>2^63-1</code>，若大约则返回异常，否则继续（此处可得知gaslimit的上限是2^63-1，相当于9.2个左右的eth）</li>
+<li>判断该块的<code>gasUsed</code>是否 &lt;= <code>gasLimit</code>，不是则返回异常，否则继续</li>
+<li>确保当前块gaslimit相对于父块的是在一个范围内。若不是在该范围内，则返回异常否则继续。（此处可知，<code>gaslimit不得小于5000</code>）</li>
+<li>子块number-父块number若不是1，则返回异常</li>
+<li>校验密封？的块是否符合要求（这块暂时不太理解，再埋一个坑，回头填，只知道这块是很重要的，也是调用了共识引擎的一个接口实现）</li>
+<li>如果所有检查通过，则验证硬分叉的特殊字段。</li>
+</ol>
+</li>
+</ol>
+<h4 id="具体代码分析"><a href="#具体代码分析" class="headerlink" title="具体代码分析"></a>具体代码分析</h4><figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">func</span> <span class="params">(ethash *Ethash)</span> <span class="title">VerifyHeader</span><span class="params">(chain consensus.ChainReader, header *types.Header, seal <span class="keyword">bool</span>)</span> <span class="title">error</span></span> &#123;</span><br><span class="line">	<span class="comment">// ModeFullFake模式，则不做任何验证</span></span><br><span class="line">	<span class="keyword">if</span> ethash.config.PowMode == ModeFullFake &#123;</span><br><span class="line">		<span class="keyword">return</span> <span class="literal">nil</span></span><br><span class="line">	&#125;</span><br><span class="line">    number := header.Number.Uint64()</span><br><span class="line">    <span class="comment">// 若根据块号和hash能在链中找到，则说明该块存在</span></span><br><span class="line">	<span class="keyword">if</span> chain.GetHeader(header.Hash(), number) != <span class="literal">nil</span> &#123;</span><br><span class="line">		<span class="keyword">return</span> <span class="literal">nil</span></span><br><span class="line">    &#125;</span><br><span class="line">    <span class="comment">// 此时该块还没有被加入到链中，新生成的块，从其中尝试获取其父块</span></span><br><span class="line">	parent := chain.GetHeader(header.ParentHash, number<span class="number">-1</span>)</span><br><span class="line">	<span class="keyword">if</span> parent == <span class="literal">nil</span> &#123;  <span class="comment">//拿不到父块，则返回异常</span></span><br><span class="line">		<span class="keyword">return</span> consensus.ErrUnknownAncestor</span><br><span class="line">	&#125;</span><br><span class="line">    <span class="comment">// 拿到父块后，对该块做进一步到验证，用来确保该块的正确性</span></span><br><span class="line">    <span class="comment">// false表示不是叔块</span></span><br><span class="line">	<span class="keyword">return</span> ethash.verifyHeader(chain, header, parent, <span class="literal">false</span>, seal)</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>上面代码，小编注释写的很详细了，主要就是验证块头部的正确性（其实就是验证块），前面代码都还好理解，在最后一行代码<code>ethash.verifyHeader(...)</code>（注意verifyHeader是首字母是小写，并不是共识通用引擎中的接口），从逻辑上我们可以看出，它是用来详细校验一个新生成的块，具体来看看它的实现：</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">func</span> <span class="params">(ethash *Ethash)</span> <span class="title">verifyHeader</span><span class="params">(chain consensus.ChainReader, header, parent *types.Header, uncle <span class="keyword">bool</span>, seal <span class="keyword">bool</span>)</span> <span class="title">error</span></span> &#123;</span><br><span class="line">	<span class="comment">// 头部额外的数据段长度合理，这个额外的数据段是什么，姑且放一放，最后再来补坑</span></span><br><span class="line">	<span class="keyword">if</span> <span class="keyword">uint64</span>(<span class="built_in">len</span>(header.Extra)) &gt; params.MaximumExtraDataSize &#123;</span><br><span class="line">		<span class="keyword">return</span> fmt.Errorf(<span class="string">&quot;extra-data too long: %d &gt; %d&quot;</span>, <span class="built_in">len</span>(header.Extra), params.MaximumExtraDataSize)</span><br><span class="line">	&#125;</span><br><span class="line">	<span class="comment">// 验证块头部的时间戳</span></span><br><span class="line">	<span class="keyword">if</span> uncle &#123; <span class="comment">//叔块</span></span><br><span class="line">		<span class="keyword">if</span> header.Time.Cmp(math.MaxBig256) &gt; <span class="number">0</span> &#123; <span class="comment">//以太坊可以被认为是256位机器，超过后，则异常</span></span><br><span class="line">			<span class="keyword">return</span> errLargeBlockTime</span><br><span class="line">		&#125;</span><br><span class="line">	&#125; <span class="keyword">else</span> &#123;</span><br><span class="line">		<span class="keyword">if</span> header.Time.Cmp(big.NewInt(time.Now().Add(allowedFutureBlockTime).Unix())) &gt; <span class="number">0</span> &#123;</span><br><span class="line">            <span class="comment">//该块的生产时间超过了当前时间（+15秒），说明该块异常</span></span><br><span class="line">            <span class="comment">//也说明出一个块15秒</span></span><br><span class="line">			<span class="keyword">return</span> consensus.ErrFutureBlock  </span><br><span class="line">		&#125;</span><br><span class="line">	&#125;</span><br><span class="line">	<span class="keyword">if</span> header.Time.Cmp(parent.Time) &lt;= <span class="number">0</span> &#123;</span><br><span class="line">		<span class="keyword">return</span> errZeroBlockTime <span class="comment">//当前块时间戳比它上一个块的时间戳小，则说明块异常</span></span><br><span class="line">	&#125;</span><br><span class="line">	<span class="comment">// 根据该块的时间戳以及它父块的难度，获取当前块预期的难度值，CalcDifficulty是共识通用引擎的接口实现，我们稍后会专门分析</span></span><br><span class="line">	expected := ethash.CalcDifficulty(chain, header.Time.Uint64(), parent)</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 该块预期难度值和该块head中记录的难度值如果不一样，则返回错误</span></span><br><span class="line">	<span class="keyword">if</span> expected.Cmp(header.Difficulty) != <span class="number">0</span> &#123;</span><br><span class="line">		<span class="keyword">return</span> fmt.Errorf(<span class="string">&quot;invalid difficulty: have %v, want %v&quot;</span>, header.Difficulty, expected)</span><br><span class="line">	&#125;</span><br><span class="line">	<span class="comment">// 判断该块的gaslimit上限是否超过2^63-1</span></span><br><span class="line">	<span class="built_in">cap</span> := <span class="keyword">uint64</span>(<span class="number">0x7fffffffffffffff</span>)</span><br><span class="line">	<span class="keyword">if</span> header.GasLimit &gt; <span class="built_in">cap</span> &#123;</span><br><span class="line">		<span class="keyword">return</span> fmt.Errorf(<span class="string">&quot;invalid gasLimit: have %v, max %v&quot;</span>, header.GasLimit, <span class="built_in">cap</span>)</span><br><span class="line">	&#125;</span><br><span class="line">	<span class="comment">// 判断该块的gasUsed是否 &lt;= gasLimit</span></span><br><span class="line">	<span class="keyword">if</span> header.GasUsed &gt; header.GasLimit &#123;</span><br><span class="line">		<span class="keyword">return</span> fmt.Errorf(<span class="string">&quot;invalid gasUsed: have %d, gasLimit %d&quot;</span>, header.GasUsed, header.GasLimit)</span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	<span class="comment">// 确保gas在允许范围内</span></span><br><span class="line">	diff := <span class="keyword">int64</span>(parent.GasLimit) - <span class="keyword">int64</span>(header.GasLimit)</span><br><span class="line">	<span class="keyword">if</span> diff &lt; <span class="number">0</span> &#123;   <span class="comment">//说明子块的gaslimit比父块的大，</span></span><br><span class="line">		diff *= <span class="number">-1</span>  <span class="comment">//保证差异值为正</span></span><br><span class="line">	&#125;</span><br><span class="line">	limit := parent.GasLimit / params.GasLimitBoundDivisor <span class="comment">//limit=父块gaslimit/1024</span></span><br><span class="line"></span><br><span class="line">    <span class="comment">//差异值过大，或者gaslimit比5000还要小，则返回</span></span><br><span class="line">	<span class="keyword">if</span> <span class="keyword">uint64</span>(diff) &gt;= limit || header.GasLimit &lt; params.MinGasLimit &#123;</span><br><span class="line">		<span class="keyword">return</span> fmt.Errorf(<span class="string">&quot;invalid gas limit: have %d, want %d += %d&quot;</span>, header.GasLimit, parent.GasLimit, limit)</span><br><span class="line">	&#125;</span><br><span class="line">	<span class="comment">// 子块number-父块number若不是1，则返回异常</span></span><br><span class="line">	<span class="keyword">if</span> diff := <span class="built_in">new</span>(big.Int).Sub(header.Number, parent.Number); diff.Cmp(big.NewInt(<span class="number">1</span>)) != <span class="number">0</span> &#123;</span><br><span class="line">		<span class="keyword">return</span> consensus.ErrInvalidNumber</span><br><span class="line">	&#125;</span><br><span class="line">	<span class="comment">// 校验密封？的块是否符合要求</span></span><br><span class="line">	<span class="keyword">if</span> seal &#123;</span><br><span class="line">		<span class="keyword">if</span> err := ethash.VerifySeal(chain, header); err != <span class="literal">nil</span> &#123;</span><br><span class="line">			<span class="keyword">return</span> err</span><br><span class="line">		&#125;</span><br><span class="line">	&#125;</span><br><span class="line">    <span class="comment">// 如果所有检查通过，则验证硬分叉的特殊字段。</span></span><br><span class="line">    <span class="comment">// misc上一篇文章小编也提到过，硬分叉相关，暂时不考虑，后续文章再专门分析</span></span><br><span class="line">	<span class="keyword">if</span> err := misc.VerifyDAOHeaderExtraData(chain.Config(), header); err != <span class="literal">nil</span> &#123;</span><br><span class="line">		<span class="keyword">return</span> err</span><br><span class="line">	&#125;</span><br><span class="line">	<span class="keyword">if</span> err := misc.VerifyForkHashes(chain.Config(), header, uncle); err != <span class="literal">nil</span> &#123;</span><br><span class="line">		<span class="keyword">return</span> err</span><br><span class="line">	&#125;</span><br><span class="line">	<span class="keyword">return</span> <span class="literal">nil</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>该头部校验的相关内容，到此就讲解完了，开头处也总结了一下整个校验流程，基本可以参考它实现整个校验过程。接着我们看下一个共识引擎接口。</p>
+<h3 id="CalcDifficulty"><a href="#CalcDifficulty" class="headerlink" title="CalcDifficulty()"></a>CalcDifficulty()</h3><p>用于计算<code>下一个块的难度</code>，以太坊分为不同的阶段（可参考：<a href="/articles/ba73f461">以太坊各阶段说明</a>），因此，这个难度计算针对不同的阶段会有不同的计算方式。<br>这个方法用于计算下一个块的难度，同时，从上面校验方法我们可知，该方法也用来校验块中的难度值是否一致。<br>可从以下代码看出：</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// 具体的实现需要一层层的探索</span></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="params">(ethash *Ethash)</span> <span class="title">CalcDifficulty</span><span class="params">(chain consensus.ChainReader, time <span class="keyword">uint64</span>, parent *types.Header)</span> *<span class="title">big</span>.<span class="title">Int</span></span> &#123;</span><br><span class="line">	<span class="keyword">return</span> CalcDifficulty(chain.Config(), time, parent)</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// 根据不同阶段来计算下一个块的难度</span></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">CalcDifficulty</span><span class="params">(config *params.ChainConfig, time <span class="keyword">uint64</span>, parent *types.Header)</span> *<span class="title">big</span>.<span class="title">Int</span></span> &#123;</span><br><span class="line">    next := <span class="built_in">new</span>(big.Int).Add(parent.Number, big1)</span><br><span class="line">    <span class="comment">//可以看到下面是不同阶段的</span></span><br><span class="line">	<span class="keyword">switch</span> &#123;</span><br><span class="line">	<span class="keyword">case</span> config.IsConstantinople(next): <span class="comment">//第三阶段的Metropolis（大都会）的vConstantinople（康斯坦丁堡阶段）</span></span><br><span class="line">		<span class="keyword">return</span> calcDifficultyConstantinople(time, parent)</span><br><span class="line">	<span class="keyword">case</span> config.IsByzantium(next): <span class="comment">//第三阶段的Metropolis（大都会）的vByzantium（拜占庭阶段）</span></span><br><span class="line">		<span class="keyword">return</span> calcDifficultyByzantium(time, parent)</span><br><span class="line">	<span class="keyword">case</span> config.IsHomestead(next): <span class="comment">//第二阶段Homestead（家园）</span></span><br><span class="line">		<span class="keyword">return</span> calcDifficultyHomestead(time, parent) </span><br><span class="line">	<span class="keyword">default</span>:</span><br><span class="line">		<span class="keyword">return</span> calcDifficultyFrontier(time, parent) <span class="comment">//第一阶段Frontier（前沿）</span></span><br><span class="line">	&#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>目前稳定版是在第三阶段的Metropolis（大都会）的vByzantium（拜占庭阶段），使用的纯pow共识算法。因此我们来具体看看这一阶段的难度值是如何计算的。</p>
+<h4 id="先总结计算流程"><a href="#先总结计算流程" class="headerlink" title="先总结计算流程"></a>先总结计算流程</h4><ol>
+<li>从第300万个块之后开始按照<code>拜占庭阶段</code>规则计算难度，</li>
+<li>叔块难度介入，使用对应公式实计算，返回计算结果（公式下面给出）。</li>
+<li>难度值始终不小于<code>131072</code>,创世块若不设置难度，默认也是这个大小。</li>
+</ol>
+<h4 id="具体代码分析-1"><a href="#具体代码分析-1" class="headerlink" title="具体代码分析"></a>具体代码分析</h4><p>第三阶段的Metropolis（大都会）的vByzantium（拜占庭阶段）的每个块的下一个块难度计算，进一步是从以下入口开始的：</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// 这个起源和规则可以参考：https://eips.ethereum.org/EIPS/eip-649</span></span><br><span class="line"><span class="comment">// 3000000表示从以太坊从第300万个块之后都使用这样一个难度计算方式</span></span><br><span class="line"><span class="comment">// 这个被称为难度炸弹。。。</span></span><br><span class="line">calcDifficultyByzantium = makeDifficultyCalculator(big.NewInt(<span class="number">3000000</span>))</span><br></pre></td></tr></table></figure>
+<p>看看具体计算的代码：</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// 看清楚代码，函数方法</span></span><br><span class="line"><span class="comment">// 这个过程叫做深水炸弹</span></span><br><span class="line"><span class="comment">// makeDifficultyCalculator返回的：是一个带有返回值的方法</span></span><br><span class="line"><span class="comment">// 方法参数bombDelay是块号，表示从哪个块开始</span></span><br><span class="line"><span class="comment">// 返回的方法中，第一个参数是块的时间戳，第二个是父块</span></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">makeDifficultyCalculator</span><span class="params">(bombDelay *big.Int)</span> <span class="title">func</span><span class="params">(time <span class="keyword">uint64</span>, parent *types.Header)</span> *<span class="title">big</span>.<span class="title">Int</span></span> &#123;</span><br><span class="line">	<span class="comment">// 要计算下一个块的难度，就需要先知道上一个块的编号</span></span><br><span class="line">	bombDelayFromParent := <span class="built_in">new</span>(big.Int).Sub(bombDelay, big1)</span><br><span class="line">	<span class="keyword">return</span> <span class="function"><span class="keyword">func</span><span class="params">(time <span class="keyword">uint64</span>, parent *types.Header)</span> *<span class="title">big</span>.<span class="title">Int</span></span> &#123;</span><br><span class="line">		<span class="comment">// 参考：https://github.com/ethereum/EIPs/issues/100.</span></span><br><span class="line">		...</span><br><span class="line">		...</span><br><span class="line">	&#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>计算的具体代码没有列出来，是按照这样一个计算公式实现该难度计算的：<br><code>diff = (parent_diff + (parent_diff / 2048 * max((2 if len(parent.uncles) else 1) - ((timestamp - parent.timestamp) / 9), -99)) ) + 2^(periodCount - 2)</code><br>公式中可得知，难度的计算加入了叔块。<br>为了更加清晰，公式整理如下：</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">block_diff = parent_diff + [难度调整] + [难度炸弹]</span><br><span class="line">[难度调整] = parent_diff / <span class="number">2048</span> * max((<span class="number">2</span> <span class="keyword">if</span> <span class="built_in">len</span>(parent.uncles) <span class="keyword">else</span> <span class="number">1</span>) - (block_timestamp - parent_timestamp) / <span class="number">9</span>, <span class="number">-99</span>))</span><br><span class="line">[难度炸弹] = INT(<span class="number">2</span>^((periodCount / <span class="number">100000</span>) - <span class="number">2</span>))</span><br><span class="line">备注：在<span class="number">300</span>w~<span class="number">310</span>w块之间，[难度炸弹]=<span class="number">0</span></span><br></pre></td></tr></table></figure>
+<h3 id="VerifyHeaders"><a href="#VerifyHeaders" class="headerlink" title="VerifyHeaders()"></a>VerifyHeaders()</h3><p>该方法和前面提到的<code>VerifyHeader</code>类似，只是这个是批量验证。<br>中间用到了大量的goroutine，看着代码量挺大的，其实蛮好理解的</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">func</span> <span class="params">(ethash *Ethash)</span> <span class="title">VerifyHeaders</span><span class="params">(chain consensus.ChainReader, headers []*types.Header, seals []<span class="keyword">bool</span>)</span> <span class="params">(<span class="keyword">chan</span>&lt;- <span class="keyword">struct</span>&#123;&#125;, &lt;-<span class="keyword">chan</span> error)</span></span> &#123;</span><br><span class="line">	... <span class="comment">// ModeFullFake，则什么也不处理，直接返回，此处代码略</span></span><br><span class="line"></span><br><span class="line">	<span class="comment">// 确保每个核都参与工作</span></span><br><span class="line">	workers := runtime.GOMAXPROCS(<span class="number">0</span>)  <span class="comment">//0，表示使用最大cpu数</span></span><br><span class="line">	<span class="keyword">if</span> <span class="built_in">len</span>(headers) &lt; workers &#123;</span><br><span class="line">		workers = <span class="built_in">len</span>(headers)</span><br><span class="line">	&#125;</span><br><span class="line">	<span class="comment">//定义一些必要的变量</span></span><br><span class="line">	<span class="keyword">var</span> (</span><br><span class="line">		inputs = <span class="built_in">make</span>(<span class="keyword">chan</span> <span class="keyword">int</span>)</span><br><span class="line">		done   = <span class="built_in">make</span>(<span class="keyword">chan</span> <span class="keyword">int</span>, workers)</span><br><span class="line">		errors = <span class="built_in">make</span>([]error, <span class="built_in">len</span>(headers))</span><br><span class="line">		abort  = <span class="built_in">make</span>(<span class="keyword">chan</span> <span class="keyword">struct</span>&#123;&#125;)</span><br><span class="line">	)</span><br><span class="line"></span><br><span class="line">	<span class="keyword">for</span> i := <span class="number">0</span>; i &lt; workers; i++ &#123;  <span class="comment">//所有worker全马力运转</span></span><br><span class="line">		<span class="keyword">go</span> <span class="function"><span class="keyword">func</span><span class="params">()</span></span> &#123; </span><br><span class="line">			<span class="keyword">for</span> index := <span class="keyword">range</span> inputs &#123; <span class="comment">//接收到传来的数字（最下面代码注释），然后开始执行</span></span><br><span class="line">				errors[index] = ethash.verifyHeaderWorker(chain, headers, seals, index)</span><br><span class="line">				done &lt;- index</span><br><span class="line">			&#125;</span><br><span class="line">		&#125;()</span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	errorsOut := <span class="built_in">make</span>(<span class="keyword">chan</span> error, <span class="built_in">len</span>(headers)) <span class="comment">//用于在select接收存储到的错误</span></span><br><span class="line">	...  <span class="comment">//此处是select，接收到chan信息后的处理逻辑，虽然代码有点长，但不复杂，在此就不列出了</span></span><br><span class="line">	     <span class="comment">//同时，此处也为input不停的传入数字1，2，3...，直到len(headers)</span></span><br><span class="line">	<span class="keyword">return</span> abort, errorsOut</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>上面这段代码有空的话，建议好好读读，写的蛮好的，通过goroutine和channel将整个过程做的清晰明了<br>可以看出，真正验证头部，是在<code>ethash.verifyHeaderWorker()</code>这个方法中执行的，其中主要是调用共识引擎的<code>verifyHeader()接口</code>实现的，这个前面已经讲过，在此就不详述了。</p>
+<h3 id="VerifyUncles"><a href="#VerifyUncles" class="headerlink" title="VerifyUncles()"></a>VerifyUncles()</h3><p>什么是叔块，直接看图：</p>
+<img src="/articles/231042d1/1.png" class="" title="叔块">
+<p>用来校验当前块的叔块，和校验块头部其实很类似，直接看代码：</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">func</span> <span class="params">(ethash *Ethash)</span> <span class="title">VerifyUncles</span><span class="params">(chain consensus.ChainReader, block *types.Block)</span> <span class="title">error</span></span> &#123;</span><br><span class="line">	<span class="comment">// ModeFullFake，不执行</span></span><br><span class="line">	<span class="keyword">if</span> ethash.config.PowMode == ModeFullFake &#123;</span><br><span class="line">		<span class="keyword">return</span> <span class="literal">nil</span></span><br><span class="line">	&#125;</span><br><span class="line">	<span class="comment">// 目前一个块最多可以有两个叔块</span></span><br><span class="line">	<span class="keyword">if</span> <span class="built_in">len</span>(block.Uncles()) &gt; maxUncles &#123;</span><br><span class="line">		<span class="keyword">return</span> errTooManyUncles</span><br><span class="line">	&#125;</span><br><span class="line">	<span class="comment">// 汇总叔块和祖先,祖先是指当前块的前8个块</span></span><br><span class="line">	<span class="comment">// ancestors 存放祖先块的hash</span></span><br><span class="line">	<span class="comment">// uncles 存放每个主块的uncles块的hash</span></span><br><span class="line">	uncles, ancestors := mapset.NewSet(), <span class="built_in">make</span>(<span class="keyword">map</span>[common.Hash]*types.Header)</span><br><span class="line"></span><br><span class="line">	number, parent := block.NumberU64()<span class="number">-1</span>, block.ParentHash() <span class="comment">//父块块号和hash</span></span><br><span class="line">	<span class="keyword">for</span> i := <span class="number">0</span>; i &lt; <span class="number">7</span>; i++ &#123;  <span class="comment">//这一坨，一目了然</span></span><br><span class="line">		ancestor := chain.GetBlock(parent, number)</span><br><span class="line">		<span class="keyword">if</span> ancestor == <span class="literal">nil</span> &#123;</span><br><span class="line">			<span class="keyword">break</span></span><br><span class="line">		&#125;</span><br><span class="line">		ancestors[ancestor.Hash()] = ancestor.Header()</span><br><span class="line">		<span class="keyword">for</span> _, uncle := <span class="keyword">range</span> ancestor.Uncles() &#123;</span><br><span class="line">			uncles.Add(uncle.Hash())</span><br><span class="line">		&#125;</span><br><span class="line">		parent, number = ancestor.ParentHash(), number<span class="number">-1</span></span><br><span class="line">	&#125;</span><br><span class="line">	ancestors[block.Hash()] = block.Header()  <span class="comment">//祖先中总共8个</span></span><br><span class="line">	uncles.Add(block.Hash())  <span class="comment">//这个貌似有点怪，但不影响，uncles主要就是用来保证hash不重复的</span></span><br><span class="line"></span><br><span class="line">	<span class="comment">// 把当前块的叔块hash也加入到uncles中做重复过滤</span></span><br><span class="line">	<span class="comment">// 使用verifyHeader来进一步校验块</span></span><br><span class="line">	<span class="keyword">for</span> _, uncle := <span class="keyword">range</span> block.Uncles() &#123;</span><br><span class="line">		<span class="comment">//hash重复性检测</span></span><br><span class="line">		hash := uncle.Hash()</span><br><span class="line">		<span class="keyword">if</span> uncles.Contains(hash) &#123;</span><br><span class="line">			<span class="keyword">return</span> errDuplicateUncle</span><br><span class="line">		&#125;</span><br><span class="line">		uncles.Add(hash)</span><br><span class="line"></span><br><span class="line">		<span class="comment">// 检测有效性</span></span><br><span class="line">		<span class="keyword">if</span> ancestors[hash] != <span class="literal">nil</span> &#123;</span><br><span class="line">			<span class="keyword">return</span> errUncleIsAncestor</span><br><span class="line">		&#125;</span><br><span class="line">		<span class="comment">//叔块应该指向当前块的父块的父块</span></span><br><span class="line">		<span class="keyword">if</span> ancestors[uncle.ParentHash] == <span class="literal">nil</span> || uncle.ParentHash == block.ParentHash() &#123;</span><br><span class="line">			<span class="keyword">return</span> errDanglingUncle</span><br><span class="line">		&#125;</span><br><span class="line">		<span class="comment">// 这个方法前面讲过，详细检测块</span></span><br><span class="line">		<span class="keyword">if</span> err := ethash.verifyHeader(chain, uncle, ancestors[uncle.ParentHash], <span class="literal">true</span>, <span class="literal">true</span>); err != <span class="literal">nil</span> &#123;</span><br><span class="line">			<span class="keyword">return</span> err</span><br><span class="line">		&#125;</span><br><span class="line">	&#125;</span><br><span class="line">	<span class="keyword">return</span> <span class="literal">nil</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<h4 id="重要总结"><a href="#重要总结" class="headerlink" title="重要总结"></a>重要总结</h4><p>这块我们可以得知以下几个重要信息：</p>
+<ol>
+<li><code>当前块的父块的父块</code>是<code>当前块叔块的父块</code></li>
+<li>一个块有两个叔块</li>
+<li>将该块的前8个块及其叔块信息分别汇总，是为了更好的确保当前块叔块的正确性，防止有重复等问题，确保叔块和正常块不会交叉混淆，这也是避免有人恶意操作吧。</li>
+</ol>
+<h3 id="Prepare"><a href="#Prepare" class="headerlink" title="Prepare()"></a>Prepare()</h3><p>在pow算法中，这个接口主要是用来填充块头部中的难度值的，目前并没有别的作用。<br>难度的计算前面已经讲解过了。</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">func</span> <span class="params">(ethash *Ethash)</span> <span class="title">Prepare</span><span class="params">(chain consensus.ChainReader, header *types.Header)</span> <span class="title">error</span></span> &#123;</span><br><span class="line">	parent := chain.GetHeader(header.ParentHash, header.Number.Uint64()<span class="number">-1</span>)</span><br><span class="line">	<span class="keyword">if</span> parent == <span class="literal">nil</span> &#123;</span><br><span class="line">		<span class="keyword">return</span> consensus.ErrUnknownAncestor</span><br><span class="line">	&#125;</span><br><span class="line">	header.Difficulty = ethash.CalcDifficulty(chain, header.Time.Uint64(), parent) <span class="comment">//计算并填充难度</span></span><br><span class="line">	<span class="keyword">return</span> <span class="literal">nil</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<h3 id="Finalize"><a href="#Finalize" class="headerlink" title="Finalize()"></a>Finalize()</h3><p>非常重要的一个方法，对确认的块进行奖励，通俗的讲，就是分配奖励给<code>区块账户</code>和<code>叔块账户</code>。<br>需要注意的是，两个<code>叔块</code>是被一个<code>区块</code>引用的，也就是说，该方法最终会把这个区块记录在db中，从而生成一个新的区块。<br>这里会涉及到很多经济哲理问题，需要自己来意会，来看代码：</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">func</span> <span class="params">(ethash *Ethash)</span> <span class="title">Finalize</span><span class="params">(chain consensus.ChainReader, header *types.Header, state *state.StateDB, txs []*types.Transaction, uncles []*types.Header, receipts []*types.Receipt)</span> <span class="params">(*types.Block, error)</span></span> &#123;</span><br><span class="line">	<span class="comment">// 区块账户和叔块账户的奖励规则</span></span><br><span class="line">	accumulateRewards(chain.Config(), state, header, uncles)</span><br><span class="line">	<span class="comment">// 根据保存的db state生成该块的root hash，然后记录在db中，这就是该区块的hash</span></span><br><span class="line">	<span class="comment">// EIP158硬分叉，参考：//https://github.com/ethereum/EIPs/issues/158</span></span><br><span class="line">	header.Root = state.IntermediateRoot(chain.Config().IsEIP158(header.Number))</span><br><span class="line"></span><br><span class="line">	<span class="comment">// 返回该新块</span></span><br><span class="line">	<span class="keyword">return</span> types.NewBlock(header, txs, uncles, receipts), <span class="literal">nil</span></span><br><span class="line">&#125;</span><br><span class="line"><span class="comment">// 具体的奖励实现</span></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">accumulateRewards</span><span class="params">(config *params.ChainConfig, state *state.StateDB, header *types.Header, uncles []*types.Header)</span></span> &#123;</span><br><span class="line">	blockReward := FrontierBlockReward  <span class="comment">// 基本奖励，5个eth奖励</span></span><br><span class="line">	<span class="keyword">if</span> config.IsByzantium(header.Number) &#123;  <span class="comment">//拜占庭阶段，3个eth奖励</span></span><br><span class="line">		blockReward = ByzantiumBlockReward</span><br><span class="line">	&#125;</span><br><span class="line">	<span class="keyword">if</span> config.IsConstantinople(header.Number) &#123; <span class="comment">//康斯坦丁堡阶段，2个eth奖励</span></span><br><span class="line">		blockReward = ConstantinopleBlockReward</span><br><span class="line">	&#125;</span><br><span class="line">	<span class="comment">// 叔块的奖励逻辑</span></span><br><span class="line">	reward := <span class="built_in">new</span>(big.Int).Set(blockReward)</span><br><span class="line">	r := <span class="built_in">new</span>(big.Int)</span><br><span class="line">	<span class="keyword">for</span> _, uncle := <span class="keyword">range</span> uncles &#123;</span><br><span class="line">		<span class="comment">//公式：((uncle.Number+8)-heater.Number)*blockReward/8</span></span><br><span class="line">		<span class="comment">//可以看出，叔块块号越大，叔块的奖励越大</span></span><br><span class="line">		r.Add(uncle.Number, big8)</span><br><span class="line">		r.Sub(r, header.Number)</span><br><span class="line">		r.Mul(r, blockReward)</span><br><span class="line">		r.Div(r, big8)</span><br><span class="line">		state.AddBalance(uncle.Coinbase, r) <span class="comment">//叔块添加到db</span></span><br><span class="line"></span><br><span class="line">		<span class="comment">//从这里看出，每个区块中，每添加一个叔块，就会增加额外的1/32的奖励</span></span><br><span class="line">		r.Div(blockReward, big32)</span><br><span class="line">		reward.Add(reward, r)</span><br><span class="line">	&#125;</span><br><span class="line">	state.AddBalance(header.Coinbase, reward) <span class="comment">//区块账户，奖励加入db</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<h4 id="总结一下"><a href="#总结一下" class="headerlink" title="总结一下"></a>总结一下</h4><ol>
+<li>当前<code>康斯坦丁堡阶段</code>，一个块默认会给3个eth的奖励，</li>
+<li>该块每添加一个叔块，额外给予默认奖励1/32的奖励（一个块最多两个叔块）</li>
+<li>奖励结束后，就会被永久记录在链中</li>
+</ol>
+<h3 id="SealHash"><a href="#SealHash" class="headerlink" title="SealHash()"></a>SealHash()</h3><p>该方法是返回被seal前的一个块头部的hash值，Seal到底是要干嘛，还不清楚，但不影响看这个方法细节，直接上代码：</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">func</span> <span class="params">(ethash *Ethash)</span> <span class="title">SealHash</span><span class="params">(header *types.Header)</span> <span class="params">(hash common.Hash)</span></span> &#123;</span><br><span class="line">	hasher := sha3.NewKeccak256()</span><br><span class="line"></span><br><span class="line">	rlp.Encode(hasher, []<span class="keyword">interface</span>&#123;&#125;&#123;</span><br><span class="line">		header.ParentHash,</span><br><span class="line">		header.UncleHash,</span><br><span class="line">		header.Coinbase,</span><br><span class="line">		header.Root,</span><br><span class="line">		header.TxHash,</span><br><span class="line">		header.ReceiptHash,</span><br><span class="line">		header.Bloom,</span><br><span class="line">		header.Difficulty,</span><br><span class="line">		header.Number,</span><br><span class="line">		header.GasLimit,</span><br><span class="line">		header.GasUsed,</span><br><span class="line">		header.Time,</span><br><span class="line">		header.Extra,</span><br><span class="line">	&#125;)</span><br><span class="line">	hasher.Sum(hash[:<span class="number">0</span>])</span><br><span class="line">	<span class="keyword">return</span> hash</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>这明显是把一个块头部先rlp序列化，然后再生成一个hash，貌似目的是要生成一个块头部的hash,生成以后，这个块也就被确定了</p>
+<h3 id="VerifySeal"><a href="#VerifySeal" class="headerlink" title="VerifySeal()"></a>VerifySeal()</h3><p>VerifySeal()函数基于跟Seal()完全一样的算法原理，通过验证区块的某些属性(Header.Nonce，Header.MixDigest等)是否正确，来确定该区块是否已经经过Seal操作。<br>会涉及到使用缓存来验证块的合法性或者使用dag来验证，使用dag是为了使得验证更快一些。<br>看代码：</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">func</span> <span class="params">(ethash *Ethash)</span> <span class="title">VerifySeal</span><span class="params">(chain consensus.ChainReader, header *types.Header)</span> <span class="title">error</span></span> &#123;</span><br><span class="line">	<span class="keyword">return</span> ethash.verifySeal(chain, header, <span class="literal">false</span>)</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>直接返回的子方法<code>verifySeal</code>来处理，那就进去看看这个方法，看里面的注释：</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">//关于fulldag，true表示使用DAG，false使用传统的缓存机制</span></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="params">(ethash *Ethash)</span> <span class="title">verifySeal</span><span class="params">(chain consensus.ChainReader, header *types.Header, fulldag <span class="keyword">bool</span>)</span> <span class="title">error</span></span> &#123;</span><br><span class="line">	<span class="comment">// Fake模式，最简化处理，伪验证</span></span><br><span class="line">	<span class="keyword">if</span> ethash.config.PowMode == ModeFake || ethash.config.PowMode == ModeFullFake &#123;</span><br><span class="line">		time.Sleep(ethash.fakeDelay)</span><br><span class="line">		<span class="keyword">if</span> ethash.fakeFail == header.Number.Uint64() &#123;</span><br><span class="line">			<span class="keyword">return</span> errInvalidPoW</span><br><span class="line">		&#125;</span><br><span class="line">		<span class="keyword">return</span> <span class="literal">nil</span></span><br><span class="line">	&#125;</span><br><span class="line">	<span class="comment">// shanred模式的处理，这个暂时不考虑</span></span><br><span class="line">	<span class="keyword">if</span> ethash.shared != <span class="literal">nil</span> &#123;</span><br><span class="line">		<span class="keyword">return</span> ethash.shared.verifySeal(chain, header, fulldag)</span><br><span class="line">	&#125;</span><br><span class="line">	<span class="comment">// 确保难度值大于0</span></span><br><span class="line">	<span class="keyword">if</span> header.Difficulty.Sign() &lt;= <span class="number">0</span> &#123;</span><br><span class="line">		<span class="keyword">return</span> errInvalidDifficulty</span><br><span class="line">	&#125;</span><br><span class="line">	<span class="comment">// 当前块号</span></span><br><span class="line">	number := header.Number.Uint64()</span><br><span class="line"></span><br><span class="line">	<span class="keyword">var</span> (</span><br><span class="line">		digest []<span class="keyword">byte</span></span><br><span class="line">		result []<span class="keyword">byte</span></span><br><span class="line">	)</span><br><span class="line">	<span class="comment">//</span></span><br><span class="line">	<span class="keyword">if</span> fulldag &#123; <span class="comment">//使用DAG,结合db,生成数据集</span></span><br><span class="line">		dataset := ethash.dataset(number, <span class="literal">true</span>)</span><br><span class="line">		<span class="keyword">if</span> dataset.generated() &#123;</span><br><span class="line">			digest, result = hashimotoFull(dataset.dataset, ethash.SealHash(header).Bytes(), header.Nonce.Uint64())</span><br><span class="line"></span><br><span class="line">			<span class="comment">// 数据集finalizer中未映射。 确保数据集保持活动状态，直到调用hashimotoFull为止，因此在使用时不会取消映射。</span></span><br><span class="line">			runtime.KeepAlive(dataset)</span><br><span class="line">		&#125; <span class="keyword">else</span> &#123; <span class="comment">//使用缓存</span></span><br><span class="line">			fulldag = <span class="literal">false</span></span><br><span class="line">		&#125;</span><br><span class="line">	&#125;</span><br><span class="line">	<span class="comment">// 如果使用普通验证或者是DAG还没准备好，则执行其中内容</span></span><br><span class="line">	<span class="keyword">if</span> !fulldag &#123;</span><br><span class="line">		cache := ethash.cache(number)</span><br><span class="line"></span><br><span class="line">		size := datasetSize(number)</span><br><span class="line">		<span class="keyword">if</span> ethash.config.PowMode == ModeTest &#123;</span><br><span class="line">			size = <span class="number">32</span> * <span class="number">1024</span> <span class="comment">//测试环境指定固定大小</span></span><br><span class="line">		&#125;</span><br><span class="line">		<span class="comment">//调用hash计算算法，这就是hash碰撞的核心地方，参考：https://blog.csdn.net/ddffr/article/details/78773961</span></span><br><span class="line">		digest, result = hashimotoLight(size, cache.cache, ethash.SealHash(header).Bytes(), header.Nonce.Uint64())</span><br><span class="line"></span><br><span class="line">		<span class="comment">//缓存在finalizer中未映射。 确保缓存在调用hashimotoLight之前保持活动状态，因此在使用时不会取消映射。</span></span><br><span class="line">		runtime.KeepAlive(cache)</span><br><span class="line">	&#125;</span><br><span class="line">	<span class="comment">// 验证计算结果是否满足</span></span><br><span class="line">	<span class="keyword">if</span> !bytes.Equal(header.MixDigest[:], digest) &#123;</span><br><span class="line">		<span class="keyword">return</span> errInvalidMixDigest</span><br><span class="line">	&#125;</span><br><span class="line">	target := <span class="built_in">new</span>(big.Int).Div(two256, header.Difficulty)</span><br><span class="line">	<span class="keyword">if</span> <span class="built_in">new</span>(big.Int).SetBytes(result).Cmp(target) &gt; <span class="number">0</span> &#123;</span><br><span class="line">		<span class="keyword">return</span> errInvalidPoW</span><br><span class="line">	&#125;</span><br><span class="line">	<span class="keyword">return</span> <span class="literal">nil</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>里面会涉及到很复杂的hash计算方式，本文只是大体梳理一下整体的运行情况，只是针对引擎接口的实现来描述，其中涉及到的其余ethash方法后续再描述。</p>
+<h3 id="Seal"><a href="#Seal" class="headerlink" title="Seal()"></a>Seal()</h3><p>它实现了工作量证明，Seal函数尝试找出一个满足区块难度的nonce值。<br>人们常说的挖矿，其实就是调用的它，找到满足条件的块，它就是整个挖矿过程的核心。<br>这个方法涉及的比较复杂，是另外在文件<code>sealer.go</code>中实现的。<br>这个方法看似长，其实就是利用goroutine接受和传递，</p>
+<figure class="highlight golang"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">func</span> <span class="params">(ethash *Ethash)</span> <span class="title">Seal</span><span class="params">(chain consensus.ChainReader, block *types.Block, results <span class="keyword">chan</span>&lt;- *types.Block, stop &lt;-<span class="keyword">chan</span> <span class="keyword">struct</span>&#123;&#125;)</span> <span class="title">error</span></span> &#123;</span><br><span class="line">	<span class="comment">//fack模式则忽略挖矿</span></span><br><span class="line">	...</span><br><span class="line">	<span class="comment">// shared模式处理方式，暂时没研究这个模式是干嘛的，不影响</span></span><br><span class="line">	...</span><br><span class="line">	<span class="comment">// 标准模式</span></span><br><span class="line">	abort := <span class="built_in">make</span>(<span class="keyword">chan</span> <span class="keyword">struct</span>&#123;&#125;)</span><br><span class="line"></span><br><span class="line">	ethash.lock.Lock()</span><br><span class="line">	threads := ethash.threads  <span class="comment">//这就是有多少个矿工在挖矿</span></span><br><span class="line">	<span class="keyword">if</span> ethash.rand == <span class="literal">nil</span> &#123;</span><br><span class="line">		seed, err := crand.Int(crand.Reader, big.NewInt(math.MaxInt64))</span><br><span class="line">		<span class="keyword">if</span> err != <span class="literal">nil</span> &#123;</span><br><span class="line">			ethash.lock.Unlock()</span><br><span class="line">			<span class="keyword">return</span> err</span><br><span class="line">		&#125;</span><br><span class="line">		ethash.rand = rand.New(rand.NewSource(seed.Int64())) <span class="comment">//得到一个随机数</span></span><br><span class="line">	&#125;</span><br><span class="line">	ethash.lock.Unlock()</span><br><span class="line">	<span class="keyword">if</span> threads == <span class="number">0</span> &#123;</span><br><span class="line">		threads = runtime.NumCPU() <span class="comment">//若没有设置矿工数，则使用cpu数</span></span><br><span class="line">	&#125;</span><br><span class="line">	<span class="keyword">if</span> threads &lt; <span class="number">0</span> &#123;</span><br><span class="line">		threads = <span class="number">0</span> <span class="comment">// 本地挖矿将被阻止</span></span><br><span class="line">	&#125;</span><br><span class="line">	<span class="comment">// 将任务推向远程</span></span><br><span class="line">	<span class="keyword">if</span> ethash.workCh != <span class="literal">nil</span> &#123;</span><br><span class="line">		ethash.workCh &lt;- &amp;sealTask&#123;block: block, results: results&#125;</span><br><span class="line">	&#125;</span><br><span class="line">	<span class="keyword">var</span> (</span><br><span class="line">		pend   sync.WaitGroup <span class="comment">//类似栅栏模式，线程等待</span></span><br><span class="line">		locals = <span class="built_in">make</span>(<span class="keyword">chan</span> *types.Block)</span><br><span class="line">	)</span><br><span class="line">	<span class="keyword">for</span> i := <span class="number">0</span>; i &lt; threads; i++ &#123;</span><br><span class="line">		pend.Add(<span class="number">1</span>)</span><br><span class="line">		<span class="keyword">go</span> <span class="function"><span class="keyword">func</span><span class="params">(id <span class="keyword">int</span>, nonce <span class="keyword">uint64</span>)</span></span> &#123;</span><br><span class="line">			<span class="keyword">defer</span> pend.Done()</span><br><span class="line">			ethash.mine(block, id, nonce, abort, locals) <span class="comment">//开始挖矿，进入hash碰撞模式</span></span><br><span class="line">		&#125;(i, <span class="keyword">uint64</span>(ethash.rand.Int63()))</span><br><span class="line">	&#125;</span><br><span class="line">	<span class="comment">// 获取挖矿返回的结果，select接收，挖矿停止，或者找到合适的nonce</span></span><br><span class="line">	<span class="keyword">go</span> <span class="function"><span class="keyword">func</span><span class="params">()</span></span> &#123;</span><br><span class="line">		<span class="keyword">var</span> result *types.Block</span><br><span class="line">		<span class="keyword">select</span> &#123;</span><br><span class="line">		<span class="keyword">case</span> &lt;-stop:</span><br><span class="line">			<span class="built_in">close</span>(abort) <span class="comment">//关闭所有的channel</span></span><br><span class="line">		<span class="keyword">case</span> result = &lt;-locals:</span><br><span class="line">			<span class="comment">// 只要有一个矿工挖到合适的块，则停止其余所有。</span></span><br><span class="line">			<span class="keyword">select</span> &#123;</span><br><span class="line">			<span class="keyword">case</span> results &lt;- result:</span><br><span class="line">			<span class="keyword">default</span>:</span><br><span class="line">				log.Warn(<span class="string">&quot;Sealing result is not read by miner&quot;</span>, <span class="string">&quot;mode&quot;</span>, <span class="string">&quot;local&quot;</span>, <span class="string">&quot;sealhash&quot;</span>, ethash.SealHash(block.Header()))</span><br><span class="line">			&#125;</span><br><span class="line">			<span class="built_in">close</span>(abort)</span><br><span class="line">		<span class="keyword">case</span> &lt;-ethash.update:</span><br><span class="line">			<span class="comment">// 用户若更新了矿工数（新增或者减少），则停止所有矿工，然后重新挖</span></span><br><span class="line">			<span class="built_in">close</span>(abort)</span><br><span class="line">			<span class="keyword">if</span> err := ethash.Seal(chain, block, results, stop); err != <span class="literal">nil</span> &#123;</span><br><span class="line">				log.Error(<span class="string">&quot;Failed to restart sealing after update&quot;</span>, <span class="string">&quot;err&quot;</span>, err)</span><br><span class="line">			&#125;</span><br><span class="line">		&#125;</span><br><span class="line">		<span class="comment">// 等待所有矿工结束</span></span><br><span class="line">		pend.Wait()</span><br><span class="line">	&#125;()</span><br><span class="line">	<span class="keyword">return</span> <span class="literal">nil</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>这段代码解释了挖矿前的操作以及挖完矿后的接收方式，其中我们发现挖矿的细节是在<code>mine()</code>方法中，这个是ethash的方法之一，这个方法细节会在新的文章中讲解。在此只是了解整个流程。多个线程的开启就是多个groutine开启的过程。</p>
+<h3 id="Apis"><a href="#Apis" class="headerlink" title="Apis()"></a>Apis()</h3><p>这个就是对外提供RPC接口服务，</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">func</span> <span class="params">(ethash *Ethash)</span> <span class="title">APIs</span><span class="params">(chain consensus.ChainReader)</span> []<span class="title">rpc</span>.<span class="title">API</span></span> &#123;</span><br><span class="line">	<span class="comment">//为了和旧版本的兼容，加入两个命名空间，都一样</span></span><br><span class="line">	<span class="keyword">return</span> []rpc.API&#123;</span><br><span class="line">		&#123;</span><br><span class="line">			Namespace: <span class="string">&quot;eth&quot;</span>,</span><br><span class="line">			Version:   <span class="string">&quot;1.0&quot;</span>,</span><br><span class="line">			Service:   &amp;API&#123;ethash&#125;,</span><br><span class="line">			Public:    <span class="literal">true</span>,</span><br><span class="line">		&#125;,</span><br><span class="line">		&#123;</span><br><span class="line">			Namespace: <span class="string">&quot;ethash&quot;</span>,</span><br><span class="line">			Version:   <span class="string">&quot;1.0&quot;</span>,</span><br><span class="line">			Service:   &amp;API&#123;ethash&#125;,</span><br><span class="line">			Public:    <span class="literal">true</span>,</span><br><span class="line">		&#125;,</span><br><span class="line">	&#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<h3 id="Hashrate"><a href="#Hashrate" class="headerlink" title="Hashrate()"></a>Hashrate()</h3><p>这个是pow算法专有的接口，并不是共识算法引擎的，用于获取当前节点的算力。</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">func</span> <span class="params">(ethash *Ethash)</span> <span class="title">Hashrate</span><span class="params">()</span> <span class="title">float64</span></span> &#123;</span><br><span class="line">	<span class="comment">// fake模式使用</span></span><br><span class="line">	<span class="keyword">if</span> ethash.config.PowMode != ModeNormal &amp;&amp; ethash.config.PowMode != ModeTest &#123;</span><br><span class="line">		<span class="keyword">return</span> ethash.hashrate.Rate1()</span><br><span class="line">	&#125;</span><br><span class="line">	<span class="keyword">var</span> res = <span class="built_in">make</span>(<span class="keyword">chan</span> <span class="keyword">uint64</span>, <span class="number">1</span>)</span><br><span class="line"></span><br><span class="line">	<span class="keyword">select</span> &#123;</span><br><span class="line">	<span class="comment">// fetchRateCh本身是一个chan chan uint64类型</span></span><br><span class="line">	<span class="comment">//此处说明：本地或远程挖矿的算力会记录到ethash.fetchRateCh，然后它会将结果写入到res中，&lt;-res即可取出结果</span></span><br><span class="line">	<span class="keyword">case</span> ethash.fetchRateCh &lt;- res:  <span class="comment">//用来收集本地或者远程的算力</span></span><br><span class="line">	<span class="keyword">case</span> &lt;-ethash.exitCh:</span><br><span class="line">		<span class="keyword">return</span> ethash.hashrate.Rate1()</span><br><span class="line">	&#125;</span><br><span class="line">	<span class="comment">//返回整个算力</span></span><br><span class="line">	<span class="keyword">return</span> ethash.hashrate.Rate1() + <span class="keyword">float64</span>(&lt;-res)</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>具体获取方式还是看上面注释吧，使用了select和channel，若不结合上下文，很难立马想通代码如何实现的。<br>这个方法只是对蒜粒结果的展示处理，真正的处理过程大体是在<code>sealer.go</code>文件中的<code>mine()</code>方法中，每计算一次，算力+1，具体实现小编后续再专门解释。</p>
+<h3 id="Close"><a href="#Close" class="headerlink" title="Close()"></a>Close()</h3><p>这个相当于是关闭整个挖矿线程，</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">func</span> <span class="params">(ethash *Ethash)</span> <span class="title">Close</span><span class="params">()</span> <span class="title">error</span></span> &#123;</span><br><span class="line">	<span class="keyword">var</span> err error</span><br><span class="line">	ethash.closeOnce.Do(<span class="function"><span class="keyword">func</span><span class="params">()</span></span> &#123; <span class="comment">//只会触发执行一次</span></span><br><span class="line">		<span class="keyword">if</span> ethash.exitCh == <span class="literal">nil</span> &#123;</span><br><span class="line">			<span class="keyword">return</span></span><br><span class="line">		&#125;</span><br><span class="line">		errc := <span class="built_in">make</span>(<span class="keyword">chan</span> error)</span><br><span class="line">		ethash.exitCh &lt;- errc</span><br><span class="line">		err = &lt;-errc</span><br><span class="line">		<span class="built_in">close</span>(ethash.exitCh)</span><br><span class="line">	&#125;)</span><br><span class="line">	<span class="keyword">return</span> err</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<h2 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h2><p>方法调用本身是代码逻辑，我们更多要考虑的是以太坊的设计逻辑，比如为什么要这样做，为什么不那样做，了解设计逻辑，才能真正了解以太坊的精华。<br>代码中涉及到了大量的channel、goroutine、select的使用，它让我们体验了golang本身的魄力，也体会到了以太坊开发人员强大的实力。<br>因为时间和精力，今天刚解析完以太坊pow实现共识引擎的整体逻辑，当然<code>Ethash</code>绝不仅仅只靠这几个接口方法就完成了整个共识过程，从上述代码解析中，也发现了<code>Ethash</code>新的一些方法，这些方法是<code>Ethash</code>本身独有的，而很多具体细节的实现也是在这些方法中，小编之后准备研究下<code>Ethash</code>剩余的方法。<br>尽情期待。</p>
+ 
+      <!-- reward -->
+      
+    </div>
+    
+
+    <!-- copyright -->
+    
+    <div class="declare">
+      <ul class="post-copyright">
+        <li>
+          <i class="ri-copyright-line"></i>
+          <strong>Copyright： </strong>
+          
+          Copyright is owned by the author. For commercial reprints, please contact the author for authorization. For non-commercial reprints, please indicate the source.
+          
+        </li>
+      </ul>
+    </div>
+    
+    <footer class="article-footer">
+       
+<div class="share-btn">
+      <span class="share-sns share-outer">
+        <i class="ri-share-forward-line"></i>
+        分享
+      </span>
+      <div class="share-wrap">
+        <i class="arrow"></i>
+        <div class="share-icons">
+          
+          <a class="weibo share-sns" href="javascript:;" data-type="weibo">
+            <i class="ri-weibo-fill"></i>
+          </a>
+          <a class="weixin share-sns wxFab" href="javascript:;" data-type="weixin">
+            <i class="ri-wechat-fill"></i>
+          </a>
+          <a class="qq share-sns" href="javascript:;" data-type="qq">
+            <i class="ri-qq-fill"></i>
+          </a>
+          <a class="douban share-sns" href="javascript:;" data-type="douban">
+            <i class="ri-douban-line"></i>
+          </a>
+          <!-- <a class="qzone share-sns" href="javascript:;" data-type="qzone">
+            <i class="icon icon-qzone"></i>
+          </a> -->
+          
+          <a class="facebook share-sns" href="javascript:;" data-type="facebook">
+            <i class="ri-facebook-circle-fill"></i>
+          </a>
+          <a class="twitter share-sns" href="javascript:;" data-type="twitter">
+            <i class="ri-twitter-fill"></i>
+          </a>
+          <a class="google share-sns" href="javascript:;" data-type="google">
+            <i class="ri-google-fill"></i>
+          </a>
+        </div>
+      </div>
+</div>
+
+<div class="wx-share-modal">
+    <a class="modal-close" href="javascript:;"><i class="ri-close-circle-line"></i></a>
+    <p>扫一扫，分享到微信</p>
+    <div class="wx-qrcode">
+      <img src="//api.qrserver.com/v1/create-qr-code/?size=150x150&data=http://jason-wj.gitee.io/articles/231042d1/" alt="微信分享二维码">
+    </div>
+</div>
+
+<div id="share-mask"></div>  
+  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/ethereum/" rel="tag">ethereum</a></li></ul>
+
+    </footer>
+  </div>
+
+   
+  <nav class="article-nav">
+    
+      <a href="/articles/85deafe/" class="article-nav-link">
+        <strong class="article-nav-caption">上一篇</strong>
+        <div class="article-nav-title">
+          
+            以太坊源码解读-第7讲-创世块
+          
+        </div>
+      </a>
+    
+    
+      <a href="/articles/3673b530/" class="article-nav-link">
+        <strong class="article-nav-caption">下一篇</strong>
+        <div class="article-nav-title">以太坊源码解读-第6.1讲-共识模块入口设计</div>
+      </a>
+    
+  </nav>
+
+   
+<!-- valine评论 -->
+<div id="vcomments-box">
+  <div id="vcomments"></div>
+</div>
+<script src="//cdn1.lncld.net/static/js/3.0.4/av-min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/valine@1.4.14/dist/Valine.min.js"></script>
+<script>
+  new Valine({
+    el: "#vcomments",
+    app_id: "gdw0hVSwW3l6KgEMulSAc9Rx-gzGzoHsz",
+    app_key: "M4iiVXe0CuXWQEKuyIzWWDMh",
+    path: window.location.pathname,
+    avatar: "monsterid",
+    placeholder: "给我的文章加点评论吧~",
+    recordIP: true,
+  });
+  const infoEle = document.querySelector("#vcomments .info");
+  if (infoEle && infoEle.childNodes && infoEle.childNodes.length > 0) {
+    infoEle.childNodes.forEach(function (item) {
+      item.parentNode.removeChild(item);
+    });
+  }
+</script>
+<style>
+  #vcomments-box {
+    padding: 5px 30px;
+  }
+
+  @media screen and (max-width: 800px) {
+    #vcomments-box {
+      padding: 5px 0px;
+    }
+  }
+
+  #vcomments-box #vcomments {
+    background-color: #fff;
+  }
+
+  .v .vlist .vcard .vh {
+    padding-right: 20px;
+  }
+
+  .v .vlist .vcard {
+    padding-left: 10px;
+  }
+</style>
+
+ 
+   
+     
+</article>
+
+</section>
+      <footer class="footer">
+  <div class="outer">
+    <ul>
+      <li>
+        Copyrights &copy;
+        2017-2021
+        <i class="ri-heart-fill heart_icon"></i> Jason
+      </li>
+    </ul>
+    <ul>
+      <li>
+        
+      </li>
+    </ul>
+    <ul>
+      <li>
+        
+        
+        <span>
+  <span><i class="ri-user-3-fill"></i>Visitors:<span id="busuanzi_value_site_uv"></span></s>
+  <span class="division">|</span>
+  <span><i class="ri-eye-fill"></i>Views:<span id="busuanzi_value_page_pv"></span></span>
+</span>
+        
+      </li>
+    </ul>
+    <ul>
+      
+    </ul>
+    <ul>
+      
+    </ul>
+    <ul>
+      <li>
+        <!-- cnzz统计 -->
+        
+        <script type="text/javascript" src='https://s4.cnzz.com/z_stat.php?id=1279593399&amp;web_id=1279593399'></script>
+        
+      </li>
+    </ul>
+  </div>
+</footer>
+      <div class="float_btns">
+        <div class="totop" id="totop">
+  <i class="ri-arrow-up-line"></i>
+</div>
+
+<div class="todark" id="todark">
+  <i class="ri-moon-line"></i>
+</div>
+
+      </div>
+    </main>
+    <aside class="sidebar on">
+      <button class="navbar-toggle"></button>
+<nav class="navbar">
+  
+  <div class="logo">
+    <a href="/"><img src="/images/my_head-touch-icon-next.png" alt="Jason漫谈区块链"></a>
+  </div>
+  
+  <ul class="nav nav-main">
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/">主页</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/archives">归档</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/categories">分类</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/tags">标签</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/friends">友链</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/about">关于我</a>
+    </li>
+    
+  </ul>
+</nav>
+<nav class="navbar navbar-bottom">
+  <ul class="nav">
+    <li class="nav-item">
+      
+      <a class="nav-item-link nav-item-search"  title="Search">
+        <i class="ri-search-line"></i>
+      </a>
+      
+      
+    </li>
+  </ul>
+</nav>
+<div class="search-form-wrap">
+  <div class="local-search local-search-plugin">
+  <input type="search" id="local-search-input" class="local-search-input" placeholder="Search...">
+  <div id="local-search-result" class="local-search-result"></div>
+</div>
+</div>
+    </aside>
+    <script>
+      if (window.matchMedia("(max-width: 768px)").matches) {
+        document.querySelector('.content').classList.remove('on');
+        document.querySelector('.sidebar').classList.remove('on');
+      }
+    </script>
+    <div id="mask"></div>
+
+<!-- #reward -->
+<div id="reward">
+  <span class="close"><i class="ri-close-line"></i></span>
+  <p class="reward-p"><i class="ri-cup-line"></i>请我喝杯咖啡吧~</p>
+  <div class="reward-box">
+    
+    <div class="reward-item">
+      <img class="reward-img" src="/images/pay_ali.jpg">
+      <span class="reward-type">支付宝</span>
+    </div>
+    
+    
+    <div class="reward-item">
+      <img class="reward-img" src="/images/pay_wechat.jpg">
+      <span class="reward-type">微信</span>
+    </div>
+    
+  </div>
+</div>
+    
+<script src="/js/jquery-2.0.3.min.js"></script>
+
+
+<script src="/js/lazyload.min.js"></script>
+
+<!-- Tocbot -->
+
+
+<script src="/js/tocbot.min.js"></script>
+
+<script>
+  tocbot.init({
+    tocSelector: '.tocbot',
+    contentSelector: '.article-entry',
+    headingSelector: 'h1, h2, h3, h4, h5, h6',
+    hasInnerContainers: true,
+    scrollSmooth: true,
+    scrollContainer: 'main',
+    positionFixedSelector: '.tocbot',
+    positionFixedClass: 'is-position-fixed',
+    fixedSidebarOffset: 'auto'
+  });
+</script>
+
+<script src="https://cdn.jsdelivr.net/npm/jquery-modal@0.9.2/jquery.modal.min.js"></script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/jquery-modal@0.9.2/jquery.modal.min.css">
+<script src="https://cdn.jsdelivr.net/npm/justifiedGallery@3.7.0/dist/js/jquery.justifiedGallery.min.js"></script>
+
+<script src="/dist/main.js"></script>
+
+<!-- ImageViewer -->
+
+<!-- Root element of PhotoSwipe. Must have class pswp. -->
+<div class="pswp" tabindex="-1" role="dialog" aria-hidden="true">
+
+    <!-- Background of PhotoSwipe. 
+         It's a separate element as animating opacity is faster than rgba(). -->
+    <div class="pswp__bg"></div>
+
+    <!-- Slides wrapper with overflow:hidden. -->
+    <div class="pswp__scroll-wrap">
+
+        <!-- Container that holds slides. 
+            PhotoSwipe keeps only 3 of them in the DOM to save memory.
+            Don't modify these 3 pswp__item elements, data is added later on. -->
+        <div class="pswp__container">
+            <div class="pswp__item"></div>
+            <div class="pswp__item"></div>
+            <div class="pswp__item"></div>
+        </div>
+
+        <!-- Default (PhotoSwipeUI_Default) interface on top of sliding area. Can be changed. -->
+        <div class="pswp__ui pswp__ui--hidden">
+
+            <div class="pswp__top-bar">
+
+                <!--  Controls are self-explanatory. Order can be changed. -->
+
+                <div class="pswp__counter"></div>
+
+                <button class="pswp__button pswp__button--close" title="Close (Esc)"></button>
+
+                <button class="pswp__button pswp__button--share" style="display:none" title="Share"></button>
+
+                <button class="pswp__button pswp__button--fs" title="Toggle fullscreen"></button>
+
+                <button class="pswp__button pswp__button--zoom" title="Zoom in/out"></button>
+
+                <!-- Preloader demo http://codepen.io/dimsemenov/pen/yyBWoR -->
+                <!-- element will get class pswp__preloader--active when preloader is running -->
+                <div class="pswp__preloader">
+                    <div class="pswp__preloader__icn">
+                        <div class="pswp__preloader__cut">
+                            <div class="pswp__preloader__donut"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="pswp__share-modal pswp__share-modal--hidden pswp__single-tap">
+                <div class="pswp__share-tooltip"></div>
+            </div>
+
+            <button class="pswp__button pswp__button--arrow--left" title="Previous (arrow left)">
+            </button>
+
+            <button class="pswp__button pswp__button--arrow--right" title="Next (arrow right)">
+            </button>
+
+            <div class="pswp__caption">
+                <div class="pswp__caption__center"></div>
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe.min.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/default-skin/default-skin.min.css">
+<script src="https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe-ui-default.min.js"></script>
+
+<script>
+    function viewer_init() {
+        let pswpElement = document.querySelectorAll('.pswp')[0];
+        let $imgArr = document.querySelectorAll(('.article-entry img:not(.reward-img)'))
+
+        $imgArr.forEach(($em, i) => {
+            $em.onclick = () => {
+                // slider展开状态
+                // todo: 这样不好，后面改成状态
+                if (document.querySelector('.left-col.show')) return
+                let items = []
+                $imgArr.forEach(($em2, i2) => {
+                    let img = $em2.getAttribute('data-idx', i2)
+                    let src = $em2.getAttribute('data-target') || $em2.getAttribute('src')
+                    let title = $em2.getAttribute('alt')
+                    // 获得原图尺寸
+                    const image = new Image()
+                    image.src = src
+                    items.push({
+                        src: src,
+                        w: image.width || $em2.width,
+                        h: image.height || $em2.height,
+                        title: title
+                    })
+                })
+                var gallery = new PhotoSwipe(pswpElement, PhotoSwipeUI_Default, items, {
+                    index: parseInt(i)
+                });
+                gallery.init()
+            }
+        })
+    }
+    viewer_init()
+</script>
+
+<!-- MathJax -->
+
+<!-- Katex -->
+
+<!-- busuanzi  -->
+
+
+<script src="/js/busuanzi-2.3.pure.min.js"></script>
+
+
+<!-- ClickLove -->
+
+<!-- ClickBoom1 -->
+
+<!-- ClickBoom2 -->
+
+<!-- CodeCopy -->
+
+
+<link rel="stylesheet" href="/css/clipboard.css">
+
+<script src="https://cdn.jsdelivr.net/npm/clipboard@2/dist/clipboard.min.js"></script>
+<script>
+  function wait(callback, seconds) {
+    var timelag = null;
+    timelag = window.setTimeout(callback, seconds);
+  }
+  !function (e, t, a) {
+    var initCopyCode = function(){
+      var copyHtml = '';
+      copyHtml += '<button class="btn-copy" data-clipboard-snippet="">';
+      copyHtml += '<i class="ri-file-copy-2-line"></i><span>COPY</span>';
+      copyHtml += '</button>';
+      $(".highlight .code pre").before(copyHtml);
+      $(".article pre code").before(copyHtml);
+      var clipboard = new ClipboardJS('.btn-copy', {
+        target: function(trigger) {
+          return trigger.nextElementSibling;
+        }
+      });
+      clipboard.on('success', function(e) {
+        let $btn = $(e.trigger);
+        $btn.addClass('copied');
+        let $icon = $($btn.find('i'));
+        $icon.removeClass('ri-file-copy-2-line');
+        $icon.addClass('ri-checkbox-circle-line');
+        let $span = $($btn.find('span'));
+        $span[0].innerText = 'COPIED';
+        
+        wait(function () { // 等待两秒钟后恢复
+          $icon.removeClass('ri-checkbox-circle-line');
+          $icon.addClass('ri-file-copy-2-line');
+          $span[0].innerText = 'COPY';
+        }, 2000);
+      });
+      clipboard.on('error', function(e) {
+        e.clearSelection();
+        let $btn = $(e.trigger);
+        $btn.addClass('copy-failed');
+        let $icon = $($btn.find('i'));
+        $icon.removeClass('ri-file-copy-2-line');
+        $icon.addClass('ri-time-line');
+        let $span = $($btn.find('span'));
+        $span[0].innerText = 'COPY FAILED';
+        
+        wait(function () { // 等待两秒钟后恢复
+          $icon.removeClass('ri-time-line');
+          $icon.addClass('ri-file-copy-2-line');
+          $span[0].innerText = 'COPY';
+        }, 2000);
+      });
+    }
+    initCopyCode();
+  }(window, document);
+</script>
+
+
+<!-- CanvasBackground -->
+
+
+    
+  </div>
+</body>
+
+</html>

@@ -1,0 +1,734 @@
+<!DOCTYPE html>
+
+
+<html lang="zh-Hans">
+
+
+<head>
+  <meta charset="utf-8" />
+    
+  <meta name="description" content="谈天谈地，谈古谈今，一起谈谈我们的未来。" />
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
+  <title>
+    以太坊源码解读-第3.2讲-trie模块源码解读 |  Jason漫谈区块链
+  </title>
+  <meta name="generator" content="hexo-theme-ayer">
+  
+  <link rel="shortcut icon" href="/images/my_head-16x16-next.ico" />
+  
+  
+<link rel="stylesheet" href="/dist/main.css">
+
+  
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/Shen-Yu/cdn/css/remixicon.min.css">
+
+  
+<link rel="stylesheet" href="/css/custom.css">
+
+  
+  
+<script src="https://cdn.jsdelivr.net/npm/pace-js@1.0.2/pace.min.js"></script>
+
+  
+  
+
+  
+
+</head>
+
+</html>
+
+<body>
+  <div id="app">
+    
+      
+    <main class="content on">
+      <section class="outer">
+  <article
+  id="post-ethereum/src_analysis/以太坊源码解读-第3.2讲-trie模块源码解读"
+  class="article article-type-post"
+  itemscope
+  itemprop="blogPost"
+  data-scroll-reveal
+>
+  <div class="article-inner">
+    
+    <header class="article-header">
+       
+<h1 class="article-title sea-center" style="border-left:0" itemprop="name">
+  以太坊源码解读-第3.2讲-trie模块源码解读
+</h1>
+ 
+
+    </header>
+     
+    <div class="article-meta">
+      <a href="/articles/dcade07d/" class="article-date">
+  <time datetime="2018-04-19T07:40:25.000Z" itemprop="datePublished">2018-04-19</time>
+</a> 
+  <div class="article-category">
+    <a class="article-category-link" href="/categories/%E4%BB%A5%E5%A4%AA%E5%9D%8A/">以太坊</a> / <a class="article-category-link" href="/categories/%E4%BB%A5%E5%A4%AA%E5%9D%8A/%E6%BA%90%E7%A0%81%E8%A7%A3%E8%AF%BB/">源码解读</a>
+  </div>
+  
+<div class="word_count">
+    <span class="post-time">
+        <span class="post-meta-item-icon">
+            <i class="ri-quill-pen-line"></i>
+            <span class="post-meta-item-text"> Word count:</span>
+            <span class="post-count">7.5k</span>
+        </span>
+    </span>
+
+    <span class="post-time">
+        &nbsp; | &nbsp;
+        <span class="post-meta-item-icon">
+            <i class="ri-book-open-line"></i>
+            <span class="post-meta-item-text"> Reading time≈</span>
+            <span class="post-count">30 min</span>
+        </span>
+    </span>
+</div>
+ 
+    </div>
+      
+    <div class="tocbot"></div>
+
+
+
+
+  
+    <div class="article-entry" itemprop="articleBody">
+       
+  <h2 id="前言"><a href="#前言" class="headerlink" title="前言"></a>前言</h2><p>这一部分，我们主要是讲trie源码的实现，要理解代码的实现过程，是需要先了解一下理论内容的，建议大家先看看我的上一篇文章：<a href="/articles/original/ethereum/src_analysis/%E4%BB%A5%E5%A4%AA%E5%9D%8A%E6%BA%90%E7%A0%81%E8%A7%A3%E8%AF%BB-%E7%AC%AC3.1%E8%AE%B2-trie%E5%8E%9F%E7%90%86%E4%BB%8B%E7%BB%8D.html">以太坊源码解读-第3.1讲-trie原理介绍</a></p>
+<a id="more"></a>
+
+<h2 id="概述"><a href="#概述" class="headerlink" title="概述"></a>概述</h2><p>小编根据对已有代码的了解，画了这么个trie相关一览图：</p>
+<img src="/articles/dcade07d/1.png" class="" title="空树中添加到一个节点">
+
+<h2 id="encoding-go源码解读"><a href="#encoding-go源码解读" class="headerlink" title="encoding.go源码解读"></a>encoding.go源码解读</h2><p>trie模块中，这个文件是我们首先要掌握的，这个主要是讲三种编码（<code>KEYBYTES encoding</code>、<code>HEX encoding</code>、<code>COMPACT encoding</code>）的实现与转换，trie中全程都需要用到这些，该文件中主要实现了如下功能：</p>
+<ol>
+<li>hex编码转换为Compact编码：<code>hexToCompact()</code></li>
+<li>Compact编码转换为hex编码：<code>compactToHex()</code></li>
+<li>keybytes编码转换为Hex编码：<code>keybytesToHex()</code></li>
+<li>hex编码转换为keybytes编码：<code>hexToKeybytes()</code></li>
+<li>获取两个字节数组的公共前缀的长度：<code>prefixLen()</code></li>
+</ol>
+<p>但是，小编不会去讲这块的源码内容了，因为<a href="/articles/original/ethereum/src_analysis/%E4%BB%A5%E5%A4%AA%E5%9D%8A%E6%BA%90%E7%A0%81%E8%A7%A3%E8%AF%BB-%E7%AC%AC3.1%E8%AE%B2-trie%E5%8E%9F%E7%90%86%E4%BB%8B%E7%BB%8D.html">以太坊源码解读-第3.1讲-trie原理介绍</a>这篇文章里已经穿插了很多相关的源码，重点都已经在其中解释的很详细了。<br>如果还有哪些地方不了解，大家可以留言或者微信与小编联系。</p>
+<h2 id="node-go源码解读"><a href="#node-go源码解读" class="headerlink" title="node.go源码解读"></a>node.go源码解读</h2><p>大家得先看懂<a href="/articles/original/ethereum/src_analysis/%E4%BB%A5%E5%A4%AA%E5%9D%8A%E6%BA%90%E7%A0%81%E8%A7%A3%E8%AF%BB-%E7%AC%AC3.1%E8%AE%B2-trie%E5%8E%9F%E7%90%86%E4%BB%8B%E7%BB%8D.html">以太坊源码解读-第3.1讲-trie原理介绍</a>关于节点方面的内容，否则很难理解小编下面要讲的源码。</p>
+<h3 id="node的结构与定义"><a href="#node的结构与定义" class="headerlink" title="node的结构与定义"></a>node的结构与定义</h3><p>以太坊为MPT中的node定义了一套基本接口规则：</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">type</span> node <span class="keyword">interface</span> &#123;</span><br><span class="line">	fstring(<span class="keyword">string</span>) <span class="keyword">string</span> <span class="comment">//用来打印节点信息，没别的作用</span></span><br><span class="line">	cache() (hashNode, <span class="keyword">bool</span>)  <span class="comment">//保存缓存</span></span><br><span class="line">	canUnload(cachegen, cachelimit <span class="keyword">uint16</span>) <span class="keyword">bool</span>  <span class="comment">//除去缓存，cache次数的计数器</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>以太坊依据上面的规则为MTP定义了四种类型的节点，代码如下：</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">type</span> (</span><br><span class="line">	fullNode <span class="keyword">struct</span> &#123;</span><br><span class="line">		Children [<span class="number">17</span>]node  <span class="comment">//对应了黄皮书里面的分支节点</span></span><br><span class="line">		flags    nodeFlag</span><br><span class="line">	&#125;</span><br><span class="line">	shortNode <span class="keyword">struct</span> &#123;  <span class="comment">//对应了黄皮书里面的扩展节点</span></span><br><span class="line">		Key   []<span class="keyword">byte</span></span><br><span class="line">		Val   node  <span class="comment">//可能指向叶子节点，也可能指向分支节点。</span></span><br><span class="line">		flags nodeFlag</span><br><span class="line">	&#125;</span><br><span class="line">	hashNode  []<span class="keyword">byte</span></span><br><span class="line">	valueNode []<span class="keyword">byte</span>  <span class="comment">//叶子节点值，但是该叶子节点最终还是会包装在shortNode中</span></span><br><span class="line">)</span><br></pre></td></tr></table></figure>
+<p>分为这四种节点：</p>
+<ul>
+<li>fullNode<br>这就是传说中的分支节点，会发现它里面定义了17个node，其中16个对应的16进制的0<del>9a</del>f，第17个还没搞清楚，后面清楚了再来讲。nodeFlag稍后再说。</li>
+<li>shortNode<br>它本身若是扩展节点，则它的属性Val可能指向分支节点或者叶子节点，但要知道，叶子节点本身同样是用shortNode表示的；<br>它本身若是叶子节点，则Val的值为rlp编码的数据，而key则是该数据的完整hash(经过hex编码的)</li>
+<li>valueNode：这是给叶子节点用的，但是要知道它不能单独使用，而是要放在shortNode中使用的，用于存放rlp编码的原始数据</li>
+<li>hashNode：这个同样不能单独使用，我们在上面节点定义中发现了，会涉及到<code>nodeFlag</code>，先来看看定义：<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">type</span> nodeFlag <span class="keyword">struct</span> &#123;</span><br><span class="line">	hash  hashNode <span class="comment">// cached hash of the node (may be nil)</span></span><br><span class="line">	gen   <span class="keyword">uint16</span>   <span class="comment">// cache generation counter</span></span><br><span class="line">	dirty <span class="keyword">bool</span>     <span class="comment">// whether the node has changes that must be written to the database</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+在其中发现了hashNode，这个属性是用来标记nodeFlag所属的node对象本身经过rlp编码后的hash值（该hash在hashNode中同样是经过hex编码的），若node有任何变化，则该hash就会发生变化。<br>nodeFlag中的gen，只要对应的node发生一次变化，计数就加一<br>nodeFlage中的bool，只要对应的node发生变化，它就变成true，表示要把数据重新刷新到DB中(以太坊用levelDB存储MTP信息)<br>小编认为，对node理解到此处就可以了，对node的具体操作，要结合MPT的具体操作来掌握，这就引出了我们的下一部分需要掌握的文件：trie.go</li>
+</ul>
+<h2 id="trie-go源码解读"><a href="#trie-go源码解读" class="headerlink" title="trie.go源码解读"></a>trie.go源码解读</h2><p>我们先来了解下以太坊给trie定义的结构：</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">type</span> Trie <span class="keyword">struct</span> &#123;</span><br><span class="line">	db           *Database  <span class="comment">//trei在levelDB中</span></span><br><span class="line">	root         node  <span class="comment">//根结点</span></span><br><span class="line">	originalRoot common.Hash  <span class="comment">//32位byte[],从db中恢复出完整的trie</span></span><br><span class="line"></span><br><span class="line">	<span class="comment">//cachegen表示当前trie树的版本，trie每次commit，则增加1</span></span><br><span class="line">	<span class="comment">//cachelimit如果当前的cache时代 - cachelimit参数 大于node的cache时代，那么node会从cache里面卸载，以便节约内存。</span></span><br><span class="line">	cachegen, cachelimit <span class="keyword">uint16</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>具体我们来解读一下其中的每部分：</p>
+<ul>
+<li>db</li>
+<li>root 可以理解为当前root指向哪个节点，初始时候，没有内容，则root=nil，表示指向nil</li>
+<li>originalRoot</li>
+<li>cachegen</li>
+<li>cachelimit</li>
+</ul>
+<p>按小编的理解，trie中存入db本身的是各种类型的node，也就是从root指向的那个node开始存储，root本身并不存储。</p>
+<p>想要真正掌握以太坊中的trie，小编建议还是从它的测试文件node_test.go作为入口来读取源码，这里面涉及到内容如果都看懂，那相信你对MPT了解已经非常深刻了。好，那咱们一个个来看：</p>
+<h3 id="一颗空树"><a href="#一颗空树" class="headerlink" title="一颗空树"></a>一颗空树</h3><p>当为一颗空树时候，也就是trie只有一个节点，且trie.root=nil。<br>此时使用trie.Hash()可以返回当前整个trie树的hash值。而emptyRoot是trie预先定义的一个空节点时候的hash常量，将当前trie的hash和它比较，可以校验当前trie是否为空树。具体代码如下：<br>注意，这些hash是真实值，从进一步的代码中，我们是可以得知，这些hash是使用hex转换回来的hash。</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">TestEmptyTrie</span><span class="params">(t *testing.T)</span></span> &#123;</span><br><span class="line">	<span class="keyword">var</span> trie Trie</span><br><span class="line">	res := trie.Hash() <span class="comment">//获取当前trie的hash</span></span><br><span class="line">	exp := emptyRoot</span><br><span class="line">	<span class="keyword">if</span> res != common.Hash(exp) &#123;</span><br><span class="line">		t.Errorf(<span class="string">&quot;expected %x got %x&quot;</span>, exp, res)</span><br><span class="line">	&#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<h3 id="从空树中添加一个节点"><a href="#从空树中添加一个节点" class="headerlink" title="从空树中添加一个节点"></a>从空树中添加一个节点</h3><p>添加一个节点，也就是添加叶子结点，先来看代码：</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">TestNull</span><span class="params">(t *testing.T)</span></span> &#123;</span><br><span class="line">	<span class="keyword">var</span> trie Trie</span><br><span class="line">	value := []<span class="keyword">byte</span>(<span class="string">&quot;test&quot;</span>)  <span class="comment">//value为字节数组</span></span><br><span class="line">	key := <span class="built_in">make</span>([]<span class="keyword">byte</span>, <span class="number">32</span>) <span class="comment">//一个32位的hash，但是其中每一位都是0</span></span><br><span class="line">	trie.Update(key, value)</span><br><span class="line">	<span class="keyword">if</span> !bytes.Equal(trie.Get(key), value) &#123;</span><br><span class="line">		t.Fatal(<span class="string">&quot;wrong value&quot;</span>)</span><br><span class="line">	&#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>初始时，tril.root指向的是nil。<br>value：要把一个字符串内容为”test”的数据存入trie中<br>key：应该是value对应的rlp编码后的hash值<br>从trie.Update()进入到trie.go的insert方法中：会发现，key和value被组成一个shortNode，表示一个叶子节点，插入到trie空树中。<br>然后trie.root指向这个叶子节点。<br>可以这么理解，此时这棵树有一个根结点和一个叶子结点。<br>为更好说明，上个图，大体如下：</p>
+<img src="/articles/dcade07d/1.png" class="" title="空树中添加到一个节点">
+
+<h3 id="数据库中检测一个不存在的trie根节点"><a href="#数据库中检测一个不存在的trie根节点" class="headerlink" title="数据库中检测一个不存在的trie根节点"></a>数据库中检测一个不存在的trie根节点</h3><p>小编曾说个，以太坊的MPT中，是有google的levelDB参与的，而从trie定义的结构中，我们可知通过trie中的originalRoot可以恢复出一棵levelDB中存在的MPT树。<br>这个案例中，我们尝试使用一个不存在的hash来判断level中的确不存在该对应的MTP树。代码如下：<br><code>ps：小编需要说明，其中涉及的levelDB以及代码中的db操作相关，属于以太坊的ethdb模块中的内容，这个将在后续的文章中讲解，本文只一笔概述不会深入去讲db内容。</code></p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">TestMissingRoot</span><span class="params">(t *testing.T)</span></span> &#123;</span><br><span class="line">	diskdb, _ := ethdb.NewMemDatabase()</span><br><span class="line">	<span class="comment">//New()中，第一个参数是将hex编码转为原始的hash 32位byte[]</span></span><br><span class="line">	trie, err := New(common.HexToHash(<span class="string">&quot;0beec7b5ea3f0fdbc95d0dd47f3c5bc275da8a33&quot;</span>), NewDatabase(diskdb))</span><br><span class="line">	<span class="keyword">if</span> trie != <span class="literal">nil</span> &#123;</span><br><span class="line">		t.Error(<span class="string">&quot;New returned non-nil trie for invalid root&quot;</span>)</span><br><span class="line">	&#125;</span><br><span class="line">	<span class="keyword">if</span> _, ok := err.(*MissingNodeError); !ok &#123;</span><br><span class="line">		t.Errorf(<span class="string">&quot;New returned wrong error: %v&quot;</span>, err)</span><br><span class="line">	&#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>代码中我们可知，我们是要从一个新建的db中去找某hash对应的trie树。呵呵，当然会找不到。但程序具体是怎么执行查找的？需要我们进入New()方法去进一步了解过程：<br>传入的root是一个hash，根据该hash最后是在db中查找对应的trie根的。<br>其中<code>originalRoot: root, </code>，若最终查找出了该trie，则该root就是整个trie的hash。</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">New</span><span class="params">(root common.Hash, db *Database)</span> <span class="params">(*Trie, error)</span></span> &#123;</span><br><span class="line">	<span class="keyword">if</span> db == <span class="literal">nil</span> &#123;</span><br><span class="line">		<span class="built_in">panic</span>(<span class="string">&quot;trie.New called without a database&quot;</span>)</span><br><span class="line">	&#125;</span><br><span class="line">	trie := &amp;Trie&#123;</span><br><span class="line">		db:           db,</span><br><span class="line">		originalRoot: root,  <span class="comment">//把传入的hash保存在此处，只要能恢复了整个trie</span></span><br><span class="line">	&#125;</span><br><span class="line">	<span class="keyword">if</span> (root != common.Hash&#123;&#125;) &amp;&amp; root != emptyRoot &#123;</span><br><span class="line">		rootnode, err := trie.resolveHash(root[:], <span class="literal">nil</span>) <span class="comment">//检查是否有对应的trie</span></span><br><span class="line">		<span class="keyword">if</span> err != <span class="literal">nil</span> &#123;</span><br><span class="line">			<span class="keyword">return</span> <span class="literal">nil</span>, err</span><br><span class="line">		&#125;</span><br><span class="line">		trie.root = rootnode  <span class="comment">//返回了找到的trie，按小编理解，这个rootnode应该是分支节点或叶子节点</span></span><br><span class="line">	&#125;</span><br><span class="line">	<span class="keyword">return</span> trie, <span class="literal">nil</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>其中，真正进行node查找的方法是resolveHash()该方法也需要大家了解一下：</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">func</span> <span class="params">(t *Trie)</span> <span class="title">resolveHash</span><span class="params">(n hashNode, prefix []<span class="keyword">byte</span>)</span> <span class="params">(node, error)</span></span> &#123;</span><br><span class="line">	cacheMissCounter.Inc(<span class="number">1</span>)  <span class="comment">//每执行一次resolveHash()方法，计数器+1</span></span><br><span class="line"></span><br><span class="line">	hash := common.BytesToHash(n)</span><br><span class="line">	enc, err := t.db.Node(hash)</span><br><span class="line">	<span class="keyword">if</span> err != <span class="literal">nil</span> || enc == <span class="literal">nil</span> &#123;</span><br><span class="line">		<span class="keyword">return</span> <span class="literal">nil</span>, &amp;MissingNodeError&#123;NodeHash: hash, Path: prefix&#125;</span><br><span class="line">	&#125;</span><br><span class="line">	<span class="keyword">return</span> mustDecodeNode(n, enc, t.cachegen), <span class="literal">nil</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>主要的是那个计数器，<code>cacheMissCounter.Inc(1)</code>，不论从db中还原trie成功还是失败，计数器都会累加1</p>
+<h3 id="操作存储在内存或磁盘的trie"><a href="#操作存储在内存或磁盘的trie" class="headerlink" title="操作存储在内存或磁盘的trie"></a>操作存储在内存或磁盘的trie</h3><p>db中只会存放最终真正确认有效的数据块，因此trie会被分为存在db磁盘中的以及留在内存中的两大类，具体可以看测试代码，（期间会涉及到部分非重点代码，小编就不列出了）：</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br></pre></td><td class="code"><pre><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">testMissingNode</span><span class="params">(t *testing.T, memonly <span class="keyword">bool</span>)</span></span> &#123;</span><br><span class="line">	diskdb, _ := ethdb.NewMemDatabase()  <span class="comment">//磁盘空间</span></span><br><span class="line">	triedb := NewDatabase(diskdb)  <span class="comment">//生成db</span></span><br><span class="line"></span><br><span class="line">	trie, _ := New(common.Hash&#123;&#125;, triedb) <span class="comment">//空节点创建</span></span><br><span class="line">	<span class="comment">//实际使用时，Update中的 value是需要先经过rlp编码</span></span><br><span class="line">	trie.Update([]<span class="keyword">byte</span>(<span class="string">&quot;120000&quot;</span>), []<span class="keyword">byte</span>(<span class="string">&quot;qwerqwerqwerqwerqwerqwerqwerqwer&quot;</span>))</span><br><span class="line">	trie.Update([]<span class="keyword">byte</span>(<span class="string">&quot;123456&quot;</span>), []<span class="keyword">byte</span>(<span class="string">&quot;asdfasdfasdfasdfasdfasdfasdfasdf&quot;</span>))</span><br><span class="line">	root, _ := trie.Commit(<span class="literal">nil</span>)  <span class="comment">//trie.Commit需要了解</span></span><br><span class="line">	<span class="keyword">if</span> !memonly &#123;  <span class="comment">//根据此处来判断是否提交到db</span></span><br><span class="line">		triedb.Commit(root, <span class="literal">true</span>)  <span class="comment">//这个就是将trie提交到db了</span></span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	<span class="comment">//根据key查找某个trie是否存在</span></span><br><span class="line">	<span class="keyword">var</span> bts []<span class="keyword">byte</span></span><br><span class="line">	trie, _ = New(root, triedb)</span><br><span class="line">	bts, err := trie.TryGet([]<span class="keyword">byte</span>(<span class="string">&quot;120000&quot;</span>))</span><br><span class="line">	fmt.Println(bts)</span><br><span class="line">	</span><br><span class="line">	<span class="comment">//添加一个node</span></span><br><span class="line">	trie, _ = New(root, triedb)</span><br><span class="line">	<span class="comment">//本质上也是调用trie.Update()方法</span></span><br><span class="line">	err = trie.TryUpdate([]<span class="keyword">byte</span>(<span class="string">&quot;120099&quot;</span>), []<span class="keyword">byte</span>(<span class="string">&quot;zxcvzxcvzxcvzxcvzxcvzxcvzxcvzxcv&quot;</span>))</span><br><span class="line"></span><br><span class="line">	<span class="comment">//删除一个node</span></span><br><span class="line">	trie, _ = New(root, triedb)</span><br><span class="line">	err = trie.TryDelete([]<span class="keyword">byte</span>(<span class="string">&quot;123456&quot;</span>))</span><br><span class="line">	</span><br><span class="line">	hash := common.HexToHash(<span class="string">&quot;0xe1d943cc8f061a0c0b98162830b970395ac9315654824bf21b73b891365262f9&quot;</span>)</span><br><span class="line">	<span class="keyword">if</span> memonly &#123; <span class="comment">//为true，则在内存中删除该trie</span></span><br><span class="line">		<span class="built_in">delete</span>(triedb.nodes, hash)</span><br><span class="line">	&#125; <span class="keyword">else</span> &#123;  <span class="comment">//为false，则在磁盘中删除该trie</span></span><br><span class="line">		diskdb.Delete(hash[:])</span><br><span class="line">	&#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>会发现，trie中存这样的几对方法：Update()和TryUpdate()、Get()和TryGet()、Delete()和TryDelete()；其实是没有加<code>Try</code>关键字的方法进一步封装了带有<code>Try</code>的方法，做了异常处理。另外：</p>
+<ul>
+<li>TryUpdate()方法：当传入的value长度大于0，则调用trie.insert()把把key和value组成节点插入trie（插入逻辑后续再说）；否则若value长度为0，则调用trie.delete()方法删除trie中key对应的节点。</li>
+<li>TryGet()方法：就是从trie中调用tryGet()方法获取key对应的那一部分数据</li>
+<li>TryDelete()方法：就是调用trie中delete()方法删除trie中key对应的节点。</li>
+<li>triedb.Commit()方法：将数据提交给db，这个涉及到trie模块下的database.go，后面章节中单独讲</li>
+<li>diskdb.Delete()方法：磁盘中删除某节点，这个属于<code>diskdb模块</code>内容，本文不讲解。</li>
+</ul>
+<p>节点的操作本身很重要，我们知道了，真正处理数据的是trie中的insert()、delete()、tryGet()这三个方法。接下来详细介绍一下它们。<br>先要知道，这些操作的数据目前都是在内存中保存的。<br>下面操作中，除了明确标明是在操作db，其余情况都是在内存中操作，这点一定要清楚，很容易搞混。</p>
+<p><code>注意！小编多个新号让大家注意：****</code><br><em>只要trie树上的某条路径上有节点新增或者删除，那这条路径的节点都会被重新实例化并负值，如此一来，节点的nodeFlag中的dirty也被改为true，这样就表示这条路径的所有节点都需要重新插入到db。</em></p>
+<h4 id="新增数据到trie"><a href="#新增数据到trie" class="headerlink" title="新增数据到trie"></a>新增数据到trie</h4><p>其实就是新增一个叶子节点到trie<br>前面提到过的一些文章中只是理论上讲了讲新增原理，真实情况要复杂很多。<br><span id="insert">先来上一坨代码，看看以太坊是怎么处理新增的：</span></p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">//该方法会被递归调用</span></span><br><span class="line"><span class="comment">//n表示从trie当前节点n开始插入</span></span><br><span class="line"><span class="comment">//prefix表示当前匹配到的key的公共前缀</span></span><br><span class="line"><span class="comment">//key 表示待插入数据当前key中剩余未匹配的部分</span></span><br><span class="line"><span class="comment">//value 待插入数据本身</span></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="params">(t *Trie)</span> <span class="title">insert</span><span class="params">(n node, prefix, key []<span class="keyword">byte</span>, value node)</span> <span class="params">(<span class="keyword">bool</span>, node, error)</span></span> &#123;</span><br><span class="line">	<span class="keyword">if</span> <span class="built_in">len</span>(key) == <span class="number">0</span> &#123; </span><br><span class="line">		<span class="keyword">if</span> v, ok := n.(valueNode); ok &#123;</span><br><span class="line">			<span class="keyword">return</span> !bytes.Equal(v, value.(valueNode)), value, <span class="literal">nil</span></span><br><span class="line">		&#125; <span class="comment">//要在节点A中新增节点B，若A和B本身数据一致，则认为已经新增，则直接返回true</span></span><br><span class="line">		<span class="keyword">return</span> <span class="literal">true</span>, value, <span class="literal">nil</span></span><br><span class="line">	&#125;</span><br><span class="line">	<span class="keyword">switch</span> n := n.(<span class="keyword">type</span>) &#123;</span><br><span class="line">	<span class="keyword">case</span> *shortNode:</span><br><span class="line">		matchlen := prefixLen(key, n.Key) <span class="comment">//n.Key是扩展节点的公共key，这是公共结点匹配</span></span><br><span class="line">		<span class="keyword">if</span> matchlen == <span class="built_in">len</span>(n.Key) &#123; </span><br><span class="line">			dirty, nn, err := t.insert(n.Val, <span class="built_in">append</span>(prefix, key[:matchlen]...), key[matchlen:], value)</span><br><span class="line">			<span class="keyword">if</span> !dirty || err != <span class="literal">nil</span> &#123;</span><br><span class="line">				<span class="keyword">return</span> <span class="literal">false</span>, n, err</span><br><span class="line">			&#125;<span class="comment">//新增返回的必是叶子结点</span></span><br><span class="line">			<span class="keyword">return</span> <span class="literal">true</span>, &amp;shortNode&#123;n.Key, nn, t.newFlag()&#125;, <span class="literal">nil</span> <span class="comment">//从这里可以看出，从根路径到插入数据的位置，整条路径的节点都会被重新实例化，node的dirty也被改为true，表示要重新更新</span></span><br><span class="line">		&#125;</span><br><span class="line">		<span class="comment">//该case中，剩余部分代码，是为了将一个扩展节点拆分为两部分</span></span><br><span class="line">		branch := &amp;fullNode&#123;flags: t.newFlag()&#125; <span class="comment">//新建一个分支节点</span></span><br><span class="line">		<span class="keyword">var</span> err error</span><br><span class="line">		<span class="comment">//插入分支节点第一个数据</span></span><br><span class="line">		_, branch.Children[n.Key[matchlen]], err = t.insert(<span class="literal">nil</span>, <span class="built_in">append</span>(prefix, n.Key[:matchlen+<span class="number">1</span>]...), n.Key[matchlen+<span class="number">1</span>:], n.Val)</span><br><span class="line">		<span class="keyword">if</span> err != <span class="literal">nil</span> &#123;</span><br><span class="line">			<span class="keyword">return</span> <span class="literal">false</span>, <span class="literal">nil</span>, err</span><br><span class="line">		&#125;</span><br><span class="line">		<span class="comment">//插入分支节点第二个数据</span></span><br><span class="line">		_, branch.Children[key[matchlen]], err = t.insert(<span class="literal">nil</span>, <span class="built_in">append</span>(prefix, key[:matchlen+<span class="number">1</span>]...), key[matchlen+<span class="number">1</span>:], value)</span><br><span class="line">		<span class="keyword">if</span> err != <span class="literal">nil</span> &#123;</span><br><span class="line">			<span class="keyword">return</span> <span class="literal">false</span>, <span class="literal">nil</span>, err</span><br><span class="line">		&#125;</span><br><span class="line">		<span class="comment">//若待插入数据和trie中当前节点的前缀key一个也没匹配，则返回分支节点</span></span><br><span class="line">		<span class="keyword">if</span> matchlen == <span class="number">0</span> &#123;</span><br><span class="line">			<span class="keyword">return</span> <span class="literal">true</span>, branch, <span class="literal">nil</span></span><br><span class="line">		&#125;</span><br><span class="line">		<span class="comment">// 否则返回扩展节点</span></span><br><span class="line">		<span class="keyword">return</span> <span class="literal">true</span>, &amp;shortNode&#123;key[:matchlen], branch, t.newFlag()&#125;, <span class="literal">nil</span></span><br><span class="line"></span><br><span class="line">	<span class="keyword">case</span> *fullNode: <span class="comment">//分支节点插入数据</span></span><br><span class="line">		dirty, nn, err := t.insert(n.Children[key[<span class="number">0</span>]], <span class="built_in">append</span>(prefix, key[<span class="number">0</span>]), key[<span class="number">1</span>:], value)</span><br><span class="line">		<span class="keyword">if</span> !dirty || err != <span class="literal">nil</span> </span><br><span class="line">			<span class="keyword">return</span> <span class="literal">false</span>, n, err</span><br><span class="line">		n = n.<span class="built_in">copy</span>()</span><br><span class="line">		n.flags = t.newFlag()</span><br><span class="line">		n.Children[key[<span class="number">0</span>]] = nn</span><br><span class="line">		<span class="keyword">return</span> <span class="literal">true</span>, n, <span class="literal">nil</span></span><br><span class="line"></span><br><span class="line">	<span class="keyword">case</span> <span class="literal">nil</span>: <span class="comment">//也就是说，在空trie中添加一个节点，就是叶子节点，返回shortNode。</span></span><br><span class="line">		<span class="keyword">return</span> <span class="literal">true</span>, &amp;shortNode&#123;key, value, t.newFlag()&#125;, <span class="literal">nil</span></span><br><span class="line"></span><br><span class="line">	<span class="keyword">case</span> hashNode: <span class="comment">//恢复一个存储在db中的node</span></span><br><span class="line">		rn, err := t.resolveHash(n, prefix)  <span class="comment">//检查该node是否存在，若存在，加载在node中</span></span><br><span class="line">		<span class="keyword">if</span> err != <span class="literal">nil</span> </span><br><span class="line">			<span class="keyword">return</span> <span class="literal">false</span>, <span class="literal">nil</span>, err</span><br><span class="line">		dirty, nn, err := t.insert(rn, prefix, key, value)</span><br><span class="line">		<span class="keyword">if</span> !dirty || err != <span class="literal">nil</span> </span><br><span class="line">			<span class="keyword">return</span> <span class="literal">false</span>, rn, err</span><br><span class="line">		<span class="keyword">return</span> <span class="literal">true</span>, nn, <span class="literal">nil</span></span><br><span class="line"></span><br><span class="line">	<span class="keyword">default</span>:</span><br><span class="line">		<span class="built_in">panic</span>(fmt.Sprintf(<span class="string">&quot;%T: invalid node: %v&quot;</span>, n, n))</span><br><span class="line">	&#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>从代码中我们可以看出：</p>
+<ul>
+<li>此时，只有key被编码为hex编码，而value是经过rlp编码的字节数组。</li>
+<li>insert()最终返回的node其实就是trie.root所指向的node。</li>
+<li>若trie中本身是存在key所对应的数据的，则不可被修改。也就是会说，trie本身只可增加节点，不可修改节点</li>
+<li>若节点<code>n</code>指向的是<code>nil</code>，则当前是空trie，直接在其后加一个shortNode(叶子节点)即可。</li>
+<li>若节点<code>n</code>指向的是<code>shortNode</code>，则该<code>shortNode</code>可能是扩展节点，也可能是叶子节点。<ul>
+<li>若待插入的key剩余未匹配的部分能匹配到当前<code>shortNode</code>中key的全部长度，则在该<code>shortNode</code>之后新增分支节点，或者在<code>shortNode</code>之后的分支节点上新增待插入节点。</li>
+<li>若待插入的key剩余未匹配的部分不能匹配到当前<code>shortNode</code>中key的全部长度，则该<code>shortNode</code>会新增一个分支节点，将shortNode分裂成两部分。这块建议大家画图理解。</li>
+</ul>
+</li>
+<li>若节点<code>n</code>指向的是分支节点<code>fullNode</code>，理解了上面指向<code>shortNode</code>的过程，那这里就容易理解了，从分支节点下进一步查找要匹配的位置</li>
+<li>若节点<code>n</code>指向的是<code>hashNode</code>，说明此时该节点属于轻节点，真实的节点数据被释放了。因此，通过hashNode去db中恢复该节点，然后进一步去插入。</li>
+</ul>
+<h4 id="从trie中获取数据"><a href="#从trie中获取数据" class="headerlink" title="从trie中获取数据"></a>从trie中获取数据</h4><p>其实就是根据输入到hash，在找到对应的叶子节点的数据，一言不合，先来代码，一坨。。。：</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">//origNode：当前查找的起始node位置</span></span><br><span class="line"><span class="comment">//key：输入要查找的数据的hash</span></span><br><span class="line"><span class="comment">//pos：当前hash匹配到第几位</span></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="params">(t *Trie)</span> <span class="title">tryGet</span><span class="params">(origNode node, key []<span class="keyword">byte</span>, pos <span class="keyword">int</span>)</span> <span class="params">(value []<span class="keyword">byte</span>, newnode node, didResolve <span class="keyword">bool</span>, err error)</span></span> &#123;</span><br><span class="line">	<span class="keyword">switch</span> n := (origNode).(<span class="keyword">type</span>) &#123;</span><br><span class="line">	<span class="keyword">case</span> <span class="literal">nil</span>: <span class="comment">//这表示当前trie是空树</span></span><br><span class="line">		<span class="keyword">return</span> <span class="literal">nil</span>, <span class="literal">nil</span>, <span class="literal">false</span>, <span class="literal">nil</span></span><br><span class="line">	<span class="keyword">case</span> valueNode: <span class="comment">//这就是我们要查找的叶子节点对应的数据</span></span><br><span class="line">		<span class="keyword">return</span> n, n, <span class="literal">false</span>, <span class="literal">nil</span></span><br><span class="line">	<span class="keyword">case</span> *shortNode: <span class="comment">//在叶子节点或者扩展节点匹配</span></span><br><span class="line">		<span class="keyword">if</span> <span class="built_in">len</span>(key)-pos &lt; <span class="built_in">len</span>(n.Key) || !bytes.Equal(n.Key, key[pos:pos+<span class="built_in">len</span>(n.Key)]) </span><br><span class="line">			<span class="keyword">return</span> <span class="literal">nil</span>, n, <span class="literal">false</span>, <span class="literal">nil</span></span><br><span class="line">		value, newnode, didResolve, err = t.tryGet(n.Val, key, pos+<span class="built_in">len</span>(n.Key))</span><br><span class="line">		<span class="keyword">if</span> err == <span class="literal">nil</span> &amp;&amp; didResolve &#123;</span><br><span class="line">			n = n.<span class="built_in">copy</span>()</span><br><span class="line">			n.Val = newnode</span><br><span class="line">			n.flags.gen = t.cachegen</span><br><span class="line">		&#125;</span><br><span class="line">		<span class="keyword">return</span> value, n, didResolve, err</span><br><span class="line">	<span class="keyword">case</span> *fullNode:  <span class="comment">//在分支节点匹配</span></span><br><span class="line">		value, newnode, didResolve, err = t.tryGet(n.Children[key[pos]], key, pos+<span class="number">1</span>)</span><br><span class="line">		<span class="keyword">if</span> err == <span class="literal">nil</span> &amp;&amp; didResolve &#123;</span><br><span class="line">			n = n.<span class="built_in">copy</span>()</span><br><span class="line">			n.flags.gen = t.cachegen</span><br><span class="line">			n.Children[key[pos]] = newnode</span><br><span class="line">		&#125;</span><br><span class="line">		<span class="keyword">return</span> value, n, didResolve, err</span><br><span class="line">	<span class="keyword">case</span> hashNode: <span class="comment">//说明当前节点是轻节点，需要从db中获取</span></span><br><span class="line">		child, err := t.resolveHash(n, key[:pos])</span><br><span class="line">		<span class="keyword">if</span> err != <span class="literal">nil</span> </span><br><span class="line">			<span class="keyword">return</span> <span class="literal">nil</span>, n, <span class="literal">true</span>, err  <span class="comment">//trie重组，因此需要返回true</span></span><br><span class="line">		value, newnode, _, err := t.tryGet(child, key, pos)</span><br><span class="line">		<span class="keyword">return</span> value, newnode, <span class="literal">true</span>, err</span><br><span class="line">	<span class="keyword">default</span>:</span><br><span class="line">		<span class="built_in">panic</span>(fmt.Sprintf(<span class="string">&quot;%T: invalid node: %v&quot;</span>, origNode, origNode))</span><br><span class="line">	&#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>不说别的，先说<code>didResolve</code>这个东西，用于判断trie树是否会发生变化，按理tryGet()只是用来获取数据的，哪里会影响trie发生变化，但是因为有可能我们会根据hashNode去db中获取该node值，获取到后，需要更新现有的trie，<code>didResolve</code>就会发生变化。<br>其实这段查询代码里，也就只有<code>didResolve</code>会让人郁闷一下，其它的就只是基本的递归查找树了。小编就不详解了，代码里注释大概写了点，够用了。<br>补充一下，当涉及到hashNode时，我们要知道，这是通过外部输入hashNode，进磁盘DB中查找对应节点。</p>
+<h4 id="从trie中删除数据"><a href="#从trie中删除数据" class="headerlink" title="从trie中删除数据"></a>从trie中删除数据</h4><p>也就是说删除trie中的一个叶子节点。这个过程和插入过程很相似，小编就不讲了，再讲就累死了。</p>
+<h3 id="节点缓存设置"><a href="#节点缓存设置" class="headerlink" title="节点缓存设置"></a>节点缓存设置</h3><p>当一个节点被提交次数达到指定上线时候，该节点将会被重新加载。<br>这个功能还是蛮有用的，提高效率。这个代码没细看，有兴趣的可以看看。<br>在<code>test_trie.go</code>中看<code>TestCacheUnload()</code>测试方法，在<code>trie.go</code>中看trie.SetCacheLimit()方法<br>话说这个缓存机制小编一直没看懂。。。</p>
+<h2 id="Trie树的序列化、缓存-轻节点"><a href="#Trie树的序列化、缓存-轻节点" class="headerlink" title="Trie树的序列化、缓存(轻节点)"></a>Trie树的序列化、缓存(轻节点)</h2><p>小编相信，看懂<a href="/articles/original/ethereum/src_analysis/%E4%BB%A5%E5%A4%AA%E5%9D%8A%E6%BA%90%E7%A0%81%E8%A7%A3%E8%AF%BB-%E7%AC%AC2%E8%AE%B2-rlp%E6%A8%A1%E5%9D%97%E6%BA%90%E7%A0%81%E8%A7%A3%E8%AF%BB.html">以太坊源码解读-第2讲-rlp模块源码解读</a>的同学，会很容易理解trie树的序列化的 。<br>序列化和反序列化，本就是内存和磁盘存储时候的两种转化，具体概念小编就不讲了。<br>当trie.Commit(nil)的时候，会执行序列化、缓存等操作，因此小编就将这两者合在一起讲了<br>需要注意的是，trie树序列化后，真正保存在磁盘上，是使用的<code>Compact Encoding</code>编码，这样会节省空间。<br>还有一点需要分清：<code>node本身节点的hash和shortNode中的key要区分，从根结点到叶子节点的key衔接起来，表示的是叶子节点value数据的hash值</code><br>关于trie的缓存机制，其实就是轻节点机制的设计理念，后面小编在代码中深入介绍吧。</p>
+<h3 id="trie-Commit-nil-入口解析"><a href="#trie-Commit-nil-入口解析" class="headerlink" title="trie.Commit(nil)入口解析"></a>trie.Commit(nil)入口解析</h3><p>Commit()的目的，是将trie树中的key转为Compact编码，为每个节点生成一个hash。<br>可以这么说，它就是为了确保后续能正常将变动的数据提交到db.<br>来看代码：</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">func</span> <span class="params">(t *Trie)</span> <span class="title">Commit</span><span class="params">(onleaf LeafCallback)</span> <span class="params">(root common.Hash, err error)</span></span> &#123;</span><br><span class="line">	<span class="keyword">if</span> t.db == <span class="literal">nil</span> </span><br><span class="line">		<span class="built_in">panic</span>(<span class="string">&quot;commit called on trie with nil database&quot;</span>)</span><br><span class="line">	hash, cached, err := t.hashRoot(t.db, onleaf)  </span><br><span class="line">	<span class="keyword">if</span> err != <span class="literal">nil</span> </span><br><span class="line">		<span class="keyword">return</span> common.Hash&#123;&#125;, err</span><br><span class="line">	t.root = cached</span><br><span class="line">	t.cachegen++</span><br><span class="line">	<span class="keyword">return</span> common.BytesToHash(hash.(hashNode)), <span class="literal">nil</span>  <span class="comment">//返回trie.root所指向的节点的hash，注意该hash是原始的32位hash，并未编码</span></span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">//为每个node生成一个hash</span></span><br><span class="line"><span class="comment">//返回的结果中，有两个node，后面文中详细解释</span></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="params">(t *Trie)</span> <span class="title">hashRoot</span><span class="params">(db *Database, onleaf LeafCallback)</span> <span class="params">(node, node, error)</span></span> &#123;</span><br><span class="line">	<span class="keyword">if</span> t.root == <span class="literal">nil</span> </span><br><span class="line">		<span class="keyword">return</span> hashNode(emptyRoot.Bytes()), <span class="literal">nil</span>, <span class="literal">nil</span></span><br><span class="line">	h := newHasher(t.cachegen, t.cachelimit, onleaf) <span class="comment">//涉及到haser.go，后面解释</span></span><br><span class="line">	<span class="keyword">defer</span> returnHasherToPool(h)</span><br><span class="line">	<span class="keyword">return</span> h.hash(t.root, db, <span class="literal">true</span>)  <span class="comment">//为每个节点生成一个未编码的hash，该方法后面具体会详解</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>上述代码我们了解到：</p>
+<ul>
+<li>每Commit()一次，该trie的cachegen就会加1</li>
+<li>最终Commit()方法返回的是trie.root所指向的node的hash（未编码）。</li>
+<li>其中的hashRoot()方法目的是<code>返回trie.root所指向的node的hash</code>以及<code>每个节点都带有各自hash的trie树的root</code>。</li>
+<li>期间会涉及到hasher.go中的操作，它维护着一个操作trie中hash相关的对象池，我们也发现，在hashRoot()中最重要的就是它的hash()方法，接下来我们就好好探索一下它的具体实现。</li>
+</ul>
+<h3 id="haser-go的hash-方法"><a href="#haser-go的hash-方法" class="headerlink" title="haser.go的hash()方法"></a>haser.go的hash()方法</h3><p>这个方法主要就是为每个节点都生成一个hash，<br><span id="hash">来一坨代码：</span></p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">func</span> <span class="params">(h *hasher)</span> <span class="title">hash</span><span class="params">(n node, db *Database, force <span class="keyword">bool</span>)</span> <span class="params">(node, node, error)</span></span> &#123;</span><br><span class="line">	<span class="keyword">if</span> hash, dirty := n.cache(); hash != <span class="literal">nil</span> &#123;</span><br><span class="line">		<span class="keyword">if</span> db == <span class="literal">nil</span> </span><br><span class="line">			<span class="keyword">return</span> hash, n, <span class="literal">nil</span></span><br><span class="line">		<span class="keyword">if</span> n.canUnload(h.cachegen, h.cachelimit) &#123;</span><br><span class="line">			cacheUnloadCounter.Inc(<span class="number">1</span>)</span><br><span class="line">			<span class="keyword">return</span> hash, hash, <span class="literal">nil</span></span><br><span class="line">		&#125;</span><br><span class="line">		<span class="keyword">if</span> !dirty </span><br><span class="line">			<span class="keyword">return</span> hash, n, <span class="literal">nil</span></span><br><span class="line">	&#125;</span><br><span class="line">	collapsed, cached, err := h.hashChildren(n, db) <span class="comment">//处理每个节点</span></span><br><span class="line">	<span class="keyword">if</span> err != <span class="literal">nil</span> </span><br><span class="line">		<span class="keyword">return</span> hashNode&#123;&#125;, n, err</span><br><span class="line">	hashed, err := h.store(collapsed, db, force) <span class="comment">//将当前节点生成hash，这方法很重要，下一节讲</span></span><br><span class="line">	<span class="keyword">if</span> err != <span class="literal">nil</span> </span><br><span class="line">		<span class="keyword">return</span> hashNode&#123;&#125;, n, err</span><br><span class="line"></span><br><span class="line">	cachedHash, _ := hashed.(hashNode)</span><br><span class="line">	<span class="keyword">switch</span> cn := cached.(<span class="keyword">type</span>) &#123;</span><br><span class="line">	<span class="keyword">case</span> *shortNode:</span><br><span class="line">		cn.flags.hash = cachedHash <span class="comment">//将当前节点的hasn保存在flags中</span></span><br><span class="line">		<span class="keyword">if</span> db != <span class="literal">nil</span> </span><br><span class="line">			cn.flags.dirty = <span class="literal">false</span></span><br><span class="line">	<span class="keyword">case</span> *fullNode:  <span class="comment">//和上面一样操作</span></span><br><span class="line">		cn.flags.hash = cachedHash</span><br><span class="line">		<span class="keyword">if</span> db != <span class="literal">nil</span> </span><br><span class="line">			cn.flags.dirty = <span class="literal">false</span></span><br><span class="line">	&#125;</span><br><span class="line">	<span class="keyword">return</span> hashed, cached, <span class="literal">nil</span>  <span class="comment">//返回当前节点的hash以及当前节点本身</span></span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">//依次处理trie中的每个节点</span></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="params">(h *hasher)</span> <span class="title">hashChildren</span><span class="params">(original node, db *Database)</span> <span class="params">(node, node, error)</span></span> &#123;</span><br><span class="line">	<span class="keyword">var</span> err error</span><br><span class="line">	<span class="keyword">switch</span> n := original.(<span class="keyword">type</span>) &#123;</span><br><span class="line">	<span class="keyword">case</span> *shortNode:</span><br><span class="line">		collapsed, cached := n.<span class="built_in">copy</span>(), n.<span class="built_in">copy</span>()  <span class="comment">//递归算下来，相当于复制了两个新的trie</span></span><br><span class="line">		collapsed.Key = hexToCompact(n.Key) <span class="comment">//将前缀hex转为compact，方便磁盘存储</span></span><br><span class="line">		cached.Key = common.CopyBytes(n.Key) <span class="comment">//将key字节数组复制给cached</span></span><br><span class="line">		<span class="keyword">if</span> _, ok := n.Val.(valueNode); !ok &#123;</span><br><span class="line">			collapsed.Val, cached.Val, err = h.hash(n.Val, db, <span class="literal">false</span>)</span><br><span class="line">			<span class="keyword">if</span> err != <span class="literal">nil</span> </span><br><span class="line">				<span class="keyword">return</span> original, original, err</span><br><span class="line">		&#125;</span><br><span class="line">		<span class="keyword">if</span> collapsed.Val == <span class="literal">nil</span> </span><br><span class="line">			collapsed.Val = valueNode(<span class="literal">nil</span>) <span class="comment">//确保不为nil</span></span><br><span class="line">		<span class="keyword">return</span> collapsed, cached, <span class="literal">nil</span>  <span class="comment">//前者是用于磁盘存储的节点，后者是hash化的节点，可以称为轻节点</span></span><br><span class="line"></span><br><span class="line">	<span class="keyword">case</span> *fullNode:</span><br><span class="line">		collapsed, cached := n.<span class="built_in">copy</span>(), n.<span class="built_in">copy</span>()</span><br><span class="line">		<span class="keyword">for</span> i := <span class="number">0</span>; i &lt; <span class="number">16</span>; i++ &#123;</span><br><span class="line">			<span class="keyword">if</span> n.Children[i] != <span class="literal">nil</span> &#123; <span class="comment">//类似，处理每个节点</span></span><br><span class="line">				collapsed.Children[i], cached.Children[i], err = h.hash(n.Children[i], db, <span class="literal">false</span>)</span><br><span class="line">				<span class="keyword">if</span> err != <span class="literal">nil</span> </span><br><span class="line">					<span class="keyword">return</span> original, original, err</span><br><span class="line">			&#125; <span class="keyword">else</span> </span><br><span class="line">				collapsed.Children[i] = valueNode(<span class="literal">nil</span>) <span class="comment">//确保不会出现nil</span></span><br><span class="line">		&#125;</span><br><span class="line">		cached.Children[<span class="number">16</span>] = n.Children[<span class="number">16</span>]</span><br><span class="line">		<span class="keyword">if</span> collapsed.Children[<span class="number">16</span>] == <span class="literal">nil</span> </span><br><span class="line">			collapsed.Children[<span class="number">16</span>] = valueNode(<span class="literal">nil</span>)</span><br><span class="line">		<span class="keyword">return</span> collapsed, cached, <span class="literal">nil</span></span><br><span class="line"></span><br><span class="line">	<span class="keyword">default</span>:</span><br><span class="line">		<span class="keyword">return</span> n, original, <span class="literal">nil</span></span><br><span class="line">	&#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>纠结了半天，小编觉得也没什么注释可以写的。具体的这里来解释吧：</p>
+<ul>
+<li>hash()方法很重要，最终它返回了头节点的hash以及每个子节点都带有hash的头节点。（头节点就是为了让trie.root最终指向它）<br>它主要完成了3个任务：<ul>
+<li>缓存管理，检测是否要释放某节点</li>
+<li>递归调用hashChildren()处理每个节点，它返回的是两个node，具体看下面的解释。</li>
+<li>调用store()方法生成每个节点的hash，并保存在当前节点中，store()方法很重要，我们下一节单独讲</li>
+</ul>
+</li>
+<li>hashChildren()方法主要就是为了处理树中的每个节点，比如：将shortNode的前缀key转为Compact编码，将nil数据处理一下。小编认为这个方法真正最主要的目的就是将当前所在节点复制了两份（分别叫做<code>collapsed</code>, <code>cached</code>），这样此时加上原先传入的总共就有3份当前节点数据了。复制的两份，其中一份<code>collapsed</code>是为了将来db磁盘存储；而另一份<code>cached</code>会保留在内存中，回调结束后trie.root会指向这个cached，这样，原先的那一份就会被gc了（trie.root原先是指向这一份），</li>
+</ul>
+<h3 id="haser-go的store-方法（涉及缓存）"><a href="#haser-go的store-方法（涉及缓存）" class="headerlink" title="haser.go的store()方法（涉及缓存）"></a>haser.go的store()方法（涉及缓存）</h3><p>我们上面提到了hashChildren()返回的是两个node，其中一个叫做<code>collapsed</code>的当前node被传入了store()方法中，而它只返回了一个当前node的hash。<br>前面我们已经知道<code>collapsed</code>节点做了部分处理，它最终目的是保存在db磁盘的。当它的节点本身被rlp序列化，就可以直接传入db保存了。<br>store()方法就是用来rlp序列化<code>collapsed</code>节点并将其插入db磁盘中，当前节点的hash也是由它来生成的。<br>具体我们来看这样一坨代码：</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">func</span> <span class="params">(h *hasher)</span> <span class="title">store</span><span class="params">(n node, db *Database, force <span class="keyword">bool</span>)</span> <span class="params">(node, error)</span></span> &#123;</span><br><span class="line">	<span class="keyword">if</span> _, isHash := n.(hashNode); n == <span class="literal">nil</span> || isHash <span class="comment">//空数据或者hashNode，则不处理</span></span><br><span class="line">		<span class="keyword">return</span> n, <span class="literal">nil</span></span><br><span class="line">	h.tmp.Reset() <span class="comment">//缓存初始化</span></span><br><span class="line">	<span class="keyword">if</span> err := rlp.Encode(h.tmp, n); err != <span class="literal">nil</span> <span class="comment">//将当前node序列化</span></span><br><span class="line">		<span class="built_in">panic</span>(<span class="string">&quot;encode error: &quot;</span> + err.Error())</span><br><span class="line">	<span class="keyword">if</span> h.tmp.Len() &lt; <span class="number">32</span> &amp;&amp; !force </span><br><span class="line">		<span class="keyword">return</span> n, <span class="literal">nil</span> <span class="comment">//编码后的node长度小于32，若force为true，则可确保所有节点都被编码</span></span><br><span class="line">	<span class="comment">// 长度过大的，则都将被新计算出来的hash取代</span></span><br><span class="line">	hash, _ := n.cache()  <span class="comment">//取出当前节点的hash</span></span><br><span class="line">	<span class="keyword">if</span> hash == <span class="literal">nil</span> &#123;  <span class="comment">//如果hash</span></span><br><span class="line">		h.sha.Reset()</span><br><span class="line">		h.sha.Write(h.tmp.Bytes())  <span class="comment">//将rlp编码的节点数据传入hash工具</span></span><br><span class="line">		hash = hashNode(h.sha.Sum(<span class="literal">nil</span>))  <span class="comment">//根据传入的节点信息，生成hash</span></span><br><span class="line">	&#125;</span><br><span class="line">	<span class="keyword">if</span> db != <span class="literal">nil</span> &#123;</span><br><span class="line">		db.lock.Lock()</span><br><span class="line"></span><br><span class="line">		hash := common.BytesToHash(hash)</span><br><span class="line">		db.insert(hash, h.tmp.Bytes()) <span class="comment">//将其插入db</span></span><br><span class="line"></span><br><span class="line">		<span class="keyword">switch</span> n := n.(<span class="keyword">type</span>) &#123;</span><br><span class="line">		<span class="keyword">case</span> *shortNode:</span><br><span class="line">			<span class="keyword">if</span> child, ok := n.Val.(hashNode); ok <span class="comment">//指向的是分支节点</span></span><br><span class="line">				db.reference(common.BytesToHash(child), hash) <span class="comment">//用于统计当前节点的信息，比如当前节点有几个子节点，当前有效的节点数</span></span><br><span class="line">		<span class="keyword">case</span> *fullNode:</span><br><span class="line">			<span class="keyword">for</span> i := <span class="number">0</span>; i &lt; <span class="number">16</span>; i++ &#123;</span><br><span class="line">				<span class="keyword">if</span> child, ok := n.Children[i].(hashNode); ok </span><br><span class="line">					db.reference(common.BytesToHash(child), hash)</span><br><span class="line">			&#125;</span><br><span class="line">		&#125;</span><br><span class="line">		db.lock.Unlock()</span><br><span class="line"></span><br><span class="line">		<span class="keyword">if</span> h.onleaf != <span class="literal">nil</span> &#123; <span class="comment">//onleaf是回调时候使用的，记得trie.Commit(x)里的那个参数吧，就是它</span></span><br><span class="line">			<span class="keyword">switch</span> n := n.(<span class="keyword">type</span>) &#123;</span><br><span class="line">			<span class="keyword">case</span> *shortNode:</span><br><span class="line">				<span class="keyword">if</span> child, ok := n.Val.(valueNode); ok </span><br><span class="line">					h.onleaf(child, hash)</span><br><span class="line">			<span class="keyword">case</span> *fullNode:</span><br><span class="line">				<span class="keyword">for</span> i := <span class="number">0</span>; i &lt; <span class="number">16</span>; i++ </span><br><span class="line">					<span class="keyword">if</span> child, ok := n.Children[i].(valueNode); ok &#123;</span><br><span class="line">						h.onleaf(child, hash)</span><br><span class="line">				&#125;</span><br><span class="line">			&#125;</span><br><span class="line">		&#125;</span><br><span class="line">	&#125;</span><br><span class="line">	<span class="keyword">return</span> hash, <span class="literal">nil</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>代码中重要的一点就是hash的生成，它是根据序列化后的节点生成的。<br>注意看db的插入，根据hash来插入rlp序列化的节点，到时候我们就能根据这个hash来还愿整个节点了。而要注意的一点是<code>该hash是32位的原始hash，并未经过任何编码，最终该方法返回的hash也没有经过任何处理</code><br>另外stroe()方法传入的有个参数叫force，通过代码我们得知，如果设置为true，则即使长度再小的节点，也要进行rlp编码<br>剩下的代码，小编发现没什么要讲的。。。代码不复杂，写的都很清楚，能注释的也都注释了，</p>
+<h3 id="缓存机制（轻节点）"><a href="#缓存机制（轻节点）" class="headerlink" title="缓存机制（轻节点）"></a>缓存机制（轻节点）</h3><p>讲了半天，就剩缓存没讲了，再次回到haser.go的hash()方法，这时候再来看这个缓存机制就很容易理解了。<br><a href="#hash">代码看这里</a><br>还记得Trie树的结构里面有两个参数， 一个是cachegen,一个是cachelimit。这两个参数就是cache控制的参数。 Trie树每一次调用Commit方法，会导致当前的cachegen增加1。<br>数据节点插入时候（<a href="#insert">代码看这里</a>），会把当前trie的cachegen存放到该节点中。<br>要知道，只要trie路径上新增或者删除一个节点，整个路径的节点都需要重新实例化，也就是节点中的nodeFlag被初始化了。都需要重新更新到db磁盘。<br>node.go源码中有针对每种node实现的<code>canUnload()</code>方法，大体上是当<code>trie.cachegen - node.cachegen &gt; cachelimit</code>和<code>dirty=false（表示当前节点未发生变化）</code>条件满足时就会返回true（说明该节点数据始终没有发生变化，自己好好悟悟这句话吧，最好拿数据实际操作一下）,此时hash()方法中，就不会返回节点数据，而是返回节点的一个hash值。</p>
+<h4 id="轻节点"><a href="#轻节点" class="headerlink" title="轻节点"></a>轻节点</h4><p>小编在<a href="/articles/original/ethereum/src_analysis/%E4%BB%A5%E5%A4%AA%E5%9D%8A%E6%BA%90%E7%A0%81%E8%A7%A3%E8%AF%BB-%E7%AC%AC3.1%E8%AE%B2-trie%E5%8E%9F%E7%90%86%E4%BB%8B%E7%BB%8D.html">以太坊源码解读-第3.1讲-trie原理介绍</a>中已经初步介绍了轻节点的概念，根据上述缓存机制，我们返回的只有hash节点本身。这其实就是我们所说的轻节点。。。貌似小编没有什么需要继续往下说的了。。。一路看下来这篇文章的同学，应该会很容易理解这个吧。</p>
+<h2 id="proof-go-源码"><a href="#proof-go-源码" class="headerlink" title="proof.go 源码"></a>proof.go 源码</h2><p>看了下，总共有三个方法：</p>
+<ul>
+<li>Prove()：根据给定的key，在trie中，将满足key中最大长度前缀的路径上的节点都加入到proofDb（队列中每个元素满足：未编码的hash以及对应rlp编码后的节点）</li>
+<li>VerifyProof()：验证proffDb中是否存在满足输入的hash，和对应key的节点，如果满足，则返回rlp解码后的该节点。</li>
+</ul>
+<p>具体代码小编就不列了，也不复杂，有兴趣的可以看看</p>
+<h2 id="database-go源码"><a href="#database-go源码" class="headerlink" title="database.go源码"></a>database.go源码</h2><p>它对ethdb做了进一步封装，方便trie中节点的插入删除操作，具体代码小编等下一次讲ethdb.go的时候再来解释。现在就不说了。</p>
+<h2 id="iterator-go源码"><a href="#iterator-go源码" class="headerlink" title="iterator.go源码"></a>iterator.go源码</h2><p>以太坊提供的对trie树的遍历工具，有兴趣的看看，这里也不解释了，小编也懒得看了。</p>
+<h2 id="security-trie-go源码"><a href="#security-trie-go源码" class="headerlink" title="security_trie.go源码"></a>security_trie.go源码</h2><p>这个可以理解为加密了的trie的实现，ecurity_trie包装了一下trie树， 所有的key都转换成keccak256算法计算的hash值。同时在数据库里面存储hash值对应的原始的key。<br>但是官方在代码里也注释了，这个代码不稳定，除了测试用例，别的地方并没有使用该代码。</p>
+<h2 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h2><p>还有几个trie模块下的代码文件，小逼没有提到，不是说不重要，只是小编的精力主要集中在trie的整体逻辑。关于trie，写了两篇文章，写了将近半个月，涉及的比较多，有些地方写的不一定合理，大家可以留言指出。</p>
+ 
+      <!-- reward -->
+      
+    </div>
+    
+
+    <!-- copyright -->
+    
+    <div class="declare">
+      <ul class="post-copyright">
+        <li>
+          <i class="ri-copyright-line"></i>
+          <strong>Copyright： </strong>
+          
+          Copyright is owned by the author. For commercial reprints, please contact the author for authorization. For non-commercial reprints, please indicate the source.
+          
+        </li>
+      </ul>
+    </div>
+    
+    <footer class="article-footer">
+       
+<div class="share-btn">
+      <span class="share-sns share-outer">
+        <i class="ri-share-forward-line"></i>
+        分享
+      </span>
+      <div class="share-wrap">
+        <i class="arrow"></i>
+        <div class="share-icons">
+          
+          <a class="weibo share-sns" href="javascript:;" data-type="weibo">
+            <i class="ri-weibo-fill"></i>
+          </a>
+          <a class="weixin share-sns wxFab" href="javascript:;" data-type="weixin">
+            <i class="ri-wechat-fill"></i>
+          </a>
+          <a class="qq share-sns" href="javascript:;" data-type="qq">
+            <i class="ri-qq-fill"></i>
+          </a>
+          <a class="douban share-sns" href="javascript:;" data-type="douban">
+            <i class="ri-douban-line"></i>
+          </a>
+          <!-- <a class="qzone share-sns" href="javascript:;" data-type="qzone">
+            <i class="icon icon-qzone"></i>
+          </a> -->
+          
+          <a class="facebook share-sns" href="javascript:;" data-type="facebook">
+            <i class="ri-facebook-circle-fill"></i>
+          </a>
+          <a class="twitter share-sns" href="javascript:;" data-type="twitter">
+            <i class="ri-twitter-fill"></i>
+          </a>
+          <a class="google share-sns" href="javascript:;" data-type="google">
+            <i class="ri-google-fill"></i>
+          </a>
+        </div>
+      </div>
+</div>
+
+<div class="wx-share-modal">
+    <a class="modal-close" href="javascript:;"><i class="ri-close-circle-line"></i></a>
+    <p>扫一扫，分享到微信</p>
+    <div class="wx-qrcode">
+      <img src="//api.qrserver.com/v1/create-qr-code/?size=150x150&data=http://jason-wj.gitee.io/articles/dcade07d/" alt="微信分享二维码">
+    </div>
+</div>
+
+<div id="share-mask"></div>  
+  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/ethereum/" rel="tag">ethereum</a></li></ul>
+
+    </footer>
+  </div>
+
+   
+  <nav class="article-nav">
+    
+      <a href="/articles/f54b1404/" class="article-nav-link">
+        <strong class="article-nav-caption">上一篇</strong>
+        <div class="article-nav-title">
+          
+            以太坊源码解读-第4讲-ethdb模块源码解读
+          
+        </div>
+      </a>
+    
+    
+      <a href="/articles/636a5647/" class="article-nav-link">
+        <strong class="article-nav-caption">下一篇</strong>
+        <div class="article-nav-title">以太坊源码解读-第3.1讲-trie原理介绍</div>
+      </a>
+    
+  </nav>
+
+   
+<!-- valine评论 -->
+<div id="vcomments-box">
+  <div id="vcomments"></div>
+</div>
+<script src="//cdn1.lncld.net/static/js/3.0.4/av-min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/valine@1.4.14/dist/Valine.min.js"></script>
+<script>
+  new Valine({
+    el: "#vcomments",
+    app_id: "gdw0hVSwW3l6KgEMulSAc9Rx-gzGzoHsz",
+    app_key: "M4iiVXe0CuXWQEKuyIzWWDMh",
+    path: window.location.pathname,
+    avatar: "monsterid",
+    placeholder: "给我的文章加点评论吧~",
+    recordIP: true,
+  });
+  const infoEle = document.querySelector("#vcomments .info");
+  if (infoEle && infoEle.childNodes && infoEle.childNodes.length > 0) {
+    infoEle.childNodes.forEach(function (item) {
+      item.parentNode.removeChild(item);
+    });
+  }
+</script>
+<style>
+  #vcomments-box {
+    padding: 5px 30px;
+  }
+
+  @media screen and (max-width: 800px) {
+    #vcomments-box {
+      padding: 5px 0px;
+    }
+  }
+
+  #vcomments-box #vcomments {
+    background-color: #fff;
+  }
+
+  .v .vlist .vcard .vh {
+    padding-right: 20px;
+  }
+
+  .v .vlist .vcard {
+    padding-left: 10px;
+  }
+</style>
+
+ 
+   
+     
+</article>
+
+</section>
+      <footer class="footer">
+  <div class="outer">
+    <ul>
+      <li>
+        Copyrights &copy;
+        2017-2021
+        <i class="ri-heart-fill heart_icon"></i> Jason
+      </li>
+    </ul>
+    <ul>
+      <li>
+        
+      </li>
+    </ul>
+    <ul>
+      <li>
+        
+        
+        <span>
+  <span><i class="ri-user-3-fill"></i>Visitors:<span id="busuanzi_value_site_uv"></span></s>
+  <span class="division">|</span>
+  <span><i class="ri-eye-fill"></i>Views:<span id="busuanzi_value_page_pv"></span></span>
+</span>
+        
+      </li>
+    </ul>
+    <ul>
+      
+    </ul>
+    <ul>
+      
+    </ul>
+    <ul>
+      <li>
+        <!-- cnzz统计 -->
+        
+        <script type="text/javascript" src='https://s4.cnzz.com/z_stat.php?id=1279593399&amp;web_id=1279593399'></script>
+        
+      </li>
+    </ul>
+  </div>
+</footer>
+      <div class="float_btns">
+        <div class="totop" id="totop">
+  <i class="ri-arrow-up-line"></i>
+</div>
+
+<div class="todark" id="todark">
+  <i class="ri-moon-line"></i>
+</div>
+
+      </div>
+    </main>
+    <aside class="sidebar on">
+      <button class="navbar-toggle"></button>
+<nav class="navbar">
+  
+  <div class="logo">
+    <a href="/"><img src="/images/my_head-touch-icon-next.png" alt="Jason漫谈区块链"></a>
+  </div>
+  
+  <ul class="nav nav-main">
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/">主页</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/archives">归档</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/categories">分类</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/tags">标签</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/friends">友链</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/about">关于我</a>
+    </li>
+    
+  </ul>
+</nav>
+<nav class="navbar navbar-bottom">
+  <ul class="nav">
+    <li class="nav-item">
+      
+      <a class="nav-item-link nav-item-search"  title="Search">
+        <i class="ri-search-line"></i>
+      </a>
+      
+      
+    </li>
+  </ul>
+</nav>
+<div class="search-form-wrap">
+  <div class="local-search local-search-plugin">
+  <input type="search" id="local-search-input" class="local-search-input" placeholder="Search...">
+  <div id="local-search-result" class="local-search-result"></div>
+</div>
+</div>
+    </aside>
+    <script>
+      if (window.matchMedia("(max-width: 768px)").matches) {
+        document.querySelector('.content').classList.remove('on');
+        document.querySelector('.sidebar').classList.remove('on');
+      }
+    </script>
+    <div id="mask"></div>
+
+<!-- #reward -->
+<div id="reward">
+  <span class="close"><i class="ri-close-line"></i></span>
+  <p class="reward-p"><i class="ri-cup-line"></i>请我喝杯咖啡吧~</p>
+  <div class="reward-box">
+    
+    <div class="reward-item">
+      <img class="reward-img" src="/images/pay_ali.jpg">
+      <span class="reward-type">支付宝</span>
+    </div>
+    
+    
+    <div class="reward-item">
+      <img class="reward-img" src="/images/pay_wechat.jpg">
+      <span class="reward-type">微信</span>
+    </div>
+    
+  </div>
+</div>
+    
+<script src="/js/jquery-2.0.3.min.js"></script>
+
+
+<script src="/js/lazyload.min.js"></script>
+
+<!-- Tocbot -->
+
+
+<script src="/js/tocbot.min.js"></script>
+
+<script>
+  tocbot.init({
+    tocSelector: '.tocbot',
+    contentSelector: '.article-entry',
+    headingSelector: 'h1, h2, h3, h4, h5, h6',
+    hasInnerContainers: true,
+    scrollSmooth: true,
+    scrollContainer: 'main',
+    positionFixedSelector: '.tocbot',
+    positionFixedClass: 'is-position-fixed',
+    fixedSidebarOffset: 'auto'
+  });
+</script>
+
+<script src="https://cdn.jsdelivr.net/npm/jquery-modal@0.9.2/jquery.modal.min.js"></script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/jquery-modal@0.9.2/jquery.modal.min.css">
+<script src="https://cdn.jsdelivr.net/npm/justifiedGallery@3.7.0/dist/js/jquery.justifiedGallery.min.js"></script>
+
+<script src="/dist/main.js"></script>
+
+<!-- ImageViewer -->
+
+<!-- Root element of PhotoSwipe. Must have class pswp. -->
+<div class="pswp" tabindex="-1" role="dialog" aria-hidden="true">
+
+    <!-- Background of PhotoSwipe. 
+         It's a separate element as animating opacity is faster than rgba(). -->
+    <div class="pswp__bg"></div>
+
+    <!-- Slides wrapper with overflow:hidden. -->
+    <div class="pswp__scroll-wrap">
+
+        <!-- Container that holds slides. 
+            PhotoSwipe keeps only 3 of them in the DOM to save memory.
+            Don't modify these 3 pswp__item elements, data is added later on. -->
+        <div class="pswp__container">
+            <div class="pswp__item"></div>
+            <div class="pswp__item"></div>
+            <div class="pswp__item"></div>
+        </div>
+
+        <!-- Default (PhotoSwipeUI_Default) interface on top of sliding area. Can be changed. -->
+        <div class="pswp__ui pswp__ui--hidden">
+
+            <div class="pswp__top-bar">
+
+                <!--  Controls are self-explanatory. Order can be changed. -->
+
+                <div class="pswp__counter"></div>
+
+                <button class="pswp__button pswp__button--close" title="Close (Esc)"></button>
+
+                <button class="pswp__button pswp__button--share" style="display:none" title="Share"></button>
+
+                <button class="pswp__button pswp__button--fs" title="Toggle fullscreen"></button>
+
+                <button class="pswp__button pswp__button--zoom" title="Zoom in/out"></button>
+
+                <!-- Preloader demo http://codepen.io/dimsemenov/pen/yyBWoR -->
+                <!-- element will get class pswp__preloader--active when preloader is running -->
+                <div class="pswp__preloader">
+                    <div class="pswp__preloader__icn">
+                        <div class="pswp__preloader__cut">
+                            <div class="pswp__preloader__donut"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="pswp__share-modal pswp__share-modal--hidden pswp__single-tap">
+                <div class="pswp__share-tooltip"></div>
+            </div>
+
+            <button class="pswp__button pswp__button--arrow--left" title="Previous (arrow left)">
+            </button>
+
+            <button class="pswp__button pswp__button--arrow--right" title="Next (arrow right)">
+            </button>
+
+            <div class="pswp__caption">
+                <div class="pswp__caption__center"></div>
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe.min.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/default-skin/default-skin.min.css">
+<script src="https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe-ui-default.min.js"></script>
+
+<script>
+    function viewer_init() {
+        let pswpElement = document.querySelectorAll('.pswp')[0];
+        let $imgArr = document.querySelectorAll(('.article-entry img:not(.reward-img)'))
+
+        $imgArr.forEach(($em, i) => {
+            $em.onclick = () => {
+                // slider展开状态
+                // todo: 这样不好，后面改成状态
+                if (document.querySelector('.left-col.show')) return
+                let items = []
+                $imgArr.forEach(($em2, i2) => {
+                    let img = $em2.getAttribute('data-idx', i2)
+                    let src = $em2.getAttribute('data-target') || $em2.getAttribute('src')
+                    let title = $em2.getAttribute('alt')
+                    // 获得原图尺寸
+                    const image = new Image()
+                    image.src = src
+                    items.push({
+                        src: src,
+                        w: image.width || $em2.width,
+                        h: image.height || $em2.height,
+                        title: title
+                    })
+                })
+                var gallery = new PhotoSwipe(pswpElement, PhotoSwipeUI_Default, items, {
+                    index: parseInt(i)
+                });
+                gallery.init()
+            }
+        })
+    }
+    viewer_init()
+</script>
+
+<!-- MathJax -->
+
+<!-- Katex -->
+
+<!-- busuanzi  -->
+
+
+<script src="/js/busuanzi-2.3.pure.min.js"></script>
+
+
+<!-- ClickLove -->
+
+<!-- ClickBoom1 -->
+
+<!-- ClickBoom2 -->
+
+<!-- CodeCopy -->
+
+
+<link rel="stylesheet" href="/css/clipboard.css">
+
+<script src="https://cdn.jsdelivr.net/npm/clipboard@2/dist/clipboard.min.js"></script>
+<script>
+  function wait(callback, seconds) {
+    var timelag = null;
+    timelag = window.setTimeout(callback, seconds);
+  }
+  !function (e, t, a) {
+    var initCopyCode = function(){
+      var copyHtml = '';
+      copyHtml += '<button class="btn-copy" data-clipboard-snippet="">';
+      copyHtml += '<i class="ri-file-copy-2-line"></i><span>COPY</span>';
+      copyHtml += '</button>';
+      $(".highlight .code pre").before(copyHtml);
+      $(".article pre code").before(copyHtml);
+      var clipboard = new ClipboardJS('.btn-copy', {
+        target: function(trigger) {
+          return trigger.nextElementSibling;
+        }
+      });
+      clipboard.on('success', function(e) {
+        let $btn = $(e.trigger);
+        $btn.addClass('copied');
+        let $icon = $($btn.find('i'));
+        $icon.removeClass('ri-file-copy-2-line');
+        $icon.addClass('ri-checkbox-circle-line');
+        let $span = $($btn.find('span'));
+        $span[0].innerText = 'COPIED';
+        
+        wait(function () { // 等待两秒钟后恢复
+          $icon.removeClass('ri-checkbox-circle-line');
+          $icon.addClass('ri-file-copy-2-line');
+          $span[0].innerText = 'COPY';
+        }, 2000);
+      });
+      clipboard.on('error', function(e) {
+        e.clearSelection();
+        let $btn = $(e.trigger);
+        $btn.addClass('copy-failed');
+        let $icon = $($btn.find('i'));
+        $icon.removeClass('ri-file-copy-2-line');
+        $icon.addClass('ri-time-line');
+        let $span = $($btn.find('span'));
+        $span[0].innerText = 'COPY FAILED';
+        
+        wait(function () { // 等待两秒钟后恢复
+          $icon.removeClass('ri-time-line');
+          $icon.addClass('ri-file-copy-2-line');
+          $span[0].innerText = 'COPY';
+        }, 2000);
+      });
+    }
+    initCopyCode();
+  }(window, document);
+</script>
+
+
+<!-- CanvasBackground -->
+
+
+    
+  </div>
+</body>
+
+</html>

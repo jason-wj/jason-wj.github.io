@@ -1,0 +1,645 @@
+<!DOCTYPE html>
+
+
+<html lang="zh-Hans">
+
+
+<head>
+  <meta charset="utf-8" />
+    
+  <meta name="description" content="谈天谈地，谈古谈今，一起谈谈我们的未来。" />
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
+  <title>
+    以太坊源码解读-第8讲-块(block) |  Jason漫谈区块链
+  </title>
+  <meta name="generator" content="hexo-theme-ayer">
+  
+  <link rel="shortcut icon" href="/images/my_head-16x16-next.ico" />
+  
+  
+<link rel="stylesheet" href="/dist/main.css">
+
+  
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/Shen-Yu/cdn/css/remixicon.min.css">
+
+  
+<link rel="stylesheet" href="/css/custom.css">
+
+  
+  
+<script src="https://cdn.jsdelivr.net/npm/pace-js@1.0.2/pace.min.js"></script>
+
+  
+  
+
+  
+
+</head>
+
+</html>
+
+<body>
+  <div id="app">
+    
+      
+    <main class="content on">
+      <section class="outer">
+  <article
+  id="post-ethereum/src_analysis/以太坊源码解读-第8讲-块-block"
+  class="article article-type-post"
+  itemscope
+  itemprop="blogPost"
+  data-scroll-reveal
+>
+  <div class="article-inner">
+    
+    <header class="article-header">
+       
+<h1 class="article-title sea-center" style="border-left:0" itemprop="name">
+  以太坊源码解读-第8讲-块(block)
+</h1>
+ 
+
+    </header>
+     
+    <div class="article-meta">
+      <a href="/articles/10e60082/" class="article-date">
+  <time datetime="2018-12-16T12:00:47.000Z" itemprop="datePublished">2018-12-16</time>
+</a> 
+  <div class="article-category">
+    <a class="article-category-link" href="/categories/%E4%BB%A5%E5%A4%AA%E5%9D%8A/">以太坊</a> / <a class="article-category-link" href="/categories/%E4%BB%A5%E5%A4%AA%E5%9D%8A/%E6%BA%90%E7%A0%81%E8%A7%A3%E8%AF%BB/">源码解读</a>
+  </div>
+  
+<div class="word_count">
+    <span class="post-time">
+        <span class="post-meta-item-icon">
+            <i class="ri-quill-pen-line"></i>
+            <span class="post-meta-item-text"> Word count:</span>
+            <span class="post-count">3.1k</span>
+        </span>
+    </span>
+
+    <span class="post-time">
+        &nbsp; | &nbsp;
+        <span class="post-meta-item-icon">
+            <i class="ri-book-open-line"></i>
+            <span class="post-meta-item-text"> Reading time≈</span>
+            <span class="post-count">13 min</span>
+        </span>
+    </span>
+</div>
+ 
+    </div>
+      
+    <div class="tocbot"></div>
+
+
+
+
+  
+    <div class="article-entry" itemprop="articleBody">
+       
+  <h2 id="前言"><a href="#前言" class="headerlink" title="前言"></a>前言</h2><p><code>块</code>贯穿了这个区块链的始终，前面的几篇文章总讲到块的生成，但具体到底怎么一回事，一直没提。<br>因此，小编认为还是有必要把一个block的细节梳理一下，本文主要是讲<code>core-&gt;types-&gt;block.go</code>文件中的内容。</p>
+<a id="more"></a>
+<p>先来看看一个块有哪些内容：<br> <br> 从图中，我们大体将一个块分为两部分，左半部分为Head，又半部分为Body.<br> Header相对轻量，涵盖了Block的所有属性，包括特征标示，前向指针，和内部数据集的验证哈希值等；body相对重量，持有内部数据集。每个Block的Header部分，Body部分，以及一些特征属性，都以[k,v]形式单独存储在底层数据库中。</p>
+<h2 id="Block"><a href="#Block" class="headerlink" title="Block"></a>Block</h2><p>上面大概提到Body中有两部分内容，但真实的实现中，还有一些别的内容，如下结构。</p>
+
+<p>下面是一个完整块的结构体描述，我们来看看一个块中具体到底有哪些内容：</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">type</span> Block <span class="keyword">struct</span> &#123;</span><br><span class="line">	<span class="comment">//头部</span></span><br><span class="line">	header       *Header</span><br><span class="line">	<span class="comment">//叔块</span></span><br><span class="line">	uncles       []*Header</span><br><span class="line">	<span class="comment">//交易信息</span></span><br><span class="line">	transactions Transactions</span><br><span class="line"></span><br><span class="line">	<span class="comment">// 缓存数据操作</span></span><br><span class="line">	hash atomic.Value</span><br><span class="line">	size atomic.Value</span><br><span class="line"></span><br><span class="line">	<span class="comment">//难度值相关，具体使用不明确，后面再来补坑</span></span><br><span class="line">	td *big.Int</span><br><span class="line"></span><br><span class="line">	<span class="comment">//内部使用，暂不明确，后面再来补坑</span></span><br><span class="line">	ReceivedAt   time.Time</span><br><span class="line">	ReceivedFrom <span class="keyword">interface</span>&#123;&#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<h3 id="第一种生成块的方式"><a href="#第一种生成块的方式" class="headerlink" title="第一种生成块的方式"></a>第一种生成块的方式</h3><p>根据传入信息生成一个完整块，<br>这里会看到交易树和收据树的处理，而状态树是在header中生成一个roothash，这个有兴趣可以单独去看，后面涉及到再专门去讲。</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">//传入的header信息会随着传入的txs和receipts发生改变</span></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">NewBlock</span><span class="params">(header *Header, txs []*Transaction, uncles []*Header, receipts []*Receipt)</span> *<span class="title">Block</span></span> &#123;</span><br><span class="line">	<span class="comment">//可以看出此处是拷贝的一个header，而td直接为0</span></span><br><span class="line">	b := &amp;Block&#123;header: CopyHeader(header), td: <span class="built_in">new</span>(big.Int)&#125;</span><br><span class="line"></span><br><span class="line">	<span class="keyword">if</span> <span class="built_in">len</span>(txs) == <span class="number">0</span> &#123;</span><br><span class="line">		b.header.TxHash = EmptyRootHash <span class="comment">//空的hash,rlp空的时候生成的</span></span><br><span class="line">	&#125; <span class="keyword">else</span> &#123;</span><br><span class="line">		<span class="comment">//这里可以看出，只要有一笔交易被篡改，交易树的hash就会变</span></span><br><span class="line">		b.header.TxHash = DeriveSha(Transactions(txs)) <span class="comment">//根据传入的信息生成交易树的hash，</span></span><br><span class="line">		b.transactions = <span class="built_in">make</span>(Transactions, <span class="built_in">len</span>(txs)) </span><br><span class="line">		<span class="built_in">copy</span>(b.transactions, txs)<span class="comment">//具体的交易信息保存在块中</span></span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	<span class="keyword">if</span> <span class="built_in">len</span>(receipts) == <span class="number">0</span> &#123;</span><br><span class="line">		b.header.ReceiptHash = EmptyRootHash <span class="comment">//收据树，空的hash,rlp空的时候生成的</span></span><br><span class="line">	&#125; <span class="keyword">else</span> &#123;</span><br><span class="line">		b.header.ReceiptHash = DeriveSha(Receipts(receipts)) <span class="comment">//收据树列表hash</span></span><br><span class="line">		b.header.Bloom = CreateBloom(receipts) <span class="comment">//根据收据树生成一个布隆过滤器</span></span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	<span class="keyword">if</span> <span class="built_in">len</span>(uncles) == <span class="number">0</span> &#123;</span><br><span class="line">		b.header.UncleHash = EmptyUncleHash</span><br><span class="line">	&#125; <span class="keyword">else</span> &#123;</span><br><span class="line">		b.header.UncleHash = CalcUncleHash(uncles) <span class="comment">//将所有叔块生成一个hash</span></span><br><span class="line">		b.uncles = <span class="built_in">make</span>([]*Header, <span class="built_in">len</span>(uncles))</span><br><span class="line">		<span class="keyword">for</span> i := <span class="keyword">range</span> uncles &#123;</span><br><span class="line">			b.uncles[i] = CopyHeader(uncles[i]) <span class="comment">//拷贝叔块</span></span><br><span class="line">		&#125;</span><br><span class="line">	&#125;</span><br><span class="line">	<span class="keyword">return</span> b</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<h3 id="第二种生成块的方式"><a href="#第二种生成块的方式" class="headerlink" title="第二种生成块的方式"></a>第二种生成块的方式</h3><p>这种方式只是传入了header信息，区别于第一种：第一种会传入txs,receipts，会随着这些信息的变化，header发生变换。</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">NewBlockWithHeader</span><span class="params">(header *Header)</span> *<span class="title">Block</span></span> &#123;</span><br><span class="line">	<span class="keyword">return</span> &amp;Block&#123;header: CopyHeader(header)&#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<h3 id="block的相关方法"><a href="#block的相关方法" class="headerlink" title="block的相关方法"></a>block的相关方法</h3><p>列出目前还没被废弃的方法。</p>
+<h4 id="序列化相关的两个方法：DecodeRLP和EncodeRLP"><a href="#序列化相关的两个方法：DecodeRLP和EncodeRLP" class="headerlink" title="序列化相关的两个方法：DecodeRLP和EncodeRLP"></a>序列化相关的两个方法：DecodeRLP和EncodeRLP</h4><p>该方法将解码rlp字节流，</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">func</span> <span class="params">(b *Block)</span> <span class="title">DecodeRLP</span><span class="params">(s *rlp.Stream)</span> <span class="title">error</span></span> &#123;</span><br><span class="line">	<span class="comment">//extblock结构体是用来存储解析结果的，其中包括header、uncles、transacitions</span></span><br><span class="line">	<span class="keyword">var</span> eb extblock </span><br><span class="line">	_, size, _ := s.Kind()</span><br><span class="line">	<span class="keyword">if</span> err := s.Decode(&amp;eb); err != <span class="literal">nil</span> &#123;</span><br><span class="line">		<span class="keyword">return</span> err</span><br><span class="line">	&#125;</span><br><span class="line">	b.header, b.uncles, b.transactions = eb.Header, eb.Uncles, eb.Txs</span><br><span class="line">	b.size.Store(common.StorageSize(rlp.ListSize(size)))</span><br><span class="line">	<span class="keyword">return</span> <span class="literal">nil</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>该方法将一个block进行rlp序列化，不解释</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">func</span> <span class="params">(b *Block)</span> <span class="title">EncodeRLP</span><span class="params">(w io.Writer)</span> <span class="title">error</span></span> &#123;</span><br><span class="line">	<span class="keyword">return</span> rlp.Encode(w, extblock&#123;</span><br><span class="line">		Header: b.header,</span><br><span class="line">		Txs:    b.transactions,</span><br><span class="line">		Uncles: b.uncles,</span><br><span class="line">	&#125;)</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<h4 id="其余方法"><a href="#其余方法" class="headerlink" title="其余方法"></a>其余方法</h4><p>主要都是用来对外展示块信息，都是比较基础的方法，很好理解，先不要太过深的考虑每个方法什么地方使用，当梳理完这些内容后，心里自然会有底。</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br><span class="line">95</span><br><span class="line">96</span><br><span class="line">97</span><br><span class="line">98</span><br><span class="line">99</span><br><span class="line">100</span><br><span class="line">101</span><br><span class="line">102</span><br><span class="line">103</span><br><span class="line">104</span><br><span class="line">105</span><br><span class="line">106</span><br><span class="line">107</span><br><span class="line">108</span><br><span class="line">109</span><br><span class="line">110</span><br><span class="line">111</span><br><span class="line">112</span><br><span class="line">113</span><br><span class="line">114</span><br><span class="line">115</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">//返回叔块信息</span></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="params">(b *Block)</span> <span class="title">Uncles</span><span class="params">()</span> []*<span class="title">Header</span></span>          &#123; <span class="keyword">return</span> b.uncles &#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// 展示交易信息</span></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="params">(b *Block)</span> <span class="title">Transactions</span><span class="params">()</span> <span class="title">Transactions</span></span> &#123; <span class="keyword">return</span> b.transactions &#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">//根据传入的hash返回其对应的交易信息，这个就是用来展示某交易是否在当前块中</span></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="params">(b *Block)</span> <span class="title">Transaction</span><span class="params">(hash common.Hash)</span> *<span class="title">Transaction</span></span> &#123;</span><br><span class="line">	<span class="keyword">for</span> _, transaction := <span class="keyword">range</span> b.transactions &#123;</span><br><span class="line">		<span class="keyword">if</span> transaction.Hash() == hash &#123;</span><br><span class="line">			<span class="keyword">return</span> transaction</span><br><span class="line">		&#125;</span><br><span class="line">	&#125;</span><br><span class="line">	<span class="keyword">return</span> <span class="literal">nil</span></span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">//返回当前块所在高度（*big.Int形式返回）</span></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="params">(b *Block)</span> <span class="title">Number</span><span class="params">()</span> *<span class="title">big</span>.<span class="title">Int</span></span>     &#123; <span class="keyword">return</span> <span class="built_in">new</span>(big.Int).Set(b.header.Number) &#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">//返回当前块所在高度（uint64形式返回）</span></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="params">(b *Block)</span> <span class="title">NumberU64</span><span class="params">()</span> <span class="title">uint64</span></span>        &#123; <span class="keyword">return</span> b.header.Number.Uint64() &#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">//获取当前块的总gas上限</span></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="params">(b *Block)</span> <span class="title">GasLimit</span><span class="params">()</span> <span class="title">uint64</span></span>     &#123; <span class="keyword">return</span> b.header.GasLimit &#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">//当前实际使用了的gas</span></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="params">(b *Block)</span> <span class="title">GasUsed</span><span class="params">()</span> <span class="title">uint64</span></span>      &#123; <span class="keyword">return</span> b.header.GasUsed &#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">//获取当前块的难度值</span></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="params">(b *Block)</span> <span class="title">Difficulty</span><span class="params">()</span> *<span class="title">big</span>.<span class="title">Int</span></span> &#123; <span class="keyword">return</span> <span class="built_in">new</span>(big.Int).Set(b.header.Difficulty) &#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">//当前块的时间戳</span></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="params">(b *Block)</span> <span class="title">Time</span><span class="params">()</span> *<span class="title">big</span>.<span class="title">Int</span></span>       &#123; <span class="keyword">return</span> <span class="built_in">new</span>(big.Int).Set(b.header.Time) &#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">//用来计算难度值</span></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="params">(b *Block)</span> <span class="title">MixDigest</span><span class="params">()</span> <span class="title">common</span>.<span class="title">Hash</span></span>   &#123; <span class="keyword">return</span> b.header.MixDigest &#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">//用来计算难度值</span></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="params">(b *Block)</span> <span class="title">Nonce</span><span class="params">()</span> <span class="title">uint64</span></span>            &#123; <span class="keyword">return</span> binary.BigEndian.Uint64(b.header.Nonce[:]) &#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">//布隆过滤器</span></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="params">(b *Block)</span> <span class="title">Bloom</span><span class="params">()</span> <span class="title">Bloom</span></span>             &#123; <span class="keyword">return</span> b.header.Bloom &#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">//挖出当前块的账户地址</span></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="params">(b *Block)</span> <span class="title">Coinbase</span><span class="params">()</span> <span class="title">common</span>.<span class="title">Address</span></span> &#123; <span class="keyword">return</span> b.header.Coinbase &#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">//状态树的根hash</span></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="params">(b *Block)</span> <span class="title">Root</span><span class="params">()</span> <span class="title">common</span>.<span class="title">Hash</span></span>        &#123; <span class="keyword">return</span> b.header.Root &#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">//父块的hash</span></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="params">(b *Block)</span> <span class="title">ParentHash</span><span class="params">()</span> <span class="title">common</span>.<span class="title">Hash</span></span>  &#123; <span class="keyword">return</span> b.header.ParentHash &#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">//交易树的根hash</span></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="params">(b *Block)</span> <span class="title">TxHash</span><span class="params">()</span> <span class="title">common</span>.<span class="title">Hash</span></span>      &#123; <span class="keyword">return</span> b.header.TxHash &#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">//收据树的根hash</span></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="params">(b *Block)</span> <span class="title">ReceiptHash</span><span class="params">()</span> <span class="title">common</span>.<span class="title">Hash</span></span> &#123; <span class="keyword">return</span> b.header.ReceiptHash &#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">//叔块的hash，这是由两个叔块数据生成的</span></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="params">(b *Block)</span> <span class="title">UncleHash</span><span class="params">()</span> <span class="title">common</span>.<span class="title">Hash</span></span>   &#123; <span class="keyword">return</span> b.header.UncleHash &#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">//额外的一些数据</span></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="params">(b *Block)</span> <span class="title">Extra</span><span class="params">()</span> []<span class="title">byte</span></span>            &#123; <span class="keyword">return</span> common.CopyBytes(b.header.Extra) &#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">//当前块头部</span></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="params">(b *Block)</span> <span class="title">Header</span><span class="params">()</span> *<span class="title">Header</span></span> &#123; <span class="keyword">return</span> CopyHeader(b.header) &#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">//返回当前块的body，body主要就是交易和叔块</span></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="params">(b *Block)</span> <span class="title">Body</span><span class="params">()</span> *<span class="title">Body</span></span> &#123; <span class="keyword">return</span> &amp;Body&#123;b.transactions, b.uncles&#125; &#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">//返回当前块的大小</span></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="params">(b *Block)</span> <span class="title">Size</span><span class="params">()</span> <span class="title">common</span>.<span class="title">StorageSize</span></span> &#123;</span><br><span class="line">	<span class="keyword">if</span> size := b.size.Load(); size != <span class="literal">nil</span> &#123;</span><br><span class="line">		<span class="keyword">return</span> size.(common.StorageSize)</span><br><span class="line">	&#125;</span><br><span class="line">	c := writeCounter(<span class="number">0</span>)</span><br><span class="line">	rlp.Encode(&amp;c, b)</span><br><span class="line">	b.size.Store(common.StorageSize(c))</span><br><span class="line">	<span class="keyword">return</span> common.StorageSize(c)</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">//共识算法校验一个块的时候会用到</span></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="params">(b *Block)</span> <span class="title">WithSeal</span><span class="params">(header *Header)</span> *<span class="title">Block</span></span> &#123;</span><br><span class="line">	cpy := *header</span><br><span class="line"></span><br><span class="line">	<span class="keyword">return</span> &amp;Block&#123;</span><br><span class="line">		header:       &amp;cpy,</span><br><span class="line">		transactions: b.transactions,</span><br><span class="line">		uncles:       b.uncles,</span><br><span class="line">	&#125;</span><br><span class="line">&#125;</span><br><span class="line"><span class="comment">// 返回一个块</span></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="params">(b *Block)</span> <span class="title">WithBody</span><span class="params">(transactions []*Transaction, uncles []*Header)</span> *<span class="title">Block</span></span> &#123;</span><br><span class="line">	block := &amp;Block&#123;</span><br><span class="line">		header:       CopyHeader(b.header),</span><br><span class="line">		transactions: <span class="built_in">make</span>([]*Transaction, <span class="built_in">len</span>(transactions)),</span><br><span class="line">		uncles:       <span class="built_in">make</span>([]*Header, <span class="built_in">len</span>(uncles)),</span><br><span class="line">	&#125;</span><br><span class="line">	<span class="built_in">copy</span>(block.transactions, transactions)</span><br><span class="line">	<span class="keyword">for</span> i := <span class="keyword">range</span> uncles &#123;</span><br><span class="line">		block.uncles[i] = CopyHeader(uncles[i])</span><br><span class="line">	&#125;</span><br><span class="line">	<span class="keyword">return</span> block</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">//返回一个块的hash</span></span><br><span class="line"><span class="comment">//第一次调用时候计算，之后会被缓存</span></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="params">(b *Block)</span> <span class="title">Hash</span><span class="params">()</span> <span class="title">common</span>.<span class="title">Hash</span></span> &#123;</span><br><span class="line">	<span class="keyword">if</span> hash := b.hash.Load(); hash != <span class="literal">nil</span> &#123;</span><br><span class="line">		<span class="keyword">return</span> hash.(common.Hash)</span><br><span class="line">	&#125;</span><br><span class="line">	v := b.header.Hash()</span><br><span class="line">	b.hash.Store(v)</span><br><span class="line">	<span class="keyword">return</span> v</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<h2 id="Header"><a href="#Header" class="headerlink" title="Header"></a>Header</h2><p>介绍完整个块的大体情况后，接着来详细看看块内部的内容，先来看header</p>
+<h3 id="结构体"><a href="#结构体" class="headerlink" title="结构体"></a>结构体</h3><p>来看看一个块的head中都有哪些：</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">type</span> Header <span class="keyword">struct</span> &#123;</span><br><span class="line">	<span class="comment">// 指向父区块(parentBlock)的指针。除了创世块(Genesis Block)外，每个区块有且只有一个父区块。</span></span><br><span class="line">	ParentHash  common.Hash    <span class="string">`json:&quot;parentHash&quot;       gencodec:&quot;required&quot;`</span></span><br><span class="line"></span><br><span class="line">	<span class="comment">// Block结构体的成员uncles的RLP哈希值。uncles是一个Header数组，它的存在，颇具匠心。</span></span><br><span class="line">	UncleHash   common.Hash    <span class="string">`json:&quot;sha3Uncles&quot;       gencodec:&quot;required&quot;`</span></span><br><span class="line"></span><br><span class="line">	<span class="comment">// 挖掘出这个区块的作者地址。在每次执行交易时系统会给与一定补偿的Ether，这笔金额就是发给这个地址的。</span></span><br><span class="line">	Coinbase    common.Address <span class="string">`json:&quot;miner&quot;            gencodec:&quot;required&quot;`</span></span><br><span class="line"></span><br><span class="line">	<span class="comment">//StateDB中的“state Trie”的根节点的RLP哈希值。Block中，每个账户以stateObject对象表示，账户以Address为唯一标示，其信息在相关交易(Transaction)的执行中被修改。所有账户对象可以逐个插入一个Merkle-PatricaTrie(MPT)结构里，形成“state Trie”。</span></span><br><span class="line">	Root        common.Hash    <span class="string">`json:&quot;stateRoot&quot;        gencodec:&quot;required&quot;`</span></span><br><span class="line"></span><br><span class="line">	<span class="comment">//Block中 交易树的根hash，由所有的交易生成的。“tx Trie”的根节点的RLP哈希值。Block的成员变量transactions中所有的tx对象，被逐个插入一个MPT结构，形成“tx Trie”。</span></span><br><span class="line">	TxHash      common.Hash    <span class="string">`json:&quot;transactionsRoot&quot; gencodec:&quot;required&quot;`</span></span><br><span class="line"></span><br><span class="line">	<span class="comment">//收据树。可以用来确认一笔交易成功与否，Block中的 “Receipt Trie”的根节点的RLP哈希值。Block的所有Transaction执行完后会生成一个Receipt数组，这个数组中的所有Receipt被逐个插入一个MPT结构中，形成”Receipt Trie”。</span></span><br><span class="line">	ReceiptHash common.Hash    <span class="string">`json:&quot;receiptsRoot&quot;     gencodec:&quot;required&quot;`</span></span><br><span class="line"></span><br><span class="line">	<span class="comment">//布隆过滤器，用来快速判断一个参数Log对象是否存在于一组已知的Log集合中。</span></span><br><span class="line">	Bloom       Bloom          <span class="string">`json:&quot;logsBloom&quot;        gencodec:&quot;required&quot;`</span></span><br><span class="line"></span><br><span class="line">	<span class="comment">//区块的难度。Block的Difficulty由共识算法基于parentBlock的Time和Difficulty计算得出，它会应用在区块的‘挖掘’阶段。</span></span><br><span class="line">	Difficulty  *big.Int       <span class="string">`json:&quot;difficulty&quot;       gencodec:&quot;required&quot;`</span></span><br><span class="line"></span><br><span class="line">	<span class="comment">//块号 Block的Number等于其父区块Number +1。</span></span><br><span class="line">	Number      *big.Int       <span class="string">`json:&quot;number&quot;           gencodec:&quot;required&quot;`</span></span><br><span class="line"></span><br><span class="line">	<span class="comment">//区块内所有Gas消耗的理论上限。该数值在区块创建时设置，与父区块有关。具体来说，根据父区块的GasUsed同GasLimit * 2/3的大小关系来计算得出。</span></span><br><span class="line">	GasLimit    <span class="keyword">uint64</span>         <span class="string">`json:&quot;gasLimit&quot;         gencodec:&quot;required&quot;`</span></span><br><span class="line">	</span><br><span class="line">	<span class="comment">//区块内所有Transaction执行时所实际消耗的Gas总和。</span></span><br><span class="line">	GasUsed     <span class="keyword">uint64</span>         <span class="string">`json:&quot;gasUsed&quot;          gencodec:&quot;required&quot;`</span></span><br><span class="line">	</span><br><span class="line">	<span class="comment">//区块“应该”被创建的时间。由共识算法确定，一般来说，要么等于parentBlock.Time + 15s，要么等于当前系统时间。</span></span><br><span class="line">	Time        *big.Int       <span class="string">`json:&quot;timestamp&quot;        gencodec:&quot;required&quot;`</span></span><br><span class="line">	</span><br><span class="line">	<span class="comment">//区块相关的附加信息</span></span><br><span class="line">	Extra       []<span class="keyword">byte</span>         <span class="string">`json:&quot;extraData&quot;        gencodec:&quot;required&quot;`</span></span><br><span class="line"></span><br><span class="line">	<span class="comment">//该哈希值与Nonce值一起能够证明在该区块上已经进行了足够的计算（用于验证该区块挖矿成功与否的Hash值</span></span><br><span class="line">	MixDigest   common.Hash    <span class="string">`json:&quot;mixHash&quot;          gencodec:&quot;required&quot;`</span></span><br><span class="line">	</span><br><span class="line">	<span class="comment">//一个64bit的哈希数，它被应用在区块的”挖掘”阶段，并且在使用中会被修改。</span></span><br><span class="line">	Nonce       BlockNonce     <span class="string">`json:&quot;nonce&quot;            gencodec:&quot;required&quot;`</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>其中的<code>gencodec</code>不是本文重点，有兴趣的可以单独去了解下这是什么，其实它主要就是扩展json的使用。</p>
+<p><code>Root</code>，<code>TxHash</code>和<code>ReceiptHash</code>，分别取自三个MPT对象：<code>stateTrie</code>, <code>txTrie</code>, 和<code>receiptTrie</code>的根节点哈希值。 分别理解为是：<code>账户状态树</code>、<code>交易树</code>、<code>收据树</code><br>receiptTrie 必须在Block的所有交易执行完成才能生成；txTrie 理论上只需tx数组transactions即可，不过依然被限制在所有交易执行完后才生成；最有趣的是stateTrie，由于它存储了所有账户的信息，比如余额，发起交易次数，虚拟机指令数组等等，所以随着每次交易的执行，stateTrie 其实一直在变化，这就使得Root值也在变化中</p>
+<blockquote>
+<p><a target="_blank" rel="noopener" href="https://blog.csdn.net/niyuelin1990/article/details/80423823">以太坊系列—Block核心数据结构</a></p>
+</blockquote>
+<h3 id="header对应的方法"><a href="#header对应的方法" class="headerlink" title="header对应的方法"></a>header对应的方法</h3><p>只有两个方法</p>
+<h4 id="Hash"><a href="#Hash" class="headerlink" title="Hash()"></a>Hash()</h4><p>该方法主要是将头部内容生成一个hash，过程是：先将头部rlp序列化，再用keccak256将其生成一个32位的hash值，这是该方法的代码：</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">func</span> <span class="params">(h *Header)</span> <span class="title">Hash</span><span class="params">()</span> <span class="title">common</span>.<span class="title">Hash</span></span> &#123;</span><br><span class="line">	<span class="comment">//rlpHash方法就是为了实现：将头部rlp序列化，再用keccak256将其生成一个32位的hash值</span></span><br><span class="line">	<span class="keyword">return</span> rlpHash(h) </span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<h4 id="Size"><a href="#Size" class="headerlink" title="Size()"></a>Size()</h4><p>该方法用于近似的估算和限制各种缓存的消耗，主要是计算结构体中，指针类型数据的消耗<br>func (h *Header) Size() common.StorageSize {<br>    return common.StorageSize(unsafe.Sizeof(*h)) + common.StorageSize(len(h.Extra)+(h.Difficulty.BitLen()+h.Number.BitLen()+h.Time.BitLen())/8)<br>}</p>
+<h2 id="Body"><a href="#Body" class="headerlink" title="Body"></a>Body</h2><p>body是一个简单的(可变的、不安全的)数据容器，用于存储和移动区块的数据内容(交易列表和叔块)在一起<br>可以理解成是一个中间载体，通过前面的描述应该可以理解，这是一个块的核心部分。</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">type</span> Body <span class="keyword">struct</span> &#123;</span><br><span class="line">	<span class="comment">//交易记录</span></span><br><span class="line">	Transactions []*Transaction</span><br><span class="line">	<span class="comment">//叔块信息</span></span><br><span class="line">	Uncles       []*Header</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<h2 id="块的排序"><a href="#块的排序" class="headerlink" title="块的排序"></a>块的排序</h2><p>block.go中的最后一部分内容就是这个块排序了，代码写的有点绕，但细看以下还是很容易理解的，主要就是根据块号的大小进行排序：</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">type</span> Blocks []*Block</span><br><span class="line"><span class="keyword">type</span> BlockBy <span class="function"><span class="keyword">func</span><span class="params">(b1, b2 *Block)</span> <span class="title">bool</span></span></span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="params">(self BlockBy)</span> <span class="title">Sort</span><span class="params">(blocks Blocks)</span></span> &#123;</span><br><span class="line">	bs := blockSorter&#123;</span><br><span class="line">		blocks: blocks,</span><br><span class="line">		by:     self,</span><br><span class="line">	&#125;</span><br><span class="line">	sort.Sort(bs)</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="keyword">type</span> blockSorter <span class="keyword">struct</span> &#123;</span><br><span class="line">	blocks Blocks</span><br><span class="line">	by     <span class="function"><span class="keyword">func</span><span class="params">(b1, b2 *Block)</span> <span class="title">bool</span> //使用哪种方式进行拍讯</span></span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">//重写了排序的接口</span></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="params">(self blockSorter)</span> <span class="title">Len</span><span class="params">()</span> <span class="title">int</span></span> &#123; <span class="keyword">return</span> <span class="built_in">len</span>(self.blocks) &#125;</span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="params">(self blockSorter)</span> <span class="title">Swap</span><span class="params">(i, j <span class="keyword">int</span>)</span></span> &#123;</span><br><span class="line">	self.blocks[i], self.blocks[j] = self.blocks[j], self.blocks[i]</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="params">(self blockSorter)</span> <span class="title">Less</span><span class="params">(i, j <span class="keyword">int</span>)</span> <span class="title">bool</span></span> &#123; <span class="keyword">return</span> self.by(self.blocks[i], self.blocks[j]) &#125;</span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">Number</span><span class="params">(b1, b2 *Block)</span> <span class="title">bool</span></span> &#123; <span class="keyword">return</span> b1.header.Number.Cmp(b2.header.Number) &lt; <span class="number">0</span> &#125;</span><br></pre></td></tr></table></figure>
+<h2 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h2><p>本章一个目的，了解一个块里到底有什么东西啊，这个块是怎么划分的，了解了这些，我们才能进一步往下走。<br>最起码要知道，一个块里有三种类型的MPT，一个交易树、一个收据树、一个状态树（具体干嘛，前面都有解释）。</p>
+ 
+      <!-- reward -->
+      
+    </div>
+    
+
+    <!-- copyright -->
+    
+    <div class="declare">
+      <ul class="post-copyright">
+        <li>
+          <i class="ri-copyright-line"></i>
+          <strong>Copyright： </strong>
+          
+          Copyright is owned by the author. For commercial reprints, please contact the author for authorization. For non-commercial reprints, please indicate the source.
+          
+        </li>
+      </ul>
+    </div>
+    
+    <footer class="article-footer">
+       
+<div class="share-btn">
+      <span class="share-sns share-outer">
+        <i class="ri-share-forward-line"></i>
+        分享
+      </span>
+      <div class="share-wrap">
+        <i class="arrow"></i>
+        <div class="share-icons">
+          
+          <a class="weibo share-sns" href="javascript:;" data-type="weibo">
+            <i class="ri-weibo-fill"></i>
+          </a>
+          <a class="weixin share-sns wxFab" href="javascript:;" data-type="weixin">
+            <i class="ri-wechat-fill"></i>
+          </a>
+          <a class="qq share-sns" href="javascript:;" data-type="qq">
+            <i class="ri-qq-fill"></i>
+          </a>
+          <a class="douban share-sns" href="javascript:;" data-type="douban">
+            <i class="ri-douban-line"></i>
+          </a>
+          <!-- <a class="qzone share-sns" href="javascript:;" data-type="qzone">
+            <i class="icon icon-qzone"></i>
+          </a> -->
+          
+          <a class="facebook share-sns" href="javascript:;" data-type="facebook">
+            <i class="ri-facebook-circle-fill"></i>
+          </a>
+          <a class="twitter share-sns" href="javascript:;" data-type="twitter">
+            <i class="ri-twitter-fill"></i>
+          </a>
+          <a class="google share-sns" href="javascript:;" data-type="google">
+            <i class="ri-google-fill"></i>
+          </a>
+        </div>
+      </div>
+</div>
+
+<div class="wx-share-modal">
+    <a class="modal-close" href="javascript:;"><i class="ri-close-circle-line"></i></a>
+    <p>扫一扫，分享到微信</p>
+    <div class="wx-qrcode">
+      <img src="//api.qrserver.com/v1/create-qr-code/?size=150x150&data=http://jason-wj.gitee.io/articles/10e60082/" alt="微信分享二维码">
+    </div>
+</div>
+
+<div id="share-mask"></div>  
+  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/ethereum/" rel="tag">ethereum</a></li></ul>
+
+    </footer>
+  </div>
+
+   
+  <nav class="article-nav">
+    
+      <a href="/articles/a749acc8/" class="article-nav-link">
+        <strong class="article-nav-caption">上一篇</strong>
+        <div class="article-nav-title">
+          
+            以太坊源码解读-第9讲-blockchain
+          
+        </div>
+      </a>
+    
+    
+      <a href="/articles/85deafe/" class="article-nav-link">
+        <strong class="article-nav-caption">下一篇</strong>
+        <div class="article-nav-title">以太坊源码解读-第7讲-创世块</div>
+      </a>
+    
+  </nav>
+
+   
+<!-- valine评论 -->
+<div id="vcomments-box">
+  <div id="vcomments"></div>
+</div>
+<script src="//cdn1.lncld.net/static/js/3.0.4/av-min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/valine@1.4.14/dist/Valine.min.js"></script>
+<script>
+  new Valine({
+    el: "#vcomments",
+    app_id: "gdw0hVSwW3l6KgEMulSAc9Rx-gzGzoHsz",
+    app_key: "M4iiVXe0CuXWQEKuyIzWWDMh",
+    path: window.location.pathname,
+    avatar: "monsterid",
+    placeholder: "给我的文章加点评论吧~",
+    recordIP: true,
+  });
+  const infoEle = document.querySelector("#vcomments .info");
+  if (infoEle && infoEle.childNodes && infoEle.childNodes.length > 0) {
+    infoEle.childNodes.forEach(function (item) {
+      item.parentNode.removeChild(item);
+    });
+  }
+</script>
+<style>
+  #vcomments-box {
+    padding: 5px 30px;
+  }
+
+  @media screen and (max-width: 800px) {
+    #vcomments-box {
+      padding: 5px 0px;
+    }
+  }
+
+  #vcomments-box #vcomments {
+    background-color: #fff;
+  }
+
+  .v .vlist .vcard .vh {
+    padding-right: 20px;
+  }
+
+  .v .vlist .vcard {
+    padding-left: 10px;
+  }
+</style>
+
+ 
+   
+     
+</article>
+
+</section>
+      <footer class="footer">
+  <div class="outer">
+    <ul>
+      <li>
+        Copyrights &copy;
+        2017-2021
+        <i class="ri-heart-fill heart_icon"></i> Jason
+      </li>
+    </ul>
+    <ul>
+      <li>
+        
+      </li>
+    </ul>
+    <ul>
+      <li>
+        
+        
+        <span>
+  <span><i class="ri-user-3-fill"></i>Visitors:<span id="busuanzi_value_site_uv"></span></s>
+  <span class="division">|</span>
+  <span><i class="ri-eye-fill"></i>Views:<span id="busuanzi_value_page_pv"></span></span>
+</span>
+        
+      </li>
+    </ul>
+    <ul>
+      
+    </ul>
+    <ul>
+      
+    </ul>
+    <ul>
+      <li>
+        <!-- cnzz统计 -->
+        
+        <script type="text/javascript" src='https://s4.cnzz.com/z_stat.php?id=1279593399&amp;web_id=1279593399'></script>
+        
+      </li>
+    </ul>
+  </div>
+</footer>
+      <div class="float_btns">
+        <div class="totop" id="totop">
+  <i class="ri-arrow-up-line"></i>
+</div>
+
+<div class="todark" id="todark">
+  <i class="ri-moon-line"></i>
+</div>
+
+      </div>
+    </main>
+    <aside class="sidebar on">
+      <button class="navbar-toggle"></button>
+<nav class="navbar">
+  
+  <div class="logo">
+    <a href="/"><img src="/images/my_head-touch-icon-next.png" alt="Jason漫谈区块链"></a>
+  </div>
+  
+  <ul class="nav nav-main">
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/">主页</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/archives">归档</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/categories">分类</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/tags">标签</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/friends">友链</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/about">关于我</a>
+    </li>
+    
+  </ul>
+</nav>
+<nav class="navbar navbar-bottom">
+  <ul class="nav">
+    <li class="nav-item">
+      
+      <a class="nav-item-link nav-item-search"  title="Search">
+        <i class="ri-search-line"></i>
+      </a>
+      
+      
+    </li>
+  </ul>
+</nav>
+<div class="search-form-wrap">
+  <div class="local-search local-search-plugin">
+  <input type="search" id="local-search-input" class="local-search-input" placeholder="Search...">
+  <div id="local-search-result" class="local-search-result"></div>
+</div>
+</div>
+    </aside>
+    <script>
+      if (window.matchMedia("(max-width: 768px)").matches) {
+        document.querySelector('.content').classList.remove('on');
+        document.querySelector('.sidebar').classList.remove('on');
+      }
+    </script>
+    <div id="mask"></div>
+
+<!-- #reward -->
+<div id="reward">
+  <span class="close"><i class="ri-close-line"></i></span>
+  <p class="reward-p"><i class="ri-cup-line"></i>请我喝杯咖啡吧~</p>
+  <div class="reward-box">
+    
+    <div class="reward-item">
+      <img class="reward-img" src="/images/pay_ali.jpg">
+      <span class="reward-type">支付宝</span>
+    </div>
+    
+    
+    <div class="reward-item">
+      <img class="reward-img" src="/images/pay_wechat.jpg">
+      <span class="reward-type">微信</span>
+    </div>
+    
+  </div>
+</div>
+    
+<script src="/js/jquery-2.0.3.min.js"></script>
+
+
+<script src="/js/lazyload.min.js"></script>
+
+<!-- Tocbot -->
+
+
+<script src="/js/tocbot.min.js"></script>
+
+<script>
+  tocbot.init({
+    tocSelector: '.tocbot',
+    contentSelector: '.article-entry',
+    headingSelector: 'h1, h2, h3, h4, h5, h6',
+    hasInnerContainers: true,
+    scrollSmooth: true,
+    scrollContainer: 'main',
+    positionFixedSelector: '.tocbot',
+    positionFixedClass: 'is-position-fixed',
+    fixedSidebarOffset: 'auto'
+  });
+</script>
+
+<script src="https://cdn.jsdelivr.net/npm/jquery-modal@0.9.2/jquery.modal.min.js"></script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/jquery-modal@0.9.2/jquery.modal.min.css">
+<script src="https://cdn.jsdelivr.net/npm/justifiedGallery@3.7.0/dist/js/jquery.justifiedGallery.min.js"></script>
+
+<script src="/dist/main.js"></script>
+
+<!-- ImageViewer -->
+
+<!-- Root element of PhotoSwipe. Must have class pswp. -->
+<div class="pswp" tabindex="-1" role="dialog" aria-hidden="true">
+
+    <!-- Background of PhotoSwipe. 
+         It's a separate element as animating opacity is faster than rgba(). -->
+    <div class="pswp__bg"></div>
+
+    <!-- Slides wrapper with overflow:hidden. -->
+    <div class="pswp__scroll-wrap">
+
+        <!-- Container that holds slides. 
+            PhotoSwipe keeps only 3 of them in the DOM to save memory.
+            Don't modify these 3 pswp__item elements, data is added later on. -->
+        <div class="pswp__container">
+            <div class="pswp__item"></div>
+            <div class="pswp__item"></div>
+            <div class="pswp__item"></div>
+        </div>
+
+        <!-- Default (PhotoSwipeUI_Default) interface on top of sliding area. Can be changed. -->
+        <div class="pswp__ui pswp__ui--hidden">
+
+            <div class="pswp__top-bar">
+
+                <!--  Controls are self-explanatory. Order can be changed. -->
+
+                <div class="pswp__counter"></div>
+
+                <button class="pswp__button pswp__button--close" title="Close (Esc)"></button>
+
+                <button class="pswp__button pswp__button--share" style="display:none" title="Share"></button>
+
+                <button class="pswp__button pswp__button--fs" title="Toggle fullscreen"></button>
+
+                <button class="pswp__button pswp__button--zoom" title="Zoom in/out"></button>
+
+                <!-- Preloader demo http://codepen.io/dimsemenov/pen/yyBWoR -->
+                <!-- element will get class pswp__preloader--active when preloader is running -->
+                <div class="pswp__preloader">
+                    <div class="pswp__preloader__icn">
+                        <div class="pswp__preloader__cut">
+                            <div class="pswp__preloader__donut"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="pswp__share-modal pswp__share-modal--hidden pswp__single-tap">
+                <div class="pswp__share-tooltip"></div>
+            </div>
+
+            <button class="pswp__button pswp__button--arrow--left" title="Previous (arrow left)">
+            </button>
+
+            <button class="pswp__button pswp__button--arrow--right" title="Next (arrow right)">
+            </button>
+
+            <div class="pswp__caption">
+                <div class="pswp__caption__center"></div>
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe.min.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/default-skin/default-skin.min.css">
+<script src="https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe-ui-default.min.js"></script>
+
+<script>
+    function viewer_init() {
+        let pswpElement = document.querySelectorAll('.pswp')[0];
+        let $imgArr = document.querySelectorAll(('.article-entry img:not(.reward-img)'))
+
+        $imgArr.forEach(($em, i) => {
+            $em.onclick = () => {
+                // slider展开状态
+                // todo: 这样不好，后面改成状态
+                if (document.querySelector('.left-col.show')) return
+                let items = []
+                $imgArr.forEach(($em2, i2) => {
+                    let img = $em2.getAttribute('data-idx', i2)
+                    let src = $em2.getAttribute('data-target') || $em2.getAttribute('src')
+                    let title = $em2.getAttribute('alt')
+                    // 获得原图尺寸
+                    const image = new Image()
+                    image.src = src
+                    items.push({
+                        src: src,
+                        w: image.width || $em2.width,
+                        h: image.height || $em2.height,
+                        title: title
+                    })
+                })
+                var gallery = new PhotoSwipe(pswpElement, PhotoSwipeUI_Default, items, {
+                    index: parseInt(i)
+                });
+                gallery.init()
+            }
+        })
+    }
+    viewer_init()
+</script>
+
+<!-- MathJax -->
+
+<!-- Katex -->
+
+<!-- busuanzi  -->
+
+
+<script src="/js/busuanzi-2.3.pure.min.js"></script>
+
+
+<!-- ClickLove -->
+
+<!-- ClickBoom1 -->
+
+<!-- ClickBoom2 -->
+
+<!-- CodeCopy -->
+
+
+<link rel="stylesheet" href="/css/clipboard.css">
+
+<script src="https://cdn.jsdelivr.net/npm/clipboard@2/dist/clipboard.min.js"></script>
+<script>
+  function wait(callback, seconds) {
+    var timelag = null;
+    timelag = window.setTimeout(callback, seconds);
+  }
+  !function (e, t, a) {
+    var initCopyCode = function(){
+      var copyHtml = '';
+      copyHtml += '<button class="btn-copy" data-clipboard-snippet="">';
+      copyHtml += '<i class="ri-file-copy-2-line"></i><span>COPY</span>';
+      copyHtml += '</button>';
+      $(".highlight .code pre").before(copyHtml);
+      $(".article pre code").before(copyHtml);
+      var clipboard = new ClipboardJS('.btn-copy', {
+        target: function(trigger) {
+          return trigger.nextElementSibling;
+        }
+      });
+      clipboard.on('success', function(e) {
+        let $btn = $(e.trigger);
+        $btn.addClass('copied');
+        let $icon = $($btn.find('i'));
+        $icon.removeClass('ri-file-copy-2-line');
+        $icon.addClass('ri-checkbox-circle-line');
+        let $span = $($btn.find('span'));
+        $span[0].innerText = 'COPIED';
+        
+        wait(function () { // 等待两秒钟后恢复
+          $icon.removeClass('ri-checkbox-circle-line');
+          $icon.addClass('ri-file-copy-2-line');
+          $span[0].innerText = 'COPY';
+        }, 2000);
+      });
+      clipboard.on('error', function(e) {
+        e.clearSelection();
+        let $btn = $(e.trigger);
+        $btn.addClass('copy-failed');
+        let $icon = $($btn.find('i'));
+        $icon.removeClass('ri-file-copy-2-line');
+        $icon.addClass('ri-time-line');
+        let $span = $($btn.find('span'));
+        $span[0].innerText = 'COPY FAILED';
+        
+        wait(function () { // 等待两秒钟后恢复
+          $icon.removeClass('ri-time-line');
+          $icon.addClass('ri-file-copy-2-line');
+          $span[0].innerText = 'COPY';
+        }, 2000);
+      });
+    }
+    initCopyCode();
+  }(window, document);
+</script>
+
+
+<!-- CanvasBackground -->
+
+
+    
+  </div>
+</body>
+
+</html>

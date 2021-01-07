@@ -1,0 +1,752 @@
+<!DOCTYPE html>
+
+
+<html lang="zh-Hans">
+
+
+<head>
+  <meta charset="utf-8" />
+    
+  <meta name="description" content="谈天谈地，谈古谈今，一起谈谈我们的未来。" />
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
+  <title>
+    以太坊源码解读-第2讲-rlp模块源码解读 |  Jason漫谈区块链
+  </title>
+  <meta name="generator" content="hexo-theme-ayer">
+  
+  <link rel="shortcut icon" href="/images/my_head-16x16-next.ico" />
+  
+  
+<link rel="stylesheet" href="/dist/main.css">
+
+  
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/Shen-Yu/cdn/css/remixicon.min.css">
+
+  
+<link rel="stylesheet" href="/css/custom.css">
+
+  
+  
+<script src="https://cdn.jsdelivr.net/npm/pace-js@1.0.2/pace.min.js"></script>
+
+  
+  
+
+  
+
+</head>
+
+</html>
+
+<body>
+  <div id="app">
+    
+      
+    <main class="content on">
+      <section class="outer">
+  <article
+  id="post-ethereum/src_analysis/以太坊源码解读-第2讲-rlp模块源码解读"
+  class="article article-type-post"
+  itemscope
+  itemprop="blogPost"
+  data-scroll-reveal
+>
+  <div class="article-inner">
+    
+    <header class="article-header">
+       
+<h1 class="article-title sea-center" style="border-left:0" itemprop="name">
+  以太坊源码解读-第2讲-rlp模块源码解读
+</h1>
+ 
+
+    </header>
+     
+    <div class="article-meta">
+      <a href="/articles/c2a19e0e/" class="article-date">
+  <time datetime="2018-04-09T15:28:57.000Z" itemprop="datePublished">2018-04-09</time>
+</a> 
+  <div class="article-category">
+    <a class="article-category-link" href="/categories/%E4%BB%A5%E5%A4%AA%E5%9D%8A/">以太坊</a> / <a class="article-category-link" href="/categories/%E4%BB%A5%E5%A4%AA%E5%9D%8A/%E6%BA%90%E7%A0%81%E8%A7%A3%E8%AF%BB/">源码解读</a>
+  </div>
+  
+<div class="word_count">
+    <span class="post-time">
+        <span class="post-meta-item-icon">
+            <i class="ri-quill-pen-line"></i>
+            <span class="post-meta-item-text"> Word count:</span>
+            <span class="post-count">6.6k</span>
+        </span>
+    </span>
+
+    <span class="post-time">
+        &nbsp; | &nbsp;
+        <span class="post-meta-item-icon">
+            <i class="ri-book-open-line"></i>
+            <span class="post-meta-item-text"> Reading time≈</span>
+            <span class="post-count">25 min</span>
+        </span>
+    </span>
+</div>
+ 
+    </div>
+      
+    <div class="tocbot"></div>
+
+
+
+
+  
+    <div class="article-entry" itemprop="articleBody">
+       
+  <h2 id="前言"><a href="#前言" class="headerlink" title="前言"></a>前言</h2><p>在正式解读源码前，小编想先解释下为什么使用选择这一模块作为以太坊源码解读的开端：</p>
+<ol>
+<li>该模块可以独立于其余模块，且内容少，便于理解整体编码风格，找找感觉。</li>
+<li>不懂go语言的，读完这么模块，基本就没什么语言障碍了，话说，go语言是有点怪。。</li>
+</ol>
+<a id="more"></a>
+
+<h2 id="什么是rlp"><a href="#什么是rlp" class="headerlink" title="什么是rlp"></a>什么是rlp</h2><ul>
+<li>rlp(递归长度前缀，Recursive Length Prefix)，是不是看的一脸懵逼？</li>
+<li>序列化听说过不？java开发的同学们应该更了解吧？<code>rlp</code>就是以太坊中的序列化工具，它可以将其中涉及到的任何类型的数据都转化为字节序列，方便网络传输。</li>
+<li>待序列化的数据需要<code>大端</code>化处理</li>
+<li>以太坊的rlp主要分为：<code>对树形结构的数据序列化</code>以及<code>字节数组的序列化</code>。</li>
+<li>rlp适用于任意二进制数据数组的编码。</li>
+</ul>
+<h2 id="以太坊中rlp规则"><a href="#以太坊中rlp规则" class="headerlink" title="以太坊中rlp规则"></a>以太坊中rlp规则</h2><p>黄皮书中，介绍到了以太坊的rlp规则，公式比较多，小编一个个来解释一下。<br>公式是从整体到细节的，希望大家能按顺序看，这样看更容易理解</p>
+<h3 id="公式中可能涉及到的符号解释"><a href="#公式中可能涉及到的符号解释" class="headerlink" title="公式中可能涉及到的符号解释"></a>公式中可能涉及到的符号解释</h3><ul>
+<li>||x||表示公式的长度</li>
+<li><code>这个点号符号</code>$\cdot$<code>表示的是字符串衔接，不是相乘</code></li>
+<li>BE(x)表示x的<code>大端模式</code>,啥是大端模式小编不解释，基础概念，上百度谷歌一下～</li>
+<li>$\equiv$，恒等于，理解成等于姑且也可以。。。</li>
+<li>剩下的符号，小编看了看，都是初中高中的，不要说不知道。。。</li>
+</ul>
+<h3 id="公式1：待序列化数据定义"><a href="#公式1：待序列化数据定义" class="headerlink" title="公式1：待序列化数据定义"></a>公式1：待序列化数据定义</h3><p>要被序列化的数据类型，用数学定义如下：</p>
+<p>$$<br>\begin{split}<br>&amp;\mathbb{T} \equiv \mathbb{L} \cup \mathbb{B} \<br>&amp;\mathbb{L} \equiv \{t: t = (t[0], t[1], …) \cap \forall_{n&lt;||t||}\ t[n] \in \mathbb{T} \} \<br>&amp;\mathbb{B} \equiv \{b: b = (b[0], b[1], …) \cap \forall_{n&lt;||b||}\ b[n] \in \mathbb{O} \}<br>\end{split}<br>$$</p>
+<p>解释的不一定合理，但大体是这么个意思:</p>
+<ul>
+<li>$\mathbb{T}$表示：待序列化数据中，<em>字节数组</em>以及<em>树形结构（树、结构体）</em>的数据。</li>
+<li>$\mathbb{L}$表示：$\mathbb{T}$之一的，不止一个节点的树形结构。</li>
+<li>$\mathbb{B}$表示：$\mathbb{T}$之一的，字节数组。</li>
+<li>$\mathbb{O}$表示：小编的理解是，包括待序列化数据以外的，任何字节数组。要知道最终序列化时，待序列化的数据是需要大端处理的。</li>
+</ul>
+<h3 id="公式2：序列化过程"><a href="#公式2：序列化过程" class="headerlink" title="公式2：序列化过程"></a>公式2：序列化过程</h3><p>以太坊序列化是如何执行的：</p>
+<p>$$<br>RLP(x) \equiv<br>\begin{cases}<br>R_b(x), &amp;\ if\ \ x \in \mathbb{B} \<br>R_l(x), &amp;\ otherwise \<br>\end{cases}<br>$$</p>
+<p>这个公式就好理解了吧，对于这两大类数据，执行不同的函数来处理序列化</p>
+<h3 id="公式3：-R-b-x-字节数组的序列化规则"><a href="#公式3：-R-b-x-字节数组的序列化规则" class="headerlink" title="公式3：$R_b(x)$字节数组的序列化规则"></a>公式3：$R_b(x)$字节数组的序列化规则</h3><p>$$<br>R_b(x) \equiv<br>\begin{cases}<br>x, &amp;if\ \ ||x||=1 \cap x[0]&lt;128 \<br>(128+||x||) \cdot x, &amp;else\ if\ \ ||x||&lt;56 \<br>(183+||BE(||x||)||) \cdot BE(||x||)\cdot x, &amp;otherwise<br>\end{cases}<br>$$</p>
+<p>这公式的意思如下：</p>
+<ul>
+<li>如果字节数组长度为1，且这个字节的值小于128，则不处理</li>
+<li>如果不满足上一条要求，但是满足字节数组的长度小于56，那么就在原始数据前面加上<code>128与该字节数组长度之和</code>，该过程类似字符串衔接。</li>
+<li>如果不满足以上两种条件，那么就先在原始数据前面加上<code>原始数据长度的大端表示的数据</code>，再在其前面加上<code>183与原始数据大端表示的长度之和</code></li>
+</ul>
+<h3 id="公式4-R-l-x-树型结构数据的序列化规则"><a href="#公式4-R-l-x-树型结构数据的序列化规则" class="headerlink" title="公式4: $R_l(x)$树型结构数据的序列化规则"></a>公式4: $R_l(x)$树型结构数据的序列化规则</h3><p>$$<br>\begin{split}<br>s(x) &amp;\equiv RLP(x_0) \cdot RLP(x_1)…\<br>R_l(x) &amp;\equiv<br>\begin{cases}<br>(192+||s(x)||) \cdot s(x), &amp;if\ \ ||s(x)||&lt;56 \<br>(247+||BE(||s(x)||)||) \cdot BE(||s(x)||) \cdot s(x), &amp;otherwise \<br>\end{cases}<br>\end{split}<br>$$</p>
+<p>第1个公式的意思如下：</p>
+<ul>
+<li>将树形结构中的每个元素分别使用RLP进行处理，然后将处理结果依次连接起来（字符串连接），生成新的字节，表示为<code>s</code>。</li>
+</ul>
+<p>第2个公式的意思如下：</p>
+<ul>
+<li>如果公式1连接后的<code>s</code>字节长度小于56，那结果就是在<code>s</code>前面连接上<code>192与 *s的长度* 之和</code></li>
+<li>如果不满足上面的要求，也就是<code>s</code>字节长度大于等于56，则在s的前面连接上<code>s长度的大端表示</code>，再在其前面加上<code>247与*连接后长度的大端模式的长度*</code></li>
+</ul>
+<p>看懂上面的两个公式了不？看懂的话，你就会明白，这公式会是一个<code>递归过程</code>，因为结构体里还有结构体，一层又一层。。。</p>
+<h3 id="公式5-标量数据处理-特殊数据"><a href="#公式5-标量数据处理-特殊数据" class="headerlink" title="公式5: 标量数据处理(特殊数据)"></a>公式5: 标量数据处理(特殊数据)</h3><p>$$<br>RLP(i:i \in \mathbb{P} ) \equiv RLP(BE(i))<br>$$<br>标量数据，可以理解为我们通常所说的基本的数据。<br>此时RLP只能用来处理正整数。这块理解貌似有点费劲，后面可以看看源码来进一步了解。这些数据需要先大端处理。</p>
+<h3 id="总结："><a href="#总结：" class="headerlink" title="总结："></a>总结：</h3><p>抛离公式，小编在此总结一下，RLP是如下处理数据的：</p>
+<ol>
+<li>如果是一个单字节(长度为1)并且其值在<code>[0x00,0x7f]</code>范围内（即0～127），RLP编码就是自身。</li>
+<li>如果一个数据串的字节长度是0-55字节，那么它的RLP编码是在数据串开头增加一个字节，这个字节的值是0x80加上数据串的字节长度。因此增加的该字节的取值范围为[0x80, 0xb7]。</li>
+<li>如果一个数据串的字节长度大于55，那么它的RLP编码是在开头增加一个字节，这个字节的值等于0xb7加上数据串字节长度的二进制编码的字节长度，然后依次跟着数据串字节长度部分和内容部分。比如：一个长度为1024字节的数据串，其字节长度用16进制表示为0x0400，长度为2个字节，因此RLP编码头字节的值为0xb9（0xb7 + 0x02），然后跟着两字节为0x0400，后面再加上数据串的具体内容。因此增加的首字节的取值范围为[0xb8, 0xbf]，因此其能编码的最大数据长度为$2^56$</li>
+<li>如果是一个嵌套的列表数据，则需要先将列表中的数据按照单元素的编码规则进行RLP编码后串联得到列表数据的s。如果一个列表数据的s的字节长度为0-55，那么列表的RLP编码在其s前加上一个字节，这个字节的值是0xc0加上s的字节长度。因此首字节的取值范围为[0xc0, 0xf7]。</li>
+<li>如果一个列表数据的s的长度大于55，那么它的RLP编码是在开头增加一个字节，这个字节的值等于0xf7加上列表s字节长度的二进制编码的字节长度，然后依次跟着s字节长度部分和s部分。因此首字节的取值范围为[0xf8, 0xff]，因此一个列表中存储的所有元素的字节长度不能超过$2^56$。</li>
+</ol>
+<h2 id="RLP源码解析"><a href="#RLP源码解析" class="headerlink" title="RLP源码解析"></a>RLP源码解析</h2><p>讲了一堆天书，终于到了关键地方了。<br>rlp分为<code>编码</code>和<code>解码</code>两个部分，当然，小编只会讲<code>编码</code>过程。<br><code>解码</code>过程的实现和<code>编码</code>过程都差不多。<br>另外一个原因是小编没那么多精力去那么细看啦，知道有那么一回事就行。</p>
+<h3 id="rlp编码后数据格式："><a href="#rlp编码后数据格式：" class="headerlink" title="rlp编码后数据格式："></a>rlp编码后数据格式：</h3><p>为了便于更好的理解后面的代码，小编现画出如下结构图：</p>
+<img src="/articles/c2a19e0e/1.png" class="" title="序列化后的数据结构">
+<p>除了最后一个编码数据，其余编码后的每个原始数据之后，都对应的标有该数据的起始和截止位置信息。</p>
+<h3 id="rlp模块源文件结构"><a href="#rlp模块源文件结构" class="headerlink" title="rlp模块源文件结构"></a>rlp模块源文件结构</h3><p>项目根目录下，找到<code>rlp</code>目录，里面如下结构：<br>.<br>|____raw.go                  //用于处理编码后的rlp数据，比如计算长度、分离等<br>|____raw_test.go             //rlp数据测试用例<br>|____encode.go               //编码器，用于将给定的数据编码为rlp<br>|____encode_test.go          //编码测试，各种测试用例验证编码器的稳定性<br>|____encoder_example_test.go //用案例体验测试编码<br>|____decode.go               //解码器，用于将rlp数据解码为原始数据<br>|____decode_test.go          //用于测试解码，各种测试用例测试解码器的稳定性<br>|____decode_tail_test.go     //用案例体验测试解码<br>|____typecache.go            //类型缓存，用于记录哪些类型数据应该如何处理（如何编码和解码）<br>|____doc.go                  //没什么，rlp的相关描述</p>
+<h3 id="rlp编码过程解析：第1部分"><a href="#rlp编码过程解析：第1部分" class="headerlink" title="rlp编码过程解析：第1部分"></a>rlp编码过程解析：第1部分</h3><p>经过小编分析，从<code>encoder_example_test.go</code>这个文件作为入口来分析是最合适不过的。<br>该example的目的是编码一个结构体。根据前面的描述可知，编码一个结构体，基本就会牵涉到rlp的所有编码逻辑了。<br>具体来看看该文件的内容，先是定义了一个要进行编码的结构体，名为<code>MyCoolType</code>,而紧随其后，定义了属于该结构体的一个函数<code>EncodeRLP()</code>。<br>此处<code>EncodeRLP()</code>其实是一个<code>被实现了的接口函数</code>，等后面分析了<code>encode.go</code>的代码就会明白（具体go语法的接口实现，小编不想解释。。小编突然觉得，<code>该写个go语言教程了</code>)。</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">type</span> MyCoolType <span class="keyword">struct</span> &#123;  <span class="comment">//要编码的的结构体</span></span><br><span class="line">	Name <span class="keyword">string</span>  <span class="comment">//字符串，名称</span></span><br><span class="line">	a, b <span class="keyword">uint</span>    <span class="comment">//两个整型数据</span></span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// 呵呵，(x *MyCoolType)表示，该方法是属于结构体的MyCoolType</span></span><br><span class="line"><span class="comment">// 呵呵，(err error)表示这个方法的返回值</span></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="params">(x *MyCoolType)</span> <span class="title">EncodeRLP</span><span class="params">(w io.Writer)</span> <span class="params">(err error)</span></span> &#123;</span><br><span class="line">	<span class="keyword">if</span> x == <span class="literal">nil</span> &#123;  <span class="comment">//若结构体指针本身是空的，则编码&#123;0,0&#125;</span></span><br><span class="line">		err = Encode(w, []<span class="keyword">uint</span>&#123;<span class="number">0</span>, <span class="number">0</span>&#125;) <span class="comment">//此处可以发现，真正参与编码的只有结构体中的a,b两个</span></span><br><span class="line">	&#125;</span><br><span class="line">	&#125; <span class="keyword">else</span> &#123;  <span class="comment">//否则编码指定结果</span></span><br><span class="line">		err = Encode(w, []<span class="keyword">uint</span>&#123;x.a, x.b&#125;)</span><br><span class="line">	&#125;</span><br><span class="line">	<span class="keyword">return</span> err</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>接着来看看具体该结构体编码的过程</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">//案例，测试为空和不为空的结构体的编码方式</span></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">ExampleEncoder</span><span class="params">()</span></span> &#123;</span><br><span class="line">	<span class="keyword">var</span> t *MyCoolType <span class="comment">// t 是空指针</span></span><br><span class="line">	bytes, _ := EncodeToBytes(t) <span class="comment">//编码成字节数组</span></span><br><span class="line">	fmt.Printf(<span class="string">&quot;%v → %X\n&quot;</span>, t, bytes)  <span class="comment">//输出编码结果</span></span><br><span class="line"></span><br><span class="line">	t = &amp;MyCoolType&#123;Name: <span class="string">&quot;foobar&quot;</span>, a: <span class="number">5</span>, b: <span class="number">6</span>&#125; <span class="comment">//t有数据</span></span><br><span class="line">	bytes, _ = EncodeToBytes(t)  </span><br><span class="line">	fmt.Printf(<span class="string">&quot;%v → %X\n&quot;</span>, t, bytes)  <span class="comment">//输出编码结果</span></span><br><span class="line"></span><br><span class="line">	<span class="comment">// Output:         //标准测试，必须如此输出，用于校验输出结果        </span></span><br><span class="line">	<span class="comment">// &lt;nil&gt; → C28080</span></span><br><span class="line">	<span class="comment">// &amp;&#123;foobar 5 6&#125; → C20506</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>具体怎么运转这个测试，不要问小编，小编是个大忙人。。。</p>
+<h3 id="rlp编码过程解析：第2部分"><a href="#rlp编码过程解析：第2部分" class="headerlink" title="rlp编码过程解析：第2部分"></a>rlp编码过程解析：第2部分</h3><p>从上一部分example中发现，编码的入口函数是：<code>EncodeToBytes()</code>，随即我们跟踪到<code>encode.go</code>这个文件中，重头戏来了.</p>
+<ol>
+<li><p>先来看看该文件中定义的两个全局内容：</p>
+<ul>
+<li>该文件定义了，<code>空数据（理解成字符串吧）</code>和<code>空集合（树形结构）</code>对应编码后的结果  <figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">EmptyString = []<span class="keyword">byte</span>&#123;<span class="number">0x80</span>&#125;  <span class="comment">//128，定义了序列化时候的空字符串，空的时候对应的是编码128。</span></span><br><span class="line">EmptyList   = []<span class="keyword">byte</span>&#123;<span class="number">0xC0</span>&#125;  <span class="comment">//192，定义了序列化时候的空集合，空的时候对应的编码192</span></span><br></pre></td></tr></table></figure></li>
+<li>其次，定义了一个接口，用于自定义编码数据（<code>看到了不，第1部分那个结构体里实现的方法，就是这个接口</code>）：  <figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">//可以理解为，任何拥有下面接口中函数的`结构体`，都表示继承并实现了该接口</span></span><br><span class="line"><span class="keyword">type</span> Encoder <span class="keyword">interface</span> &#123;</span><br><span class="line">	EncodeRLP(io.Writer) error</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></li>
+<li>第1部分的一个待编码的结构体中，有两个uint数据，编码后，两个uint的序列是会衔接在一起的，因此为了便于区分我是需要知道每个uint在编码序列中的哪个位置，因此，有这么一个结构体：  <figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">type</span> encbuf <span class="keyword">struct</span> &#123;</span><br><span class="line">	str     []<span class="keyword">byte</span>      <span class="comment">// 被编码后的数据全部在此处，比如第1部分结构体中的两个uint，编码后的结果都紧挨着存在该str中</span></span><br><span class="line">	lheads  []*listhead <span class="comment">// 每个数据在编码序列中存储的位置。比如，还是上面那两个uint，编码后，第一个uint在str中的起始位置是多少，截止位置是多少，都在listhead[0]中记录的</span></span><br><span class="line">	lhsize  <span class="keyword">int</span>         <span class="comment">// lheads的长度，也就是说，被编码的数据有几个。比如，两个uint参与编码，那lhsize=2</span></span><br><span class="line">	sizebuf []<span class="keyword">byte</span>      <span class="comment">// 9个字节大小的辅助buffer，专门用来处理uint的编码的</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<ul>
+<li>呵呵，<code>listhead</code>这个结构体是如下定义的，用来确定被编码的数据，在序列中的哪一部分：  <figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">type</span> listhead <span class="keyword">struct</span> &#123;</span><br><span class="line">	offset <span class="keyword">int</span> <span class="comment">// 被编码的某个数据在序列中的起始位置</span></span><br><span class="line">	size   <span class="keyword">int</span> <span class="comment">// 包含头部在内的所有编码了的数据的总长度</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></li>
+<li>另外，encbuf结构体有如下这些函数（函数比较多，小编在此概述一下这些函数的功能）：<ol>
+<li><code>reset()</code>：用于将encbuf中的数据初始化，后面对象池中调取时候，会用到。</li>
+<li><code>Write()</code>：实现了<code>io.Writer的接口</code>，用于连接byte[]编码，可以理解为字符串连接，在结构体若实现了<code>EncodeRLP</code>自定义编码，用<code>Write()</code>函数会很方便</li>
+<li><code>encode()</code>：用于编码数据，同时将先后编码的数据依次衔接起来（<code>后面详细介绍</code>）。</li>
+<li><code>encodeStringHeader()</code>：将encbuf中的头部是需要序列化，该函数是将头部结构体中的一个<code>新的编码后的元素</code>和<code>先前已编码的所有数据</code>衔接起来</li>
+<li><code>encodeString()</code>：该函数是将当前编码后的一个原始数据衔接到已编码的所有数据之后</li>
+<li><code>list()</code>：用于保存每个元素编码后的头部信息，</li>
+<li><code>listEnd()</code>：编码衔接结束后的长度统计处理</li>
+<li><code>size()</code>：计算编码后的数据和其头部的总长度</li>
+<li><code>toBytes()</code>：将每个头部编码，并衔接到对应的编码后的数据之后</li>
+<li><code>toWriter</code>：该方法是io流方式，将编码后的头部写在编码数据之后</li>
+<li>看不懂这些方法的同学，最好先好好看看上面画的那个<code>序列化后的数据结构</code>图</li>
+</ol>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><p>ok，接着来看看我们的<code>EncodeToBytes()</code>函数，它就是用来将数据序列化为byte数组的元凶。<br>该函数中，可以发现，为了减少资源浪费，提高连续编码的效率，以太坊使用了对象池来保存一个<code>encbuf</code>实例<br><code>ps</code>:下面代码有个关键词叫<code>defer</code>，表示，这行代码要等return完之后才会执行。</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">EncodeToBytes</span><span class="params">(val <span class="keyword">interface</span>&#123;&#125;)</span> <span class="params">([]<span class="keyword">byte</span>, error)</span></span> &#123;</span><br><span class="line">	eb := encbufPool.Get().(*encbuf)  <span class="comment">//从对象池中获取一个用于存储完整编码数据的空间</span></span><br><span class="line">	<span class="keyword">defer</span> encbufPool.Put(eb)          <span class="comment">//return 结束之后才会执行，将实例化的encbuf放入对象池，方便下次使用。</span></span><br><span class="line">	eb.reset()  <span class="comment">//encbuf结构体的函数，初始化该结构体对应实例中的元素</span></span><br><span class="line">	<span class="keyword">if</span> err := eb.encode(val); err != <span class="literal">nil</span> &#123; <span class="comment">//原始数据进行编码，刚编码好的数据是放在字符串中的</span></span><br><span class="line">		<span class="keyword">return</span> <span class="literal">nil</span>, err</span><br><span class="line">	&#125;</span><br><span class="line">	<span class="keyword">return</span> eb.toBytes(), <span class="literal">nil</span> <span class="comment">//将编码后的数据本身和头部衔接起来并放在byte[]中，并返回最终结果</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>这里真正重要的一段代码就是：<code>eb.encode(val)</code>，不要闷逼，再次强调<code>eb</code>是<code>encbuf结构体的实例</code>，<code>encode</code>是其最重要的函数，看看它的实现：</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">func</span> <span class="params">(w *encbuf)</span> <span class="title">encode</span><span class="params">(val <span class="keyword">interface</span>&#123;&#125;)</span> <span class="title">error</span></span> &#123;</span><br><span class="line">	rval := reflect.ValueOf(val)  <span class="comment">//获取该数据具体的值（包括结构体）</span></span><br><span class="line">	ti, err := cachedTypeInfo(rval.Type(), tags&#123;&#125;) <span class="comment">//根据数据类型来编码数据</span></span><br><span class="line">	<span class="keyword">if</span> err != <span class="literal">nil</span> &#123;</span><br><span class="line">		<span class="keyword">return</span> err</span><br><span class="line">	&#125;</span><br><span class="line">	<span class="keyword">return</span> ti.writer(rval, w)</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>先注意一下其中的最后一行代码涉及到的<code>writer()</code>，这个在下一节中会具体去讲，简单说就是，writer被定义为了一种数据类型，<code>只要满足它函数格式的，都属于writer类型</code><br>好的，这块代码，其中的<code>cachedTypeInfo()</code>，把我们的节奏引入了高潮，具体如何，且听下一部分分析</p>
+</li>
+</ol>
+<h3 id="rlp编码过程解析：第3部分"><a href="#rlp编码过程解析：第3部分" class="headerlink" title="rlp编码过程解析：第3部分"></a>rlp编码过程解析：第3部分</h3><p>继续上回讲解，<code>cachedTypeInfo()</code>函数是在<code>typecache.go</code>中实现的，这个文件里，对编码和解码做了详细的规划，让我们更加清晰的了解到了rlp的全局结构。</p>
+<ol>
+<li><code>cachedTypeInfo()</code>函数具体怎么回事我们先不说，按惯例，先来看看<code>typecache.go</code>该文件中主要定义了哪些全局属性：<ul>
+<li>该文件定义了一个读写锁，多线程、并发读取数据时候的保护措施；还定义了一个映射，不同的数据类型，对应不同的编码或者解码器。  <figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">var</span> (</span><br><span class="line">	typeCacheMutex sync.RWMutex    <span class="comment">//读写锁，用来在多线程的时候保护typeCache这个Map</span></span><br><span class="line">	<span class="comment">//核心数据结构，保存了类型-&gt;编解码器函数，*typeinfo指针类型，根据不同的数据类型（reflect.Type），保存不同的解码方式</span></span><br><span class="line">	typeCache      = <span class="built_in">make</span>(<span class="keyword">map</span>[typekey]*typeinfo)</span><br><span class="line">)</span><br></pre></td></tr></table></figure>
+  其中发现有两个重要的结构体：<ul>
+<li>首先是<code>typekey</code>，定义了数据所属类型，以及该数据的特点（是否是集合，是否为空等）  <figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">type</span> typekey <span class="keyword">struct</span> &#123;</span><br><span class="line">	reflect.Type   <span class="comment">//数据类型不同，则编码解码的数据类型也不同</span></span><br><span class="line">	tags <span class="comment">//某种数据类型中，是否为空，是否为集合，不同情况处理不同</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<ul>
+<li>在该结构体其中其中，又有一个<code>tags</code>结构体，主要是用来标注数据的特点，如下：  <figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">type</span> tags <span class="keyword">struct</span> &#123;</span><br><span class="line">	nilOK <span class="keyword">bool</span>  <span class="comment">//是否为空</span></span><br><span class="line">	tail <span class="keyword">bool</span>  <span class="comment">//是否为集合（切片）</span></span><br><span class="line">	ignored <span class="keyword">bool</span>  <span class="comment">//该参数留着，备用</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></li>
+</ul>
+</li>
+<li>其次定义了一个编码器和解码器的结构体<code>typeinfo</code>，注意他们对应的函数  <figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">type</span> typeinfo <span class="keyword">struct</span> &#123;</span><br><span class="line">	decoder  <span class="comment">//解码，</span></span><br><span class="line">	writer   <span class="comment">//编码</span></span><br><span class="line">&#125;</span><br><span class="line"><span class="keyword">type</span> decoder <span class="function"><span class="keyword">func</span><span class="params">(*Stream, reflect.Value)</span> <span class="title">error</span> //把满足该结构的函数，定义为数据类型<span class="title">decoder</span></span></span><br><span class="line"><span class="keyword">type</span> writer <span class="function"><span class="keyword">func</span><span class="params">(reflect.Value, *encbuf)</span> <span class="title">error</span>  //把满足该结构的函数，定义为数据类型<span class="title">writer</span></span></span><br></pre></td></tr></table></figure></li>
+</ul>
+</li>
+</ul>
+</li>
+<li>接着我们来讲讲期待已久的<code>cachedTypeInfo()</code>函数，怎么说吧，它的作用是，根据数据属性的不同，返回一个合适的<code>编码\解码器</code>来处理该数据，为了保证读写安全，使用了读写锁；为了提高效率，缓存了<code>数据类型</code>和<code>编码\解码器</code>的映射（就是说，比如字符串类型的数据，要用到专门处理字符串的编码\解码器）。<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">cachedTypeInfo</span><span class="params">(typ reflect.Type, tags tags)</span> <span class="params">(*typeinfo, error)</span></span> &#123;</span><br><span class="line">	typeCacheMutex.RLock()  <span class="comment">//加读锁来保护</span></span><br><span class="line">	info := typeCache[typekey&#123;typ, tags&#125;]  <span class="comment">//在缓存中查是找是否有typ类型的数据对应的 编码\解码器</span></span><br><span class="line">	typeCacheMutex.RUnlock()</span><br><span class="line">	<span class="keyword">if</span> info != <span class="literal">nil</span> &#123;   </span><br><span class="line">		<span class="keyword">return</span> info, <span class="literal">nil</span>  <span class="comment">//若找到了，则返回结果</span></span><br><span class="line">	&#125;</span><br><span class="line">	<span class="comment">// not in the cache, need to generate info for this type.</span></span><br><span class="line">	<span class="comment">//加写锁 调用cachedTypeInfo1函数创建并返回，</span></span><br><span class="line">	<span class="comment">//这里需要注意的是在多线程环境下有可能多个线程同时调用到这个地方，</span></span><br><span class="line">	<span class="comment">//所以当你进入cachedTypeInfo1方法的时候需要判断一下是否已经被别的线程先创建成功了。</span></span><br><span class="line">	typeCacheMutex.Lock()</span><br><span class="line"></span><br><span class="line">	<span class="keyword">defer</span> typeCacheMutex.Unlock()  <span class="comment">//等return执行完毕后，才会调用该行defer。再次吐槽go..</span></span><br><span class="line">	<span class="keyword">return</span> cachedTypeInfo1(typ, tags) <span class="comment">//缓存中不存在，则创建对应类型的编码\解码器</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></li>
+<li>上面代码，真正该注意的是<code>cachedTypeInfo1(typ,tags)</code>，它的目的就是根据数据类型去创建并缓存对应的编码\解码器。代码实现如下：<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">cachedTypeInfo1</span><span class="params">(typ reflect.Type, tags tags)</span> <span class="params">(*typeinfo, error)</span></span> &#123;</span><br><span class="line">	key := typekey&#123;typ, tags&#125;</span><br><span class="line">	info := typeCache[key]</span><br><span class="line">	<span class="keyword">if</span> info != <span class="literal">nil</span> &#123;  <span class="comment">//此处再次验证是为了避免并发请求造成影响</span></span><br><span class="line">		<span class="keyword">return</span> info, <span class="literal">nil</span></span><br><span class="line">	&#125;</span><br><span class="line">	</span><br><span class="line">	typeCache[key] = <span class="built_in">new</span>(typeinfo)  <span class="comment">//根据数据类型，新建一个它的编码\解码器的缓存空间（此时并不知道具体是哪个编码\解码器）</span></span><br><span class="line">	info, err := genTypeInfo(typ, tags) <span class="comment">//根据数据类型，找到它对应的编码\解码器</span></span><br><span class="line">	<span class="keyword">if</span> err != <span class="literal">nil</span> &#123;</span><br><span class="line">		<span class="built_in">delete</span>(typeCache, key)  <span class="comment">//创建失败则清除此空间</span></span><br><span class="line">		<span class="keyword">return</span> <span class="literal">nil</span>, err  <span class="comment">//返回空</span></span><br><span class="line">	&#125;</span><br><span class="line">	*typeCache[key] = *info <span class="comment">//创建成功保存该编码器</span></span><br><span class="line">	<span class="keyword">return</span> typeCache[key], err <span class="comment">//返回当前数据类型的编码/解码器</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<ul>
+<li>上面代码，又有一个重要的函数：<code>genTypeInfo(typ, tags)</code>，它用来根据数据类型，找到对应的编码\解码器，具体实现如下：  <figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">genTypeInfo</span><span class="params">(typ reflect.Type, tags tags)</span> <span class="params">(info *typeinfo, err error)</span></span> &#123;</span><br><span class="line">	info = <span class="built_in">new</span>(typeinfo)  <span class="comment">//新建一个保存编码\解码的空间</span></span><br><span class="line">	<span class="keyword">if</span> info.decoder, err = makeDecoder(typ, tags); err != <span class="literal">nil</span> &#123; <span class="comment">//解码获取失败，则返回空</span></span><br><span class="line">		<span class="keyword">return</span> <span class="literal">nil</span>, err</span><br><span class="line">	&#125;</span><br><span class="line">	<span class="keyword">if</span> info.writer, err = makeWriter(typ, tags); err != <span class="literal">nil</span> &#123;  <span class="comment">//编码获取失败，则返回空</span></span><br><span class="line">		<span class="keyword">return</span> <span class="literal">nil</span>, err</span><br><span class="line">	&#125;</span><br><span class="line">	<span class="comment">//只有成功找到了编码器和解码器，才会返回它们的映射信息。别忘了info的结构体类型</span></span><br><span class="line">	<span class="keyword">return</span> info, <span class="literal">nil</span>  </span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+清楚了吧，整个编码器和解码器的框架结构其实并不复杂，其中用到的线程安全机制和缓存机制是蛮有意思的。对于上面代码提到的<code>makeDecoder()</code>和<code>makeWriter()</code>,也就是具体获取编码\解码器是怎样实现的，小编在下一部分来解释，莫心急，心急吃不了豆腐～～～</li>
+</ul>
+</li>
+</ol>
+<h3 id="rlp编码过程解析：第4部分"><a href="#rlp编码过程解析：第4部分" class="headerlink" title="rlp编码过程解析：第4部分"></a>rlp编码过程解析：第4部分</h3><ol>
+<li>紧接上一部分，<code>makeDecoder()</code>和<code>makeWriter()</code>具体是用来实现获取对应编码\解码器的，这下又跳转回<code>encode.go</code>文件中，小编这里只讲编码器<code>makeWriter()</code>的获取了，解码器类似，只是相反而已。具体如下： <figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">makeWriter</span><span class="params">(typ reflect.Type, ts tags)</span> <span class="params">(writer, error)</span></span> &#123;</span><br><span class="line">	kind := typ.Kind()  <span class="comment">//先获取数据类型</span></span><br><span class="line">	<span class="keyword">switch</span> &#123;</span><br><span class="line">		<span class="keyword">case</span> typ == rawValueType:</span><br><span class="line">			<span class="keyword">return</span> writeRawValue, <span class="literal">nil</span> </span><br><span class="line">		<span class="keyword">case</span> typ.Implements(encoderInterface):</span><br><span class="line">			<span class="keyword">return</span> writeEncoder, <span class="literal">nil</span> </span><br><span class="line">		<span class="keyword">case</span> kind != reflect.Ptr &amp;&amp; reflect.PtrTo(typ).Implements(encoderInterface):</span><br><span class="line">			<span class="keyword">return</span> writeEncoderNoPtr, <span class="literal">nil</span> </span><br><span class="line">		<span class="keyword">case</span> kind == reflect.Interface:</span><br><span class="line">			<span class="keyword">return</span> writeInterface, <span class="literal">nil</span>    </span><br><span class="line">		<span class="keyword">case</span> typ.AssignableTo(reflect.PtrTo(bigInt)):</span><br><span class="line">			<span class="keyword">return</span> writeBigIntPtr, <span class="literal">nil</span>  </span><br><span class="line">		<span class="keyword">case</span> typ.AssignableTo(bigInt):</span><br><span class="line">			<span class="keyword">return</span> writeBigIntNoPtr, <span class="literal">nil</span> </span><br><span class="line">		<span class="keyword">case</span> isUint(kind):</span><br><span class="line">			<span class="keyword">return</span> writeUint, <span class="literal">nil</span>  </span><br><span class="line">		<span class="keyword">case</span> kind == reflect.Bool:</span><br><span class="line">			<span class="keyword">return</span> writeBool, <span class="literal">nil</span></span><br><span class="line">		<span class="keyword">case</span> kind == reflect.String:</span><br><span class="line">			<span class="keyword">return</span> writeString, <span class="literal">nil</span></span><br><span class="line">		<span class="keyword">case</span> kind == reflect.Slice &amp;&amp; isByte(typ.Elem()):</span><br><span class="line">			<span class="keyword">return</span> writeBytes, <span class="literal">nil</span></span><br><span class="line">		<span class="keyword">case</span> kind == reflect.Array &amp;&amp; isByte(typ.Elem()):</span><br><span class="line">			<span class="keyword">return</span> writeByteArray, <span class="literal">nil</span></span><br><span class="line">		<span class="keyword">case</span> kind == reflect.Slice || kind == reflect.Array:</span><br><span class="line">			<span class="keyword">return</span> makeSliceWriter(typ, ts)</span><br><span class="line">		<span class="keyword">case</span> kind == reflect.Struct:</span><br><span class="line">			<span class="keyword">return</span> makeStructWriter(typ)</span><br><span class="line">		<span class="keyword">case</span> kind == reflect.Ptr:</span><br><span class="line">			<span class="keyword">return</span> makePtrWriter(typ)</span><br><span class="line">		<span class="keyword">default</span>:</span><br><span class="line">			<span class="keyword">return</span> <span class="literal">nil</span>, fmt.Errorf(<span class="string">&quot;rlp: type %v is not RLP-serializable&quot;</span>, typ)</span><br><span class="line">	&#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+ 这个代码应该很好懂吧，根据不同的数据类型，返回对应的具体的编码函数，注意看<code>makeWriter()</code>的数据返回类型，返回的是一个编码函数，这就是对应数据类型的编码器。每种数据类型都有各自的编码器被返回。建议大家根据需要去仔细读读每种编码器的具体实现方式，也挺有意思的。<br> 另外需要知道，对于长度为1的数据，是没有必要做head记录的。因此，关于对head操作，大伙看看不同的编码器中的处理就明白了。</li>
+<li>小编根据第1部分提供的待编码数据类型可知，该数据类型是指针，且实现了<code>EncodeRLP()</code>接口，它对应的类型是上述代码中的第2个<code>case</code>,即<code>typ.Implements(encoderInterface)</code>，因此小编详细介绍下<code>writeEncoder()</code>，先看它的代码：<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">writeEncoder</span><span class="params">(val reflect.Value, w *encbuf)</span> <span class="title">error</span></span> &#123;</span><br><span class="line">	<span class="keyword">return</span> val.Interface().(Encoder).EncodeRLP(w)</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+ 就两行代码，指向了我们在第1部分的定义的待编码的结构体数据中的<code>EncodeRLP()</code>函数，为了方便演示，小编这里再列出来看看： <figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">type</span> MyCoolType <span class="keyword">struct</span> &#123;  </span><br><span class="line">	Name <span class="keyword">string</span>  </span><br><span class="line">	a, b <span class="keyword">uint</span>   </span><br><span class="line">&#125;</span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="params">(x *MyCoolType)</span> <span class="title">EncodeRLP</span><span class="params">(w io.Writer)</span> <span class="params">(err error)</span></span> &#123;</span><br><span class="line">	<span class="keyword">if</span> x == <span class="literal">nil</span> </span><br><span class="line">		err = Encode(w, []<span class="keyword">uint</span>&#123;<span class="number">0</span>, <span class="number">0</span>&#125;) </span><br><span class="line">	<span class="keyword">else</span> </span><br><span class="line">		err = Encode(w, []<span class="keyword">uint</span>&#123;x.a, x.b&#125;)</span><br><span class="line">	<span class="keyword">return</span> err</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+ 呵呵，发现了吧，该接口实现中，调用了<code>Encode()</code>函数，其中的参数<code>w</code>指的是它是<code>encbuf</code>，该函数是在<code>encode.go</code>文件中。那就看看它的具体实现吧：<br> 该函数其实也很有特点：因为有的时候，以太坊中的数据并不是直接通过<code>EncodeToBytes()</code>传入具体的数据来编码，很多时候它是通过io流传入待编码数据的，因此，其实这个<code>Encode()</code>函数也很重要。 <figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">Encode</span><span class="params">(w io.Writer, val <span class="keyword">interface</span>&#123;&#125;)</span> <span class="title">error</span></span> &#123;</span><br><span class="line">	<span class="comment">//语法说明，断言w.(*encbuf)的具体类型是否为*encbuf，是，则返回给outer=*encbuf,并且ok为true；否，则返回outer=nil，并且ok为false</span></span><br><span class="line">	<span class="keyword">if</span> outer, ok := w.(*encbuf); ok &#123; <span class="comment">//EncodeRLP接口提供的参数是`io.Writer`类型，但是，从前面分析我们得知，我们传入的是实现了`io.Writer`的`encbuf`。因此需要判断。</span></span><br><span class="line">		<span class="keyword">return</span> outer.encode(val) </span><br><span class="line">	&#125;</span><br><span class="line">	eb := encbufPool.Get().(*encbuf) <span class="comment">//若是直接输入的`io.Writer`流来编码，则通过该处对象池将其转为`encbuf`</span></span><br><span class="line">	<span class="keyword">defer</span> encbufPool.Put(eb) <span class="comment">//当return后才会执行</span></span><br><span class="line">	eb.reset()</span><br><span class="line">	<span class="keyword">if</span> err := eb.encode(val); err != <span class="literal">nil</span> &#123; </span><br><span class="line">		<span class="keyword">return</span> err</span><br><span class="line">	&#125;</span><br><span class="line">	<span class="keyword">return</span> eb.toWriter(w)</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+ 若传入的是标准<code>io.Writer</code>,则该代码最终返回的是<code>eb.toWriter(w)</code>流结果，它和<code>EncodeToBytes()</code>函数中返回的byte[]结果还是有区别的。<br> 此处编码结束，看看下1部分吧，在坚持一下就可以结束了～～</li>
+</ol>
+<h3 id="rlp编码过程解析：第5部分"><a href="#rlp编码过程解析：第5部分" class="headerlink" title="rlp编码过程解析：第5部分"></a>rlp编码过程解析：第5部分</h3><p>拿到编码器就可以回到第2部分的<code>encode()</code>函数了。返回编码结果，进一步返回到<code>EncodeToBytes()</code>函数，最终返回到第1部分的编码结果。</p>
+<h2 id="解码相关概述"><a href="#解码相关概述" class="headerlink" title="解码相关概述"></a>解码相关概述</h2><p>本来小编是不想讲的，想了想，还是大概说两句吧。<br>解码和编码的方向相反，方式一样。解码时候，先计算好开辟好的结构体、数据类型等的大小和空间，然后就可以在被序列化的编码中，读取到指定位置的值，从而读取到具体数据。<br>还不懂吗？看代码吧。。。</p>
+<h2 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h2><p>整个编码过程，其实可以这么说明：<br>待编码数据，先根据数据类型去对象池中找相应的解码器，若没有该解码器则新建一个并将其加入缓存。编码结束后，会返回一个结构体信息，其中包含所有编码后的序列以及其中每个被编码的数据的头部信息（它们在整个编码序列中的位置）。最后，拼装编码序列以及头部信息（此时头部信息会进行编码），生成最终的编码序列。图示如下：</p>
+<img src="/articles/c2a19e0e/2.png" class="" title="编码整体流程">
+
+<p>吐出一口老血，终于完成这个浩大的工程了。。。<br>解码过程就不写了，根据编码过程反推就行。</p>
+ 
+      <!-- reward -->
+      
+    </div>
+    
+
+    <!-- copyright -->
+    
+    <div class="declare">
+      <ul class="post-copyright">
+        <li>
+          <i class="ri-copyright-line"></i>
+          <strong>Copyright： </strong>
+          
+          Copyright is owned by the author. For commercial reprints, please contact the author for authorization. For non-commercial reprints, please indicate the source.
+          
+        </li>
+      </ul>
+    </div>
+    
+    <footer class="article-footer">
+       
+<div class="share-btn">
+      <span class="share-sns share-outer">
+        <i class="ri-share-forward-line"></i>
+        分享
+      </span>
+      <div class="share-wrap">
+        <i class="arrow"></i>
+        <div class="share-icons">
+          
+          <a class="weibo share-sns" href="javascript:;" data-type="weibo">
+            <i class="ri-weibo-fill"></i>
+          </a>
+          <a class="weixin share-sns wxFab" href="javascript:;" data-type="weixin">
+            <i class="ri-wechat-fill"></i>
+          </a>
+          <a class="qq share-sns" href="javascript:;" data-type="qq">
+            <i class="ri-qq-fill"></i>
+          </a>
+          <a class="douban share-sns" href="javascript:;" data-type="douban">
+            <i class="ri-douban-line"></i>
+          </a>
+          <!-- <a class="qzone share-sns" href="javascript:;" data-type="qzone">
+            <i class="icon icon-qzone"></i>
+          </a> -->
+          
+          <a class="facebook share-sns" href="javascript:;" data-type="facebook">
+            <i class="ri-facebook-circle-fill"></i>
+          </a>
+          <a class="twitter share-sns" href="javascript:;" data-type="twitter">
+            <i class="ri-twitter-fill"></i>
+          </a>
+          <a class="google share-sns" href="javascript:;" data-type="google">
+            <i class="ri-google-fill"></i>
+          </a>
+        </div>
+      </div>
+</div>
+
+<div class="wx-share-modal">
+    <a class="modal-close" href="javascript:;"><i class="ri-close-circle-line"></i></a>
+    <p>扫一扫，分享到微信</p>
+    <div class="wx-qrcode">
+      <img src="//api.qrserver.com/v1/create-qr-code/?size=150x150&data=http://jason-wj.gitee.io/articles/c2a19e0e/" alt="微信分享二维码">
+    </div>
+</div>
+
+<div id="share-mask"></div>  
+  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/ethereum/" rel="tag">ethereum</a></li></ul>
+
+    </footer>
+  </div>
+
+   
+  <nav class="article-nav">
+    
+      <a href="/articles/12370dbd/" class="article-nav-link">
+        <strong class="article-nav-caption">上一篇</strong>
+        <div class="article-nav-title">
+          
+            Patricia树介绍
+          
+        </div>
+      </a>
+    
+    
+      <a href="/articles/ff874140/" class="article-nav-link">
+        <strong class="article-nav-caption">下一篇</strong>
+        <div class="article-nav-title">(以太坊源码解读)第1讲-看前必读</div>
+      </a>
+    
+  </nav>
+
+   
+<!-- valine评论 -->
+<div id="vcomments-box">
+  <div id="vcomments"></div>
+</div>
+<script src="//cdn1.lncld.net/static/js/3.0.4/av-min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/valine@1.4.14/dist/Valine.min.js"></script>
+<script>
+  new Valine({
+    el: "#vcomments",
+    app_id: "gdw0hVSwW3l6KgEMulSAc9Rx-gzGzoHsz",
+    app_key: "M4iiVXe0CuXWQEKuyIzWWDMh",
+    path: window.location.pathname,
+    avatar: "monsterid",
+    placeholder: "给我的文章加点评论吧~",
+    recordIP: true,
+  });
+  const infoEle = document.querySelector("#vcomments .info");
+  if (infoEle && infoEle.childNodes && infoEle.childNodes.length > 0) {
+    infoEle.childNodes.forEach(function (item) {
+      item.parentNode.removeChild(item);
+    });
+  }
+</script>
+<style>
+  #vcomments-box {
+    padding: 5px 30px;
+  }
+
+  @media screen and (max-width: 800px) {
+    #vcomments-box {
+      padding: 5px 0px;
+    }
+  }
+
+  #vcomments-box #vcomments {
+    background-color: #fff;
+  }
+
+  .v .vlist .vcard .vh {
+    padding-right: 20px;
+  }
+
+  .v .vlist .vcard {
+    padding-left: 10px;
+  }
+</style>
+
+ 
+   
+     
+</article>
+
+</section>
+      <footer class="footer">
+  <div class="outer">
+    <ul>
+      <li>
+        Copyrights &copy;
+        2017-2021
+        <i class="ri-heart-fill heart_icon"></i> Jason
+      </li>
+    </ul>
+    <ul>
+      <li>
+        
+      </li>
+    </ul>
+    <ul>
+      <li>
+        
+        
+        <span>
+  <span><i class="ri-user-3-fill"></i>Visitors:<span id="busuanzi_value_site_uv"></span></s>
+  <span class="division">|</span>
+  <span><i class="ri-eye-fill"></i>Views:<span id="busuanzi_value_page_pv"></span></span>
+</span>
+        
+      </li>
+    </ul>
+    <ul>
+      
+    </ul>
+    <ul>
+      
+    </ul>
+    <ul>
+      <li>
+        <!-- cnzz统计 -->
+        
+        <script type="text/javascript" src='https://s4.cnzz.com/z_stat.php?id=1279593399&amp;web_id=1279593399'></script>
+        
+      </li>
+    </ul>
+  </div>
+</footer>
+      <div class="float_btns">
+        <div class="totop" id="totop">
+  <i class="ri-arrow-up-line"></i>
+</div>
+
+<div class="todark" id="todark">
+  <i class="ri-moon-line"></i>
+</div>
+
+      </div>
+    </main>
+    <aside class="sidebar on">
+      <button class="navbar-toggle"></button>
+<nav class="navbar">
+  
+  <div class="logo">
+    <a href="/"><img src="/images/my_head-touch-icon-next.png" alt="Jason漫谈区块链"></a>
+  </div>
+  
+  <ul class="nav nav-main">
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/">主页</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/archives">归档</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/categories">分类</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/tags">标签</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/friends">友链</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/about">关于我</a>
+    </li>
+    
+  </ul>
+</nav>
+<nav class="navbar navbar-bottom">
+  <ul class="nav">
+    <li class="nav-item">
+      
+      <a class="nav-item-link nav-item-search"  title="Search">
+        <i class="ri-search-line"></i>
+      </a>
+      
+      
+    </li>
+  </ul>
+</nav>
+<div class="search-form-wrap">
+  <div class="local-search local-search-plugin">
+  <input type="search" id="local-search-input" class="local-search-input" placeholder="Search...">
+  <div id="local-search-result" class="local-search-result"></div>
+</div>
+</div>
+    </aside>
+    <script>
+      if (window.matchMedia("(max-width: 768px)").matches) {
+        document.querySelector('.content').classList.remove('on');
+        document.querySelector('.sidebar').classList.remove('on');
+      }
+    </script>
+    <div id="mask"></div>
+
+<!-- #reward -->
+<div id="reward">
+  <span class="close"><i class="ri-close-line"></i></span>
+  <p class="reward-p"><i class="ri-cup-line"></i>请我喝杯咖啡吧~</p>
+  <div class="reward-box">
+    
+    <div class="reward-item">
+      <img class="reward-img" src="/images/pay_ali.jpg">
+      <span class="reward-type">支付宝</span>
+    </div>
+    
+    
+    <div class="reward-item">
+      <img class="reward-img" src="/images/pay_wechat.jpg">
+      <span class="reward-type">微信</span>
+    </div>
+    
+  </div>
+</div>
+    
+<script src="/js/jquery-2.0.3.min.js"></script>
+
+
+<script src="/js/lazyload.min.js"></script>
+
+<!-- Tocbot -->
+
+
+<script src="/js/tocbot.min.js"></script>
+
+<script>
+  tocbot.init({
+    tocSelector: '.tocbot',
+    contentSelector: '.article-entry',
+    headingSelector: 'h1, h2, h3, h4, h5, h6',
+    hasInnerContainers: true,
+    scrollSmooth: true,
+    scrollContainer: 'main',
+    positionFixedSelector: '.tocbot',
+    positionFixedClass: 'is-position-fixed',
+    fixedSidebarOffset: 'auto'
+  });
+</script>
+
+<script src="https://cdn.jsdelivr.net/npm/jquery-modal@0.9.2/jquery.modal.min.js"></script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/jquery-modal@0.9.2/jquery.modal.min.css">
+<script src="https://cdn.jsdelivr.net/npm/justifiedGallery@3.7.0/dist/js/jquery.justifiedGallery.min.js"></script>
+
+<script src="/dist/main.js"></script>
+
+<!-- ImageViewer -->
+
+<!-- Root element of PhotoSwipe. Must have class pswp. -->
+<div class="pswp" tabindex="-1" role="dialog" aria-hidden="true">
+
+    <!-- Background of PhotoSwipe. 
+         It's a separate element as animating opacity is faster than rgba(). -->
+    <div class="pswp__bg"></div>
+
+    <!-- Slides wrapper with overflow:hidden. -->
+    <div class="pswp__scroll-wrap">
+
+        <!-- Container that holds slides. 
+            PhotoSwipe keeps only 3 of them in the DOM to save memory.
+            Don't modify these 3 pswp__item elements, data is added later on. -->
+        <div class="pswp__container">
+            <div class="pswp__item"></div>
+            <div class="pswp__item"></div>
+            <div class="pswp__item"></div>
+        </div>
+
+        <!-- Default (PhotoSwipeUI_Default) interface on top of sliding area. Can be changed. -->
+        <div class="pswp__ui pswp__ui--hidden">
+
+            <div class="pswp__top-bar">
+
+                <!--  Controls are self-explanatory. Order can be changed. -->
+
+                <div class="pswp__counter"></div>
+
+                <button class="pswp__button pswp__button--close" title="Close (Esc)"></button>
+
+                <button class="pswp__button pswp__button--share" style="display:none" title="Share"></button>
+
+                <button class="pswp__button pswp__button--fs" title="Toggle fullscreen"></button>
+
+                <button class="pswp__button pswp__button--zoom" title="Zoom in/out"></button>
+
+                <!-- Preloader demo http://codepen.io/dimsemenov/pen/yyBWoR -->
+                <!-- element will get class pswp__preloader--active when preloader is running -->
+                <div class="pswp__preloader">
+                    <div class="pswp__preloader__icn">
+                        <div class="pswp__preloader__cut">
+                            <div class="pswp__preloader__donut"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="pswp__share-modal pswp__share-modal--hidden pswp__single-tap">
+                <div class="pswp__share-tooltip"></div>
+            </div>
+
+            <button class="pswp__button pswp__button--arrow--left" title="Previous (arrow left)">
+            </button>
+
+            <button class="pswp__button pswp__button--arrow--right" title="Next (arrow right)">
+            </button>
+
+            <div class="pswp__caption">
+                <div class="pswp__caption__center"></div>
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe.min.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/default-skin/default-skin.min.css">
+<script src="https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe-ui-default.min.js"></script>
+
+<script>
+    function viewer_init() {
+        let pswpElement = document.querySelectorAll('.pswp')[0];
+        let $imgArr = document.querySelectorAll(('.article-entry img:not(.reward-img)'))
+
+        $imgArr.forEach(($em, i) => {
+            $em.onclick = () => {
+                // slider展开状态
+                // todo: 这样不好，后面改成状态
+                if (document.querySelector('.left-col.show')) return
+                let items = []
+                $imgArr.forEach(($em2, i2) => {
+                    let img = $em2.getAttribute('data-idx', i2)
+                    let src = $em2.getAttribute('data-target') || $em2.getAttribute('src')
+                    let title = $em2.getAttribute('alt')
+                    // 获得原图尺寸
+                    const image = new Image()
+                    image.src = src
+                    items.push({
+                        src: src,
+                        w: image.width || $em2.width,
+                        h: image.height || $em2.height,
+                        title: title
+                    })
+                })
+                var gallery = new PhotoSwipe(pswpElement, PhotoSwipeUI_Default, items, {
+                    index: parseInt(i)
+                });
+                gallery.init()
+            }
+        })
+    }
+    viewer_init()
+</script>
+
+<!-- MathJax -->
+
+<!-- Katex -->
+
+<!-- busuanzi  -->
+
+
+<script src="/js/busuanzi-2.3.pure.min.js"></script>
+
+
+<!-- ClickLove -->
+
+<!-- ClickBoom1 -->
+
+<!-- ClickBoom2 -->
+
+<!-- CodeCopy -->
+
+
+<link rel="stylesheet" href="/css/clipboard.css">
+
+<script src="https://cdn.jsdelivr.net/npm/clipboard@2/dist/clipboard.min.js"></script>
+<script>
+  function wait(callback, seconds) {
+    var timelag = null;
+    timelag = window.setTimeout(callback, seconds);
+  }
+  !function (e, t, a) {
+    var initCopyCode = function(){
+      var copyHtml = '';
+      copyHtml += '<button class="btn-copy" data-clipboard-snippet="">';
+      copyHtml += '<i class="ri-file-copy-2-line"></i><span>COPY</span>';
+      copyHtml += '</button>';
+      $(".highlight .code pre").before(copyHtml);
+      $(".article pre code").before(copyHtml);
+      var clipboard = new ClipboardJS('.btn-copy', {
+        target: function(trigger) {
+          return trigger.nextElementSibling;
+        }
+      });
+      clipboard.on('success', function(e) {
+        let $btn = $(e.trigger);
+        $btn.addClass('copied');
+        let $icon = $($btn.find('i'));
+        $icon.removeClass('ri-file-copy-2-line');
+        $icon.addClass('ri-checkbox-circle-line');
+        let $span = $($btn.find('span'));
+        $span[0].innerText = 'COPIED';
+        
+        wait(function () { // 等待两秒钟后恢复
+          $icon.removeClass('ri-checkbox-circle-line');
+          $icon.addClass('ri-file-copy-2-line');
+          $span[0].innerText = 'COPY';
+        }, 2000);
+      });
+      clipboard.on('error', function(e) {
+        e.clearSelection();
+        let $btn = $(e.trigger);
+        $btn.addClass('copy-failed');
+        let $icon = $($btn.find('i'));
+        $icon.removeClass('ri-file-copy-2-line');
+        $icon.addClass('ri-time-line');
+        let $span = $($btn.find('span'));
+        $span[0].innerText = 'COPY FAILED';
+        
+        wait(function () { // 等待两秒钟后恢复
+          $icon.removeClass('ri-time-line');
+          $icon.addClass('ri-file-copy-2-line');
+          $span[0].innerText = 'COPY';
+        }, 2000);
+      });
+    }
+    initCopyCode();
+  }(window, document);
+</script>
+
+
+<!-- CanvasBackground -->
+
+
+    
+  </div>
+</body>
+
+</html>
