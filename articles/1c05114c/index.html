@@ -11,7 +11,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
   <title>
-    lotus源码解读第1讲-目录结构说明 |  Jason漫谈区块链
+    lotus应用第1讲-2k扇区开发环境部署和应用 |  Jason漫谈区块链
   </title>
   <meta name="generator" content="hexo-theme-ayer">
   
@@ -46,7 +46,7 @@
     <main class="content on">
       <section class="outer">
   <article
-  id="post-lotus/src_analysis/lotus源码解读第1讲-目录结构说明"
+  id="post-lotus/application/lotus应用第1讲-2k扇区开发环境部署和应用"
   class="article article-type-post"
   itemscope
   itemprop="blogPost"
@@ -57,18 +57,18 @@
     <header class="article-header">
        
 <h1 class="article-title sea-center" style="border-left:0" itemprop="name">
-  lotus源码解读第1讲-目录结构说明
+  lotus应用第1讲-2k扇区开发环境部署和应用
 </h1>
  
 
     </header>
      
     <div class="article-meta">
-      <a href="/articles/510314b6/" class="article-date">
-  <time datetime="2021-02-05T15:32:21.000Z" itemprop="datePublished">2021-02-05</time>
+      <a href="/articles/1c05114c/" class="article-date">
+  <time datetime="2021-02-05T15:50:54.000Z" itemprop="datePublished">2021-02-05</time>
 </a> 
   <div class="article-category">
-    <a class="article-category-link" href="/categories/Lotus/">Lotus</a> / <a class="article-category-link" href="/categories/Lotus/%E6%BA%90%E7%A0%81%E8%A7%A3%E8%AF%BB/">源码解读</a>
+    <a class="article-category-link" href="/categories/Lotus/">Lotus</a> / <a class="article-category-link" href="/categories/Lotus/%E5%BA%94%E7%94%A8/">应用</a>
   </div>
   
 <div class="word_count">
@@ -76,7 +76,7 @@
         <span class="post-meta-item-icon">
             <i class="ri-quill-pen-line"></i>
             <span class="post-meta-item-text"> Word count:</span>
-            <span class="post-count">211</span>
+            <span class="post-count">845</span>
         </span>
     </span>
 
@@ -85,22 +85,48 @@
         <span class="post-meta-item-icon">
             <i class="ri-book-open-line"></i>
             <span class="post-meta-item-text"> Reading time≈</span>
-            <span class="post-count">1 min</span>
+            <span class="post-count">3 min</span>
         </span>
     </span>
 </div>
  
     </div>
       
+    <div class="tocbot"></div>
+
 
 
 
   
     <div class="article-entry" itemprop="articleBody">
        
-  <p>根据个人理解，逐步添加各目录描述。</p>
+  <p>基于环境限制，使用2k扇区测试和校验lotus功能。<br>此环境的部署和使用，官方文档也有提供，但讲的太过简洁，传送门在这里：<a target="_blank" rel="noopener" href="https://docs.filecoin.io/build/local-devnet/#devnet-with-vanilla-lotus-binaries">Run a Filecoin local devnet</a><br>本文主要是细化官方文档中的描述，加入个人理解和使用心得。</p>
 <a id="more"></a>
-<figure class="highlight sh"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br></pre></td><td class="code"><pre><span class="line">.</span><br><span class="line">├── CHANGELOG.md</span><br><span class="line">├── Dockerfile.lotus    构造容器</span><br><span class="line">├── LICENSE-APACHE</span><br><span class="line">├── LICENSE-MIT</span><br><span class="line">├── Makefile            项目编译文件，可编译获取依赖，生成指定可执行程序等，重点</span><br><span class="line">├── README.md</span><br><span class="line">├── SECURITY.md</span><br><span class="line">├── api                 接口服务</span><br><span class="line">├── build               构建节点的函数（待定）</span><br><span class="line">├── chain               实现与链的交互功能</span><br><span class="line">├── cli                 lotus可执行程序的主要命令，这些命令汇总后，会加入合并到cmd模块下的lotus中</span><br><span class="line">├── cmd                 模块化命令，其中每个文件夹都可以独立编译成一个程序，供独立使用</span><br><span class="line">├── conformance</span><br><span class="line">├── documentation       使用文档</span><br><span class="line">├── extern</span><br><span class="line">├── gen</span><br><span class="line">├── genesis</span><br><span class="line">├── go.mod</span><br><span class="line">├── go.sum</span><br><span class="line">├── journal</span><br><span class="line">├── lib                 各模块公用的函数</span><br><span class="line">├── lotuspond</span><br><span class="line">├── markets</span><br><span class="line">├── metrics</span><br><span class="line">├── miner               定义产出区块逻辑</span><br><span class="line">├── node                节点实现</span><br><span class="line">├── paychmgr</span><br><span class="line">├── scripts             一些快捷脚本，比如节点部署等</span><br><span class="line">├── storage             定义存储矿工逻辑</span><br><span class="line">├── system</span><br><span class="line">├── testplans</span><br><span class="line">└── tools</span><br></pre></td></tr></table></figure> 
+
+<h2 id="简介"><a href="#简介" class="headerlink" title="简介"></a>简介</h2><p>关于lotus的编译和部署，可以参考我整理的脚本：<a target="_blank" rel="noopener" href="https://github.com/jason-wj/filecoin-doc">filecoin-doc</a><br>本文直接从编译后的使用过程开始讲解。<br>ps: <code>后续根据对lotus的深入了解，会逐步完善本文一些描述不清、不准确的地方</code></p>
+<h2 id="步骤"><a href="#步骤" class="headerlink" title="步骤"></a>步骤</h2><p>文件下载或者数据同步失败一般就是网路访问问题，目前的解决方式就是用vpn或者代理</p>
+<h3 id="步骤1-下载2k扇区封装所需的证明文件"><a href="#步骤1-下载2k扇区封装所需的证明文件" class="headerlink" title="步骤1-下载2k扇区封装所需的证明文件"></a>步骤1-下载2k扇区封装所需的证明文件</h3><p>该文件用于后续扇区封装时的校验，具体用途还不明了，下载耗时久，大概1G文件需要下载。<br>不用代理的话，国内网络下载很慢，可能得等十几个小时</p>
+<figure class="highlight shell"><figcaption><span>script</span></figcaption><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">./lotus fetch-params 2048</span><br></pre></td></tr></table></figure>
+<h3 id="步骤2-设置预封装扇区"><a href="#步骤2-设置预封装扇区" class="headerlink" title="步骤2-设置预封装扇区"></a>步骤2-设置预封装扇区</h3><p>按我理解就是节点发布前通过程序预先封装好2个扇区（就是预先认证确认），每个扇区2kb。<br>用模拟数据封装的，执行后，会生成对应的矿工账户（密钥）、文件等信息<br>这一步骤纯粹就是为了测试而生成的。</p>
+<figure class="highlight shell"><figcaption><span>script</span></figcaption><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">./lotus-seed pre-seal --sector-size 2KiB --num-sectors 2</span><br></pre></td></tr></table></figure>
+<p>执行后，会生成如下内容：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">.</span><br><span class="line">├── cache                       缓存</span><br><span class="line">├── pre-seal-t01000.json        矿工信息</span><br><span class="line">├── pre-seal-t01000.key         矿工私钥</span><br><span class="line">├── sealed                      已经封装好的两个扇区（2个文件）</span><br><span class="line">├── sectorstore.json            封装配置信息</span><br><span class="line">└── unsealed                    空文件，应该是存放尚未被封装的</span><br></pre></td></tr></table></figure>
+<h3 id="步骤3-生成创世块配置文件"><a href="#步骤3-生成创世块配置文件" class="headerlink" title="步骤3-生成创世块配置文件"></a>步骤3-生成创世块配置文件</h3><figure class="highlight shell"><figcaption><span>script</span></figcaption><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">./lotus-seed genesis new localnet.json</span><br></pre></td></tr></table></figure>
+<h3 id="步骤4-将预封装生成的矿工信息，加入到创世配置文件中"><a href="#步骤4-将预封装生成的矿工信息，加入到创世配置文件中" class="headerlink" title="步骤4-将预封装生成的矿工信息，加入到创世配置文件中"></a>步骤4-将预封装生成的矿工信息，加入到创世配置文件中</h3><figure class="highlight shell"><figcaption><span>script</span></figcaption><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">./lotus-seed genesis add-miner localnet.json ~/.genesis-sectors/pre-seal-t01000.json</span><br></pre></td></tr></table></figure>
+<p>加入后，再去看<code>localnet.json</code>，里面多了个矿工的信息</p>
+<h3 id="步骤5-启动lotus守护进程"><a href="#步骤5-启动lotus守护进程" class="headerlink" title="步骤5-启动lotus守护进程"></a>步骤5-启动lotus守护进程</h3><p>根据前面生成的<code>localnet.json</code>，启动lotus守护进程。<br>根据在源码中查阅，这里需要注意的是：<code>--lotus-make-genesis</code>和<code>--genesis-template</code>这两个参数应该仅是测试和开发时使用，在命令行列表中本身是不对外展示的。<br>其中：</p>
+<ol>
+<li><code>--lotus-make-genesis</code>是用来生成car压缩文件，目前猜测是创世相关内容，具体作用未知。</li>
+<li><code>--genesis-template</code>用来指定创世配置，就是前面生成的。</li>
+<li><code>--bootstrap</code>是否监听或者同步别的节点（猜的）</li>
+</ol>
+<figure class="highlight shell"><figcaption><span>script</span></figcaption><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">./lotus daemon --lotus-make-genesis=devgen.car --genesis-template=localnet.json --bootstrap=false</span><br></pre></td></tr></table></figure>
+<h3 id="步骤6-为lotus导入默认的矿工私钥"><a href="#步骤6-为lotus导入默认的矿工私钥" class="headerlink" title="步骤6-为lotus导入默认的矿工私钥"></a>步骤6-为lotus导入默认的矿工私钥</h3><p>保持<code>第5步</code>运行窗口，使用新的命令行窗口。<br>就是lotus当前节点默认钱包账户（私钥可对应生成账户）<br>该私钥在<code>第二步</code>中已生成</p>
+<figure class="highlight shell"><figcaption><span>script</span></figcaption><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">./lotus wallet import --as-default ~/.genesis-sectors/pre-seal-t01000.key</span><br></pre></td></tr></table></figure>
+<h3 id="步骤7-为lotus-miner初始化配置矿工信息"><a href="#步骤7-为lotus-miner初始化配置矿工信息" class="headerlink" title="步骤7 为lotus-miner初始化配置矿工信息"></a>步骤7 为lotus-miner初始化配置矿工信息</h3><p>配置均是基于<code>步骤2</code>生成的文件来操作的</p>
+<figure class="highlight shell"><figcaption><span>script</span></figcaption><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">./lotus-miner init --genesis-miner --actor=t01000 --sector-size=2KiB --pre-sealed-sectors=~/.genesis-sectors --pre-sealed-metadata=~/.genesis-sectors/pre-seal-t01000.json --nosync</span><br></pre></td></tr></table></figure>
+<h3 id="挖矿"><a href="#挖矿" class="headerlink" title="挖矿"></a>挖矿</h3><p>这一步消耗资源严重，谨慎操作，启动后，一个完整的节点运行案例就形成了。</p>
+<figure class="highlight shell"><figcaption><span>script</span></figcaption><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">./lotus-miner run --nosync</span><br></pre></td></tr></table></figure> 
       <!-- reward -->
       
       <div id="reword-out">
@@ -170,7 +196,7 @@
     <a class="modal-close" href="javascript:;"><i class="ri-close-circle-line"></i></a>
     <p>扫一扫，分享到微信</p>
     <div class="wx-qrcode">
-      <img src="//api.qrserver.com/v1/create-qr-code/?size=150x150&data=http://jason-wj.gitee.io/articles/510314b6/" alt="微信分享二维码">
+      <img src="//api.qrserver.com/v1/create-qr-code/?size=150x150&data=http://jason-wj.gitee.io/articles/1c05114c/" alt="微信分享二维码">
     </div>
 </div>
 
@@ -183,19 +209,19 @@
    
   <nav class="article-nav">
     
-      <a href="/articles/1c05114c/" class="article-nav-link">
+      <a href="/articles/79376746/" class="article-nav-link">
         <strong class="article-nav-caption">上一篇</strong>
         <div class="article-nav-title">
           
-            lotus应用第1讲-2k扇区开发环境部署和应用
+            fabric-samples基本使用（一）- 下载准备
           
         </div>
       </a>
     
     
-      <a href="/articles/e71eb575/" class="article-nav-link">
+      <a href="/articles/510314b6/" class="article-nav-link">
         <strong class="article-nav-caption">下一篇</strong>
-        <div class="article-nav-title">区块链的未来究竟是什么？</div>
+        <div class="article-nav-title">lotus源码解读第1讲-目录结构说明</div>
       </a>
     
   </nav>

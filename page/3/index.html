@@ -147,6 +147,119 @@
     
     
     <article
+  id="post-ethereum/src_analysis/vm/以太坊vm系列5-abi编码"
+  class="article article-type-post"
+  itemscope
+  itemprop="blogPost"
+  data-scroll-reveal
+>
+  <div class="article-inner">
+    
+    <header class="article-header">
+       
+<h2 itemprop="name">
+  <a class="article-title" href="/articles/6065d2dc/"
+    >以太坊vm系列5- abi编码（暂不更新本文）</a> 
+</h2>
+ 
+
+    </header>
+     
+    <div class="article-meta">
+      <a href="/articles/6065d2dc/" class="article-date">
+  <time datetime="2018-07-23T00:57:14.000Z" itemprop="datePublished">2018-07-23</time>
+</a> 
+  <div class="article-category">
+    <a class="article-category-link" href="/categories/%E4%BB%A5%E5%A4%AA%E5%9D%8A/">以太坊</a> / <a class="article-category-link" href="/categories/%E4%BB%A5%E5%A4%AA%E5%9D%8A/%E6%BA%90%E7%A0%81%E8%A7%A3%E8%AF%BB/">源码解读</a>
+  </div>
+   
+    </div>
+      
+    <div class="article-entry" itemprop="articleBody">
+       
+  <h2 id="前言"><a href="#前言" class="headerlink" title="前言"></a>前言</h2><p>abi是什么？<br>前面我们认识到的是智能合约直接在EVM上的表示方式，但是，比如我想用java端程序去访问智能合约的某个方法，难道让java开发人员琢磨透汇编和二进制的表示，再去对接？<br>这明显是不可能的，为此abi产生了。这是一个通用可读的json格式的数据，任何别的客户端开发人员或者别的以太坊节点只要指定要调用的方法，通过abi将其解析为字节码并传递给evm，evm来计算处理该字节码并返回结果给前端。<br>这个应该解释清楚了吧？</p> 
+      <a class="article-more-link" href="/articles/6065d2dc/"
+        >阅读更多...</a
+      >
+       
+      <!-- reward -->
+      
+    </div>
+    
+
+    <!-- copyright -->
+    
+    <footer class="article-footer">
+       
+  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/EVM/" rel="tag">EVM</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/ethereum/" rel="tag">ethereum</a></li></ul>
+
+    </footer>
+  </div>
+
+    
+ 
+    
+</article>
+
+    
+    <article
+  id="post-ethereum/others/快速实现以太坊免费空投token合约"
+  class="article article-type-post"
+  itemscope
+  itemprop="blogPost"
+  data-scroll-reveal
+>
+  <div class="article-inner">
+    
+    <header class="article-header">
+       
+<h2 itemprop="name">
+  <a class="article-title" href="/articles/ebac0719/"
+    >快速实现以太坊免费空投token合约（揭开此类代币的假面）</a> 
+</h2>
+ 
+
+    </header>
+     
+    <div class="article-meta">
+      <a href="/articles/ebac0719/" class="article-date">
+  <time datetime="2018-07-21T12:27:27.000Z" itemprop="datePublished">2018-07-21</time>
+</a> 
+  <div class="article-category">
+    <a class="article-category-link" href="/categories/%E4%BB%A5%E5%A4%AA%E5%9D%8A/">以太坊</a> / <a class="article-category-link" href="/categories/%E4%BB%A5%E5%A4%AA%E5%9D%8A/%E7%BB%BC%E5%90%88/">综合</a>
+  </div>
+   
+    </div>
+      
+    <div class="article-entry" itemprop="articleBody">
+       
+  <h2 id="前言"><a href="#前言" class="headerlink" title="前言"></a>前言</h2><p>在imtoken或者metamask中，输入一个智能合约，立马就会发收到空投币。<br>很激动是不是？不花手续费就能拿到币。然并卵，这只是套路，一切都是忽悠。。<br><code>小编的这句话是重点，一定要记住:</code>这种币是彻头彻尾的假币，在实际底层区块链地址上，根本没有这个币。<br>我们从ethscanner或者imtoken上看到的以为到账的数字，只是程序的玩笑，亲眼见到的未必是真的。。</p>
+<p>先来看看这个功能是怎么实现的？作为娱乐和恶搞，这个还是蛮有意思的。。。。</p> 
+      <a class="article-more-link" href="/articles/ebac0719/"
+        >阅读更多...</a
+      >
+       
+      <!-- reward -->
+      
+    </div>
+    
+
+    <!-- copyright -->
+    
+    <footer class="article-footer">
+       
+  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/ethereum/" rel="tag">ethereum</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/%E6%99%BA%E8%83%BD%E5%90%88%E7%BA%A6/" rel="tag">智能合约</a></li></ul>
+
+    </footer>
+  </div>
+
+    
+ 
+    
+</article>
+
+    
+    <article
   id="post-ethereum/src_analysis/vm/以太坊vm系列4-动态数据处理"
   class="article article-type-post"
   itemscope
@@ -598,125 +711,13 @@
 </article>
 
     
-    <article
-  id="post-ethereum/src_analysis/以太坊源码解读-第5.2讲-rpc源码解读"
-  class="article article-type-post"
-  itemscope
-  itemprop="blogPost"
-  data-scroll-reveal
->
-  <div class="article-inner">
-    
-    <header class="article-header">
-       
-<h2 itemprop="name">
-  <a class="article-title" href="/articles/e10014d8/"
-    >以太坊源码解读-第5.2讲-rpc源码解读</a> 
-</h2>
- 
-
-    </header>
-     
-    <div class="article-meta">
-      <a href="/articles/e10014d8/" class="article-date">
-  <time datetime="2018-05-03T06:04:01.000Z" itemprop="datePublished">2018-05-03</time>
-</a> 
-  <div class="article-category">
-    <a class="article-category-link" href="/categories/%E4%BB%A5%E5%A4%AA%E5%9D%8A/">以太坊</a> / <a class="article-category-link" href="/categories/%E4%BB%A5%E5%A4%AA%E5%9D%8A/%E6%BA%90%E7%A0%81%E8%A7%A3%E8%AF%BB/">源码解读</a>
-  </div>
-   
-    </div>
-      
-    <div class="article-entry" itemprop="articleBody">
-       
-  <h2 id="前言"><a href="#前言" class="headerlink" title="前言"></a>前言</h2><p>本文我们将分析rpc模块的源码，如果对rpc概念还不是很清楚的同学，建议先看看这篇文章<a href="/articles/original/ethereum/src_analysis/%E4%BB%A5%E5%A4%AA%E5%9D%8A%E6%BA%90%E7%A0%81%E8%A7%A3%E8%AF%BB-%E7%AC%AC5.1%E8%AE%B2-rpc%E5%AE%98%E7%BF%BB%E5%8F%8A%E4%B8%AA%E4%BA%BA%E7%90%86%E8%A7%A3.html"><code>以太坊源码解读-第5.1讲-rpc官翻及个人理解</code></a></p> 
-      <a class="article-more-link" href="/articles/e10014d8/"
-        >阅读更多...</a
-      >
-       
-      <!-- reward -->
-      
-    </div>
-    
-
-    <!-- copyright -->
-    
-    <footer class="article-footer">
-       
-  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/ethereum/" rel="tag">ethereum</a></li></ul>
-
-    </footer>
-  </div>
-
-    
- 
-    
-</article>
-
-    
-    <article
-  id="post-ethereum/src_analysis/以太坊源码解读-第5.1讲-rpc官翻及个人理解"
-  class="article article-type-post"
-  itemscope
-  itemprop="blogPost"
-  data-scroll-reveal
->
-  <div class="article-inner">
-    
-    <header class="article-header">
-       
-<h2 itemprop="name">
-  <a class="article-title" href="/articles/25c7447/"
-    >以太坊源码解读-第5.1讲-rpc官翻及个人理解</a> 
-</h2>
- 
-
-    </header>
-     
-    <div class="article-meta">
-      <a href="/articles/25c7447/" class="article-date">
-  <time datetime="2018-05-02T11:34:27.000Z" itemprop="datePublished">2018-05-02</time>
-</a> 
-  <div class="article-category">
-    <a class="article-category-link" href="/categories/%E4%BB%A5%E5%A4%AA%E5%9D%8A/">以太坊</a> / <a class="article-category-link" href="/categories/%E4%BB%A5%E5%A4%AA%E5%9D%8A/%E6%BA%90%E7%A0%81%E8%A7%A3%E8%AF%BB/">源码解读</a>
-  </div>
-   
-    </div>
-      
-    <div class="article-entry" itemprop="articleBody">
-       
-  <h2 id="前言"><a href="#前言" class="headerlink" title="前言"></a>前言</h2><p>rpc在ethereum中是很重要的一个模块，官方在该模块的一个叫做<code>doc.go</code>的文件中专门介绍了RPC的机制。本文小编会带着自己的理解逐步翻译<code>doc.go</code>中对RPC机制的描述。</p> 
-      <a class="article-more-link" href="/articles/25c7447/"
-        >阅读更多...</a
-      >
-       
-      <!-- reward -->
-      
-    </div>
-    
-
-    <!-- copyright -->
-    
-    <footer class="article-footer">
-       
-  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/ethereum/" rel="tag">ethereum</a></li></ul>
-
-    </footer>
-  </div>
-
-    
- 
-    
-</article>
-
-    
   </article>
   
 
   
   <nav class="page-nav">
     
-    <a class="extend prev" rel="prev" href="/page/2/">上一页</a><a class="page-number" href="/">1</a><a class="page-number" href="/page/2/">2</a><span class="page-number current">3</span><a class="page-number" href="/page/4/">4</a><a class="page-number" href="/page/5/">5</a><a class="extend next" rel="next" href="/page/4/">下一页</a>
+    <a class="extend prev" rel="prev" href="/page/2/">上一页</a><a class="page-number" href="/">1</a><a class="page-number" href="/page/2/">2</a><span class="page-number current">3</span><a class="page-number" href="/page/4/">4</a><a class="page-number" href="/page/5/">5</a><a class="page-number" href="/page/6/">6</a><a class="extend next" rel="next" href="/page/4/">下一页</a>
   </nav>
   
 </section>
