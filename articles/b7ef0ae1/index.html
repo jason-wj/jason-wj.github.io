@@ -1,0 +1,629 @@
+<!DOCTYPE html>
+
+
+<html lang="zh-Hans">
+
+
+<head>
+  <meta charset="utf-8" />
+    
+  <meta name="description" content="谈天谈地，谈古谈今，一起谈谈我们的未来。" />
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
+  <title>
+    fabric-samples基本使用（3）- 合约部署及操作 |  Jason漫谈区块链
+  </title>
+  <meta name="generator" content="hexo-theme-ayer">
+  
+  <link rel="shortcut icon" href="/images/my_head-16x16-next.ico" />
+  
+  
+<link rel="stylesheet" href="/dist/main.css">
+
+  
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/Shen-Yu/cdn/css/remixicon.min.css">
+
+  
+<link rel="stylesheet" href="/css/custom.css">
+
+  
+  
+<script src="https://cdn.jsdelivr.net/npm/pace-js@1.0.2/pace.min.js"></script>
+
+  
+  
+
+  
+
+</head>
+
+</html>
+
+<body>
+  <div id="app">
+    
+      
+    <main class="content on">
+      <section class="outer">
+  <article
+  id="post-fabric/application/fabric-samples基本使用（3）- 合约部署及操作"
+  class="article article-type-post"
+  itemscope
+  itemprop="blogPost"
+  data-scroll-reveal
+>
+  <div class="article-inner">
+    
+    <header class="article-header">
+       
+<h1 class="article-title sea-center" style="border-left:0" itemprop="name">
+  fabric-samples基本使用（3）- 合约部署及操作
+</h1>
+ 
+
+    </header>
+     
+    <div class="article-meta">
+      <a href="/articles/b7ef0ae1/" class="article-date">
+  <time datetime="2021-04-14T04:10:23.000Z" itemprop="datePublished">2021-04-14</time>
+</a> 
+  <div class="article-category">
+    <a class="article-category-link" href="/categories/Hyperledger-Fabric/">Hyperledger Fabric</a> / <a class="article-category-link" href="/categories/Hyperledger-Fabric/%E5%BA%94%E7%94%A8/">应用</a>
+  </div>
+  
+<div class="word_count">
+    <span class="post-time">
+        <span class="post-meta-item-icon">
+            <i class="ri-quill-pen-line"></i>
+            <span class="post-meta-item-text"> Word count:</span>
+            <span class="post-count">2.5k</span>
+        </span>
+    </span>
+
+    <span class="post-time">
+        &nbsp; | &nbsp;
+        <span class="post-meta-item-icon">
+            <i class="ri-book-open-line"></i>
+            <span class="post-meta-item-text"> Reading time≈</span>
+            <span class="post-count">12 min</span>
+        </span>
+    </span>
+</div>
+ 
+    </div>
+      
+    <div class="tocbot"></div>
+
+
+
+
+  
+    <div class="article-entry" itemprop="articleBody">
+       
+  <p>前面两个章节，已经搭建好了一个基本的fabric测试网络，在已有基础上，本文在其中加入智能合约，也就是<code>chaincode</code>，如此一条用于测试的fabric联盟链就算完整了。后续就可以在该测试链基础上研究fabric的具体细节了。</p>
+<a id="more"></a>
+
+<h2 id="前述"><a href="#前述" class="headerlink" title="前述"></a>前述</h2><ol>
+<li>请先看<a href="/articles/79376746/index.html">fabric-samples基本使用（1）- 下载准备</a>以及<a href="/articles/3b7f5326/index.html">fabric-samples基本使用（2）- 启动测试网络</a></li>
+<li><code>chaincode</code>目前支持goalng、java来实现，考虑到技术栈和远期规划，这里我还是以golang为主，本文测试网络将会调用官方提供的demo合约。</li>
+</ol>
+<h2 id="使用方式"><a href="#使用方式" class="headerlink" title="使用方式"></a>使用方式</h2><p>先确保网络已经正常启动</p>
+<h3 id="1-发布合约"><a href="#1-发布合约" class="headerlink" title="1. 发布合约"></a>1. 发布合约</h3><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># 这里使用官方测试案例fabcar</span></span><br><span class="line">./network.sh deployCC -ccn fabcar -ccp ../chaincode/fabcar/go/ -ccl go</span><br></pre></td></tr></table></figure>
+<p>在官方测试网络提供的脚本中，只有这一条命令即可发布一条合约，早前版本的脚本，如果不传入参数，会默认调用官方的<code>fabCar</code>合约来发布，但当前最新版脚本强制要求指定合约，<br>应该是为了让脚本更加通用。<br>这里强制要求最少传入三个参数：<code>合约名称 -ccn</code>、<code>合约路径 -ccp</code>、<code>合约开发语言 -ccl</code>，其余可选参数，如策略等，若不传入，则使用官方提供的默认值。</p>
+<h3 id="2-合约发布期间产生的日志"><a href="#2-合约发布期间产生的日志" class="headerlink" title="2. 合约发布期间产生的日志"></a>2. 合约发布期间产生的日志</h3><p>在fabric2.0，对合约的生命周期有了更细的划分，以下是<code>fabcar</code>合约发布整个流程的日志(无删减)，通过日志可以很快了解一个合约发布需要涉及到的主要步骤，这里每个步骤我在其中加入了描述</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br><span class="line">95</span><br><span class="line">96</span><br><span class="line">97</span><br><span class="line">98</span><br><span class="line">99</span><br><span class="line">100</span><br><span class="line">101</span><br><span class="line">102</span><br><span class="line">103</span><br><span class="line">104</span><br><span class="line">105</span><br><span class="line">106</span><br><span class="line">107</span><br><span class="line">108</span><br><span class="line">109</span><br><span class="line">110</span><br><span class="line">111</span><br><span class="line">112</span><br><span class="line">113</span><br><span class="line">114</span><br><span class="line">115</span><br><span class="line">116</span><br><span class="line">117</span><br><span class="line">118</span><br><span class="line">119</span><br><span class="line">120</span><br><span class="line">121</span><br><span class="line">122</span><br><span class="line">123</span><br><span class="line">124</span><br><span class="line">125</span><br><span class="line">126</span><br><span class="line">127</span><br><span class="line">128</span><br><span class="line">129</span><br><span class="line">130</span><br><span class="line">131</span><br><span class="line">132</span><br><span class="line">133</span><br><span class="line">134</span><br><span class="line">135</span><br><span class="line">136</span><br><span class="line">137</span><br><span class="line">138</span><br><span class="line">139</span><br><span class="line">140</span><br><span class="line">141</span><br><span class="line">142</span><br><span class="line">143</span><br><span class="line">144</span><br><span class="line">145</span><br><span class="line">146</span><br><span class="line">147</span><br><span class="line">148</span><br><span class="line">149</span><br><span class="line">150</span><br><span class="line">151</span><br><span class="line">152</span><br><span class="line">153</span><br><span class="line">154</span><br><span class="line">155</span><br><span class="line">156</span><br><span class="line">157</span><br><span class="line">158</span><br><span class="line">159</span><br><span class="line">160</span><br><span class="line">161</span><br><span class="line">162</span><br><span class="line">163</span><br><span class="line">164</span><br><span class="line">165</span><br><span class="line">166</span><br><span class="line">167</span><br><span class="line">168</span><br><span class="line">169</span><br><span class="line">170</span><br><span class="line">171</span><br><span class="line">172</span><br><span class="line">173</span><br><span class="line">174</span><br><span class="line">175</span><br><span class="line">176</span><br><span class="line">177</span><br><span class="line">178</span><br><span class="line">179</span><br></pre></td><td class="code"><pre><span class="line">1. 合约发布的环境描述，在&#39;mychannel&#39;中发布</span><br><span class="line">deploying chaincode on channel &#39;mychannel&#39;</span><br><span class="line">executing with the following</span><br><span class="line">- CHANNEL_NAME: mychannel</span><br><span class="line">- CC_NAME: fabcar</span><br><span class="line">- CC_SRC_PATH: ..&#x2F;chaincode&#x2F;fabcar&#x2F;go&#x2F;</span><br><span class="line">- CC_SRC_LANGUAGE: go</span><br><span class="line">- CC_VERSION: 1.0</span><br><span class="line">- CC_SEQUENCE: 1</span><br><span class="line">- CC_END_POLICY: NA</span><br><span class="line">- CC_COLL_CONFIG: NA</span><br><span class="line">- CC_INIT_FCN: NA</span><br><span class="line">- DELAY: 3</span><br><span class="line">- MAX_RETRY: 5</span><br><span class="line">- VERBOSE: false</span><br><span class="line"></span><br><span class="line">2. 根据合约代码中go.mod描述的依赖，下载相关依赖</span><br><span class="line">Vendoring Go dependencies at ..&#x2F;chaincode&#x2F;fabcar&#x2F;go&#x2F;</span><br><span class="line">~&#x2F;go&#x2F;src&#x2F;github.com&#x2F;hyperledger&#x2F;fabric-samples&#x2F;chaincode&#x2F;fabcar&#x2F;go ~&#x2F;go&#x2F;src&#x2F;github.com&#x2F;hyperledger&#x2F;fabric-samples&#x2F;test-network</span><br><span class="line">go: downloading github.com&#x2F;hyperledger&#x2F;fabric-contract-api-go v1.1.0</span><br><span class="line">go: downloading github.com&#x2F;hyperledger&#x2F;fabric-chaincode-go v0.0.0-20200424173110-d7076418f212</span><br><span class="line">go: downloading github.com&#x2F;hyperledger&#x2F;fabric-protos-go v0.0.0-20200424173316-dd554ba3746e</span><br><span class="line">go: downloading github.com&#x2F;golang&#x2F;protobuf v1.3.2</span><br><span class="line">go: downloading google.golang.org&#x2F;grpc v1.23.0</span><br><span class="line">go: downloading github.com&#x2F;xeipuuv&#x2F;gojsonschema v1.2.0</span><br><span class="line">go: downloading github.com&#x2F;go-openapi&#x2F;spec v0.19.4</span><br><span class="line">go: downloading github.com&#x2F;gobuffalo&#x2F;packr v1.30.1</span><br><span class="line">go: downloading github.com&#x2F;xeipuuv&#x2F;gojsonreference v0.0.0-20180127040603-bd5ef7bd5415</span><br><span class="line">go: downloading github.com&#x2F;go-openapi&#x2F;jsonpointer v0.19.3</span><br><span class="line">go: downloading github.com&#x2F;go-openapi&#x2F;jsonreference v0.19.2</span><br><span class="line">go: downloading github.com&#x2F;go-openapi&#x2F;swag v0.19.5</span><br><span class="line">go: downloading github.com&#x2F;gobuffalo&#x2F;envy v1.7.0</span><br><span class="line">go: downloading github.com&#x2F;gobuffalo&#x2F;packd v0.3.0</span><br><span class="line">go: downloading golang.org&#x2F;x&#x2F;net v0.0.0-20190827160401-ba9fcec4b297</span><br><span class="line">go: downloading google.golang.org&#x2F;genproto v0.0.0-20180831171423-11092d34479b</span><br><span class="line">go: downloading github.com&#x2F;xeipuuv&#x2F;gojsonpointer v0.0.0-20180127040702-4e3ac2762d5f</span><br><span class="line">go: downloading github.com&#x2F;PuerkitoBio&#x2F;purell v1.1.1</span><br><span class="line">go: downloading github.com&#x2F;mailru&#x2F;easyjson v0.0.0-20190626092158-b2ccc519800e</span><br><span class="line">go: downloading gopkg.in&#x2F;yaml.v2 v2.2.8</span><br><span class="line">go: downloading github.com&#x2F;joho&#x2F;godotenv v1.3.0</span><br><span class="line">go: downloading github.com&#x2F;rogpeppe&#x2F;go-internal v1.3.0</span><br><span class="line">go: downloading golang.org&#x2F;x&#x2F;sys v0.0.0-20190710143415-6ec70d6a5542</span><br><span class="line">go: downloading github.com&#x2F;PuerkitoBio&#x2F;urlesc v0.0.0-20170810143723-de5bf2ad4578</span><br><span class="line">go: downloading golang.org&#x2F;x&#x2F;text v0.3.2</span><br><span class="line">~&#x2F;go&#x2F;src&#x2F;github.com&#x2F;hyperledger&#x2F;fabric-samples&#x2F;test-network</span><br><span class="line">Finished vendoring Go dependencies</span><br><span class="line"></span><br><span class="line">3. 打包合约，将合约打包为*.tar.gz压缩包，里面是包含合约源码和上一步骤下载的依赖</span><br><span class="line">+ peer lifecycle chaincode package fabcar.tar.gz --path ..&#x2F;chaincode&#x2F;fabcar&#x2F;go&#x2F; --lang golang --label fabcar_1.0</span><br><span class="line">+ res&#x3D;0</span><br><span class="line">Chaincode is packaged</span><br><span class="line"></span><br><span class="line">4-1. 为org1的peer0安装合约</span><br><span class="line">Installing chaincode on peer0.org1...</span><br><span class="line">Using organization 1</span><br><span class="line">+ peer lifecycle chaincode install fabcar.tar.gz</span><br><span class="line">+ res&#x3D;0</span><br><span class="line">2021-04-22 12:37:21.229 CST [cli.lifecycle.chaincode] submitInstallProposal -&gt; INFO 001 Installed remotely: response:&lt;status:200 payload:&quot;\nKfabcar_1.0:b41ab9af76a078ae8af2b9897c51f6a0c401e4c6c777414d766698b1b7fac00a\022\nfabcar_1.0&quot; &gt; </span><br><span class="line">2021-04-22 12:37:21.229 CST [cli.lifecycle.chaincode] submitInstallProposal -&gt; INFO 002 Chaincode code package identifier: fabcar_1.0:b41ab9af76a078ae8af2b9897c51f6a0c401e4c6c777414d766698b1b7fac00a</span><br><span class="line">Chaincode is installed on peer0.org1</span><br><span class="line"></span><br><span class="line">4-2. 为org2的peer0安装合约</span><br><span class="line">Install chaincode on peer0.org2...</span><br><span class="line">Using organization 2</span><br><span class="line">+ peer lifecycle chaincode install fabcar.tar.gz</span><br><span class="line">+ res&#x3D;0</span><br><span class="line">2021-04-22 12:37:43.834 CST [cli.lifecycle.chaincode] submitInstallProposal -&gt; INFO 001 Installed remotely: response:&lt;status:200 payload:&quot;\nKfabcar_1.0:b41ab9af76a078ae8af2b9897c51f6a0c401e4c6c777414d766698b1b7fac00a\022\nfabcar_1.0&quot; &gt; </span><br><span class="line">2021-04-22 12:37:43.850 CST [cli.lifecycle.chaincode] submitInstallProposal -&gt; INFO 002 Chaincode code package identifier: fabcar_1.0:b41ab9af76a078ae8af2b9897c51f6a0c401e4c6c777414d766698b1b7fac00a</span><br><span class="line">Chaincode is installed on peer0.org2</span><br><span class="line"></span><br><span class="line">5. 检查org1的peer0安装了哪些合约，这里可以看出成功安装了fabcar_1.0</span><br><span class="line">Using organization 1</span><br><span class="line">+ peer lifecycle chaincode queryinstalled</span><br><span class="line">+ res&#x3D;0</span><br><span class="line">Installed chaincodes on peer:</span><br><span class="line">Package ID: fabcar_1.0:b41ab9af76a078ae8af2b9897c51f6a0c401e4c6c777414d766698b1b7fac00a, Label: fabcar_1.0</span><br><span class="line">Query installed successful on peer0.org1 on channel</span><br><span class="line"></span><br><span class="line">6-1. 在org1的peer0授权合约，就是说合约规则默认要求多个组织确认后，才可以上链，可以理解为多签。</span><br><span class="line">Using organization 1</span><br><span class="line">+ peer lifecycle chaincode approveformyorg -o localhost:7050 --ordererTLSHostnameOverride orderer.example.com --tls --cafile &#x2F;root&#x2F;go&#x2F;src&#x2F;github.com&#x2F;hyperledger&#x2F;fabric-samples&#x2F;test-network&#x2F;organizations&#x2F;ordererOrganizations&#x2F;example.com&#x2F;orderers&#x2F;orderer.example.com&#x2F;msp&#x2F;tlscacerts&#x2F;tlsca.example.com-cert.pem --channelID mychannel --name fabcar --version 1.0 --package-id fabcar_1.0:b41ab9af76a078ae8af2b9897c51f6a0c401e4c6c777414d766698b1b7fac00a --sequence 1</span><br><span class="line">+ res&#x3D;0</span><br><span class="line">2021-04-22 12:37:46.658 CST [chaincodeCmd] ClientWait -&gt; INFO 001 txid [cbc8814b90142b71153fba5cd3aa276b25365d43bfbc07ec05f573094889933a] committed with status (VALID) at localhost:7051</span><br><span class="line">Chaincode definition approved on peer0.org1 on channel &#39;mychannel&#39;</span><br><span class="line"></span><br><span class="line">6-2. org1的peer0授权合约后，在org1的peer0检查合约在各组织的授权是否成功</span><br><span class="line">Using organization 1</span><br><span class="line">Checking the commit readiness of the chaincode definition on peer0.org1 on channel &#39;mychannel&#39;...</span><br><span class="line">Attempting to check the commit readiness of the chaincode definition on peer0.org1, Retry after 3 seconds.</span><br><span class="line">+ peer lifecycle chaincode checkcommitreadiness --channelID mychannel --name fabcar --version 1.0 --sequence 1 --output json</span><br><span class="line">+ res&#x3D;0</span><br><span class="line">&#123;</span><br><span class="line">	&quot;approvals&quot;: &#123;</span><br><span class="line">		&quot;Org1MSP&quot;: true,</span><br><span class="line">		&quot;Org2MSP&quot;: false</span><br><span class="line">	&#125;</span><br><span class="line">&#125;</span><br><span class="line">Checking the commit readiness of the chaincode definition successful on peer0.org1 on channel &#39;mychannel&#39;</span><br><span class="line"></span><br><span class="line">6-3. org1的peer0授权合约后，在org2的peer0检查合约在各组织的授权是否成功</span><br><span class="line">Using organization 2</span><br><span class="line">Checking the commit readiness of the chaincode definition on peer0.org2 on channel &#39;mychannel&#39;...</span><br><span class="line">Attempting to check the commit readiness of the chaincode definition on peer0.org2, Retry after 3 seconds.</span><br><span class="line">+ peer lifecycle chaincode checkcommitreadiness --channelID mychannel --name fabcar --version 1.0 --sequence 1 --output json</span><br><span class="line">+ res&#x3D;0</span><br><span class="line">&#123;</span><br><span class="line">	&quot;approvals&quot;: &#123;</span><br><span class="line">		&quot;Org1MSP&quot;: true,</span><br><span class="line">		&quot;Org2MSP&quot;: false</span><br><span class="line">	&#125;</span><br><span class="line">&#125;</span><br><span class="line">Checking the commit readiness of the chaincode definition successful on peer0.org2 on channel &#39;mychannel&#39;</span><br><span class="line"></span><br><span class="line">6-4. 在org2的peer0授权合约，就是说合约规则默认要求多个组织确认后，才可以上链，可以理解为多签。</span><br><span class="line">Using organization 2</span><br><span class="line">+ peer lifecycle chaincode approveformyorg -o localhost:7050 --ordererTLSHostnameOverride orderer.example.com --tls --cafile &#x2F;root&#x2F;go&#x2F;src&#x2F;github.com&#x2F;hyperledger&#x2F;fabric-samples&#x2F;test-network&#x2F;organizations&#x2F;ordererOrganizations&#x2F;example.com&#x2F;orderers&#x2F;orderer.example.com&#x2F;msp&#x2F;tlscacerts&#x2F;tlsca.example.com-cert.pem --channelID mychannel --name fabcar --version 1.0 --package-id fabcar_1.0:b41ab9af76a078ae8af2b9897c51f6a0c401e4c6c777414d766698b1b7fac00a --sequence 1</span><br><span class="line">+ res&#x3D;0</span><br><span class="line">2021-04-22 12:37:55.389 CST [chaincodeCmd] ClientWait -&gt; INFO 001 txid [42c8e7326c69c7859d77ccdb9509d71ff3a3fbeeb98619972c3633b9dfff338e] committed with status (VALID) at localhost:9051</span><br><span class="line">Chaincode definition approved on peer0.org2 on channel &#39;mychannel&#39;</span><br><span class="line"></span><br><span class="line">6-5. org2的peer0授权合约后，在org1的peer0检查合约在各组织的授权是否成功</span><br><span class="line">Using organization 1</span><br><span class="line">Checking the commit readiness of the chaincode definition on peer0.org1 on channel &#39;mychannel&#39;...</span><br><span class="line">Attempting to check the commit readiness of the chaincode definition on peer0.org1, Retry after 3 seconds.</span><br><span class="line">+ peer lifecycle chaincode checkcommitreadiness --channelID mychannel --name fabcar --version 1.0 --sequence 1 --output json</span><br><span class="line">+ res&#x3D;0</span><br><span class="line">&#123;</span><br><span class="line">	&quot;approvals&quot;: &#123;</span><br><span class="line">		&quot;Org1MSP&quot;: true,</span><br><span class="line">		&quot;Org2MSP&quot;: true</span><br><span class="line">	&#125;</span><br><span class="line">&#125;</span><br><span class="line">Checking the commit readiness of the chaincode definition successful on peer0.org1 on channel &#39;mychannel&#39;</span><br><span class="line"></span><br><span class="line">6-6. org2的peer0授权合约后，在org2的peer0检查合约在各组织的授权是否成功</span><br><span class="line">Using organization 2</span><br><span class="line">Checking the commit readiness of the chaincode definition on peer0.org2 on channel &#39;mychannel&#39;...</span><br><span class="line">Attempting to check the commit readiness of the chaincode definition on peer0.org2, Retry after 3 seconds.</span><br><span class="line">+ peer lifecycle chaincode checkcommitreadiness --channelID mychannel --name fabcar --version 1.0 --sequence 1 --output json</span><br><span class="line">+ res&#x3D;0</span><br><span class="line">&#123;</span><br><span class="line">	&quot;approvals&quot;: &#123;</span><br><span class="line">		&quot;Org1MSP&quot;: true,</span><br><span class="line">		&quot;Org2MSP&quot;: true</span><br><span class="line">	&#125;</span><br><span class="line">&#125;</span><br><span class="line">Checking the commit readiness of the chaincode definition successful on peer0.org2 on channel &#39;mychannel&#39;</span><br><span class="line"></span><br><span class="line">7. 前面的合约已安装、授权（多签）完毕，这里开始在org1的peer0和org2的peer0提交定义合约，可以理解为初始化出一个合约模板，这也是fabric2.0的一个特性，同一个合约可以重复使用</span><br><span class="line">Using organization 1</span><br><span class="line">Using organization 2</span><br><span class="line">+ peer lifecycle chaincode commit -o localhost:7050 --ordererTLSHostnameOverride orderer.example.com --tls --cafile &#x2F;root&#x2F;go&#x2F;src&#x2F;github.com&#x2F;hyperledger&#x2F;fabric-samples&#x2F;test-network&#x2F;organizations&#x2F;ordererOrganizations&#x2F;example.com&#x2F;orderers&#x2F;orderer.example.com&#x2F;msp&#x2F;tlscacerts&#x2F;tlsca.example.com-cert.pem --channelID mychannel --name fabcar --peerAddresses localhost:7051 --tlsRootCertFiles &#x2F;root&#x2F;go&#x2F;src&#x2F;github.com&#x2F;hyperledger&#x2F;fabric-samples&#x2F;test-network&#x2F;organizations&#x2F;peerOrganizations&#x2F;org1.example.com&#x2F;peers&#x2F;peer0.org1.example.com&#x2F;tls&#x2F;ca.crt --peerAddresses localhost:9051 --tlsRootCertFiles &#x2F;root&#x2F;go&#x2F;src&#x2F;github.com&#x2F;hyperledger&#x2F;fabric-samples&#x2F;test-network&#x2F;organizations&#x2F;peerOrganizations&#x2F;org2.example.com&#x2F;peers&#x2F;peer0.org2.example.com&#x2F;tls&#x2F;ca.crt --version 1.0 --sequence 1</span><br><span class="line">+ res&#x3D;0</span><br><span class="line">2021-04-22 12:38:04.422 CST [chaincodeCmd] ClientWait -&gt; INFO 001 txid [abfb67fbeaff552237a982020350063d98ad9620ad0a72e1505aa650fd55eb2c] committed with status (VALID) at localhost:9051</span><br><span class="line">2021-04-22 12:38:04.422 CST [chaincodeCmd] ClientWait -&gt; INFO 002 txid [abfb67fbeaff552237a982020350063d98ad9620ad0a72e1505aa650fd55eb2c] committed with status (VALID) at localhost:7051</span><br><span class="line">Chaincode definition committed on channel &#39;mychannel&#39;</span><br><span class="line"></span><br><span class="line">8-1 在org1的peer0检查合约定义成功与否</span><br><span class="line">Using organization 1</span><br><span class="line">Querying chaincode definition on peer0.org1 on channel &#39;mychannel&#39;...</span><br><span class="line">Attempting to Query committed status on peer0.org1, Retry after 3 seconds.</span><br><span class="line">+ peer lifecycle chaincode querycommitted --channelID mychannel --name fabcar</span><br><span class="line">+ res&#x3D;0</span><br><span class="line">Committed chaincode definition for chaincode &#39;fabcar&#39; on channel &#39;mychannel&#39;:</span><br><span class="line">Version: 1.0, Sequence: 1, Endorsement Plugin: escc, Validation Plugin: vscc, Approvals: [Org1MSP: true, Org2MSP: true]</span><br><span class="line">Query chaincode definition successful on peer0.org1 on channel &#39;mychannel&#39;</span><br><span class="line"></span><br><span class="line">8-2 在org2的peer0检查合约定义成功与否</span><br><span class="line">Using organization 2</span><br><span class="line">Querying chaincode definition on peer0.org2 on channel &#39;mychannel&#39;...</span><br><span class="line">Attempting to Query committed status on peer0.org2, Retry after 3 seconds.</span><br><span class="line">+ peer lifecycle chaincode querycommitted --channelID mychannel --name fabcar</span><br><span class="line">+ res&#x3D;0</span><br><span class="line">Committed chaincode definition for chaincode &#39;fabcar&#39; on channel &#39;mychannel&#39;:</span><br><span class="line">Version: 1.0, Sequence: 1, Endorsement Plugin: escc, Validation Plugin: vscc, Approvals: [Org1MSP: true, Org2MSP: true]</span><br><span class="line">Query chaincode definition successful on peer0.org2 on channel &#39;mychannel&#39;</span><br><span class="line"></span><br><span class="line">8-3 如果脚本传入了初始化方法，则调用合约初始化函数，如果没传入，则不执行</span><br><span class="line">Chaincode initialization is not required</span><br></pre></td></tr></table></figure>
+<h2 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h2><p>至此，《fabric-samples基本使用》三部曲已经完成，走完整个流程，对fabric整体会有一个大概的了解，明显能感觉到，联盟链对理念和架构明显比公链复杂很多。<br>当然，<code>fabric-samples</code>内容远远不止于此，如果有时间，建议最好详细读一下整套脚本，配合官方文档，先对fabric有个全局观。<br>后续将会梳理一些fabric偏原理、架构类的内容，逐步深入。</p>
+ 
+      <!-- reward -->
+      
+      <div id="reword-out">
+        <div id="reward-btn">
+          Donate
+        </div>
+      </div>
+      
+    </div>
+    
+
+    <!-- copyright -->
+    
+    <div class="declare">
+      <ul class="post-copyright">
+        <li>
+          <i class="ri-copyright-line"></i>
+          <strong>Copyright： </strong>
+          
+          Copyright is owned by the author. For commercial reprints, please contact the author for authorization. For non-commercial reprints, please indicate the source.
+          
+        </li>
+      </ul>
+    </div>
+    
+    <footer class="article-footer">
+       
+<div class="share-btn">
+      <span class="share-sns share-outer">
+        <i class="ri-share-forward-line"></i>
+        分享
+      </span>
+      <div class="share-wrap">
+        <i class="arrow"></i>
+        <div class="share-icons">
+          
+          <a class="weibo share-sns" href="javascript:;" data-type="weibo">
+            <i class="ri-weibo-fill"></i>
+          </a>
+          <a class="weixin share-sns wxFab" href="javascript:;" data-type="weixin">
+            <i class="ri-wechat-fill"></i>
+          </a>
+          <a class="qq share-sns" href="javascript:;" data-type="qq">
+            <i class="ri-qq-fill"></i>
+          </a>
+          <a class="douban share-sns" href="javascript:;" data-type="douban">
+            <i class="ri-douban-line"></i>
+          </a>
+          <!-- <a class="qzone share-sns" href="javascript:;" data-type="qzone">
+            <i class="icon icon-qzone"></i>
+          </a> -->
+          
+          <a class="facebook share-sns" href="javascript:;" data-type="facebook">
+            <i class="ri-facebook-circle-fill"></i>
+          </a>
+          <a class="twitter share-sns" href="javascript:;" data-type="twitter">
+            <i class="ri-twitter-fill"></i>
+          </a>
+          <a class="google share-sns" href="javascript:;" data-type="google">
+            <i class="ri-google-fill"></i>
+          </a>
+        </div>
+      </div>
+</div>
+
+<div class="wx-share-modal">
+    <a class="modal-close" href="javascript:;"><i class="ri-close-circle-line"></i></a>
+    <p>扫一扫，分享到微信</p>
+    <div class="wx-qrcode">
+      <img src="//api.qrserver.com/v1/create-qr-code/?size=150x150&data=http://jason-wj.gitee.io/articles/b7ef0ae1/" alt="微信分享二维码">
+    </div>
+</div>
+
+<div id="share-mask"></div>  
+  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/Fabric/" rel="tag">Fabric</a></li></ul>
+
+    </footer>
+  </div>
+
+   
+  <nav class="article-nav">
+    
+      <a href="/articles/4636a38c/" class="article-nav-link">
+        <strong class="article-nav-caption">上一篇</strong>
+        <div class="article-nav-title">
+          
+            fabric基本概念
+          
+        </div>
+      </a>
+    
+    
+      <a href="/articles/3b7f5326/" class="article-nav-link">
+        <strong class="article-nav-caption">下一篇</strong>
+        <div class="article-nav-title">fabric-samples基本使用（2）- 启动测试网络</div>
+      </a>
+    
+  </nav>
+
+   
+<!-- valine评论 -->
+<div id="vcomments-box">
+  <div id="vcomments"></div>
+</div>
+<script src="//cdn1.lncld.net/static/js/3.0.4/av-min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/valine@1.4.14/dist/Valine.min.js"></script>
+<script>
+  new Valine({
+    el: "#vcomments",
+    app_id: "gdw0hVSwW3l6KgEMulSAc9Rx-gzGzoHsz",
+    app_key: "M4iiVXe0CuXWQEKuyIzWWDMh",
+    path: window.location.pathname,
+    avatar: "monsterid",
+    placeholder: "给我的文章加点评论吧~",
+    recordIP: true,
+  });
+  const infoEle = document.querySelector("#vcomments .info");
+  if (infoEle && infoEle.childNodes && infoEle.childNodes.length > 0) {
+    infoEle.childNodes.forEach(function (item) {
+      item.parentNode.removeChild(item);
+    });
+  }
+</script>
+<style>
+  #vcomments-box {
+    padding: 5px 30px;
+  }
+
+  @media screen and (max-width: 800px) {
+    #vcomments-box {
+      padding: 5px 0px;
+    }
+  }
+
+  #vcomments-box #vcomments {
+    background-color: #fff;
+  }
+
+  .v .vlist .vcard .vh {
+    padding-right: 20px;
+  }
+
+  .v .vlist .vcard {
+    padding-left: 10px;
+  }
+</style>
+
+ 
+   
+     
+</article>
+
+</section>
+      <footer class="footer">
+  <div class="outer">
+    <ul>
+      <li>
+        Copyrights &copy;
+        2017-2021
+        <i class="ri-heart-fill heart_icon"></i> Jason
+      </li>
+    </ul>
+    <ul>
+      <li>
+        
+      </li>
+    </ul>
+    <ul>
+      <li>
+        
+        
+        <span>
+  <span><i class="ri-user-3-fill"></i>Visitors:<span id="busuanzi_value_site_uv"></span></s>
+  <span class="division">|</span>
+  <span><i class="ri-eye-fill"></i>Views:<span id="busuanzi_value_page_pv"></span></span>
+</span>
+        
+      </li>
+    </ul>
+    <ul>
+      
+    </ul>
+    <ul>
+      
+    </ul>
+    <ul>
+      <li>
+        <!-- cnzz统计 -->
+        
+        <script type="text/javascript" src='https://s4.cnzz.com/z_stat.php?id=1279593399&amp;web_id=1279593399'></script>
+        
+      </li>
+    </ul>
+  </div>
+</footer>
+      <div class="float_btns">
+        <div class="totop" id="totop">
+  <i class="ri-arrow-up-line"></i>
+</div>
+
+<div class="todark" id="todark">
+  <i class="ri-moon-line"></i>
+</div>
+
+      </div>
+    </main>
+    <aside class="sidebar on">
+      <button class="navbar-toggle"></button>
+<nav class="navbar">
+  
+  <div class="logo">
+    <a href="/"><img src="/images/my_head-touch-icon-next.png" alt="Jason漫谈区块链"></a>
+  </div>
+  
+  <ul class="nav nav-main">
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/">主页</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/archives">归档</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/categories">分类</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/tags">标签</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/friends">友链</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/about">关于我</a>
+    </li>
+    
+  </ul>
+</nav>
+<nav class="navbar navbar-bottom">
+  <ul class="nav">
+    <li class="nav-item">
+      
+      <a class="nav-item-link nav-item-search"  title="Search">
+        <i class="ri-search-line"></i>
+      </a>
+      
+      
+    </li>
+  </ul>
+</nav>
+<div class="search-form-wrap">
+  <div class="local-search local-search-plugin">
+  <input type="search" id="local-search-input" class="local-search-input" placeholder="Search...">
+  <div id="local-search-result" class="local-search-result"></div>
+</div>
+</div>
+    </aside>
+    <script>
+      if (window.matchMedia("(max-width: 768px)").matches) {
+        document.querySelector('.content').classList.remove('on');
+        document.querySelector('.sidebar').classList.remove('on');
+      }
+    </script>
+    <div id="mask"></div>
+
+<!-- #reward -->
+<div id="reward">
+  <span class="close"><i class="ri-close-line"></i></span>
+  <p class="reward-p"><i class="ri-cup-line"></i>请我喝杯咖啡吧~</p>
+  <div class="reward-box">
+    
+    <div class="reward-item">
+      <img class="reward-img" src="/images/pay_ali.jpg">
+      <span class="reward-type">支付宝</span>
+    </div>
+    
+    
+    <div class="reward-item">
+      <img class="reward-img" src="/images/pay_wechat.jpg">
+      <span class="reward-type">微信</span>
+    </div>
+    
+  </div>
+</div>
+    
+<script src="/js/jquery-2.0.3.min.js"></script>
+
+
+<script src="/js/lazyload.min.js"></script>
+
+<!-- Tocbot -->
+
+
+<script src="/js/tocbot.min.js"></script>
+
+<script>
+  tocbot.init({
+    tocSelector: '.tocbot',
+    contentSelector: '.article-entry',
+    headingSelector: 'h1, h2, h3, h4, h5, h6',
+    hasInnerContainers: true,
+    scrollSmooth: true,
+    scrollContainer: 'main',
+    positionFixedSelector: '.tocbot',
+    positionFixedClass: 'is-position-fixed',
+    fixedSidebarOffset: 'auto'
+  });
+</script>
+
+<script src="https://cdn.jsdelivr.net/npm/jquery-modal@0.9.2/jquery.modal.min.js"></script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/jquery-modal@0.9.2/jquery.modal.min.css">
+<script src="https://cdn.jsdelivr.net/npm/justifiedGallery@3.7.0/dist/js/jquery.justifiedGallery.min.js"></script>
+
+<script src="/dist/main.js"></script>
+
+<!-- ImageViewer -->
+
+<!-- Root element of PhotoSwipe. Must have class pswp. -->
+<div class="pswp" tabindex="-1" role="dialog" aria-hidden="true">
+
+    <!-- Background of PhotoSwipe. 
+         It's a separate element as animating opacity is faster than rgba(). -->
+    <div class="pswp__bg"></div>
+
+    <!-- Slides wrapper with overflow:hidden. -->
+    <div class="pswp__scroll-wrap">
+
+        <!-- Container that holds slides. 
+            PhotoSwipe keeps only 3 of them in the DOM to save memory.
+            Don't modify these 3 pswp__item elements, data is added later on. -->
+        <div class="pswp__container">
+            <div class="pswp__item"></div>
+            <div class="pswp__item"></div>
+            <div class="pswp__item"></div>
+        </div>
+
+        <!-- Default (PhotoSwipeUI_Default) interface on top of sliding area. Can be changed. -->
+        <div class="pswp__ui pswp__ui--hidden">
+
+            <div class="pswp__top-bar">
+
+                <!--  Controls are self-explanatory. Order can be changed. -->
+
+                <div class="pswp__counter"></div>
+
+                <button class="pswp__button pswp__button--close" title="Close (Esc)"></button>
+
+                <button class="pswp__button pswp__button--share" style="display:none" title="Share"></button>
+
+                <button class="pswp__button pswp__button--fs" title="Toggle fullscreen"></button>
+
+                <button class="pswp__button pswp__button--zoom" title="Zoom in/out"></button>
+
+                <!-- Preloader demo http://codepen.io/dimsemenov/pen/yyBWoR -->
+                <!-- element will get class pswp__preloader--active when preloader is running -->
+                <div class="pswp__preloader">
+                    <div class="pswp__preloader__icn">
+                        <div class="pswp__preloader__cut">
+                            <div class="pswp__preloader__donut"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="pswp__share-modal pswp__share-modal--hidden pswp__single-tap">
+                <div class="pswp__share-tooltip"></div>
+            </div>
+
+            <button class="pswp__button pswp__button--arrow--left" title="Previous (arrow left)">
+            </button>
+
+            <button class="pswp__button pswp__button--arrow--right" title="Next (arrow right)">
+            </button>
+
+            <div class="pswp__caption">
+                <div class="pswp__caption__center"></div>
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe.min.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/default-skin/default-skin.min.css">
+<script src="https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe-ui-default.min.js"></script>
+
+<script>
+    function viewer_init() {
+        let pswpElement = document.querySelectorAll('.pswp')[0];
+        let $imgArr = document.querySelectorAll(('.article-entry img:not(.reward-img)'))
+
+        $imgArr.forEach(($em, i) => {
+            $em.onclick = () => {
+                // slider展开状态
+                // todo: 这样不好，后面改成状态
+                if (document.querySelector('.left-col.show')) return
+                let items = []
+                $imgArr.forEach(($em2, i2) => {
+                    let img = $em2.getAttribute('data-idx', i2)
+                    let src = $em2.getAttribute('data-target') || $em2.getAttribute('src')
+                    let title = $em2.getAttribute('alt')
+                    // 获得原图尺寸
+                    const image = new Image()
+                    image.src = src
+                    items.push({
+                        src: src,
+                        w: image.width || $em2.width,
+                        h: image.height || $em2.height,
+                        title: title
+                    })
+                })
+                var gallery = new PhotoSwipe(pswpElement, PhotoSwipeUI_Default, items, {
+                    index: parseInt(i)
+                });
+                gallery.init()
+            }
+        })
+    }
+    viewer_init()
+</script>
+
+<!-- MathJax -->
+
+<!-- Katex -->
+
+<!-- busuanzi  -->
+
+
+<script src="/js/busuanzi-2.3.pure.min.js"></script>
+
+
+<!-- ClickLove -->
+
+<!-- ClickBoom1 -->
+
+<!-- ClickBoom2 -->
+
+<!-- CodeCopy -->
+
+
+<link rel="stylesheet" href="/css/clipboard.css">
+
+<script src="https://cdn.jsdelivr.net/npm/clipboard@2/dist/clipboard.min.js"></script>
+<script>
+  function wait(callback, seconds) {
+    var timelag = null;
+    timelag = window.setTimeout(callback, seconds);
+  }
+  !function (e, t, a) {
+    var initCopyCode = function(){
+      var copyHtml = '';
+      copyHtml += '<button class="btn-copy" data-clipboard-snippet="">';
+      copyHtml += '<i class="ri-file-copy-2-line"></i><span>COPY</span>';
+      copyHtml += '</button>';
+      $(".highlight .code pre").before(copyHtml);
+      $(".article pre code").before(copyHtml);
+      var clipboard = new ClipboardJS('.btn-copy', {
+        target: function(trigger) {
+          return trigger.nextElementSibling;
+        }
+      });
+      clipboard.on('success', function(e) {
+        let $btn = $(e.trigger);
+        $btn.addClass('copied');
+        let $icon = $($btn.find('i'));
+        $icon.removeClass('ri-file-copy-2-line');
+        $icon.addClass('ri-checkbox-circle-line');
+        let $span = $($btn.find('span'));
+        $span[0].innerText = 'COPIED';
+        
+        wait(function () { // 等待两秒钟后恢复
+          $icon.removeClass('ri-checkbox-circle-line');
+          $icon.addClass('ri-file-copy-2-line');
+          $span[0].innerText = 'COPY';
+        }, 2000);
+      });
+      clipboard.on('error', function(e) {
+        e.clearSelection();
+        let $btn = $(e.trigger);
+        $btn.addClass('copy-failed');
+        let $icon = $($btn.find('i'));
+        $icon.removeClass('ri-file-copy-2-line');
+        $icon.addClass('ri-time-line');
+        let $span = $($btn.find('span'));
+        $span[0].innerText = 'COPY FAILED';
+        
+        wait(function () { // 等待两秒钟后恢复
+          $icon.removeClass('ri-time-line');
+          $icon.addClass('ri-file-copy-2-line');
+          $span[0].innerText = 'COPY';
+        }, 2000);
+      });
+    }
+    initCopyCode();
+  }(window, document);
+</script>
+
+
+<!-- CanvasBackground -->
+
+
+    
+  </div>
+</body>
+
+</html>

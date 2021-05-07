@@ -11,7 +11,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
   <title>
-    fabric-samples基本使用（二）- 启动测试网络 |  Jason漫谈区块链
+    fabric-samples基本使用（2）- 启动测试网络 |  Jason漫谈区块链
   </title>
   <meta name="generator" content="hexo-theme-ayer">
   
@@ -46,7 +46,7 @@
     <main class="content on">
       <section class="outer">
   <article
-  id="post-fabric/application/fabric-samples基本使用（二）"
+  id="post-fabric/application/fabric-samples基本使用（2）- 启动测试网络"
   class="article article-type-post"
   itemscope
   itemprop="blogPost"
@@ -57,7 +57,7 @@
     <header class="article-header">
        
 <h1 class="article-title sea-center" style="border-left:0" itemprop="name">
-  fabric-samples基本使用（二）- 启动测试网络
+  fabric-samples基本使用（2）- 启动测试网络
 </h1>
  
 
@@ -76,7 +76,7 @@
         <span class="post-meta-item-icon">
             <i class="ri-quill-pen-line"></i>
             <span class="post-meta-item-text"> Word count:</span>
-            <span class="post-count">79</span>
+            <span class="post-count">650</span>
         </span>
     </span>
 
@@ -85,13 +85,15 @@
         <span class="post-meta-item-icon">
             <i class="ri-book-open-line"></i>
             <span class="post-meta-item-text"> Reading time≈</span>
-            <span class="post-count">1 min</span>
+            <span class="post-count">2 min</span>
         </span>
     </span>
 </div>
  
     </div>
       
+    <div class="tocbot"></div>
+
 
 
 
@@ -101,7 +103,24 @@
   <p>fabric-samples中的<code>test-network</code>提供了一个简单的demo测试网络，方便新人学习的同时也方便开发人员测试合约和一些网络组合。<br>本文主要介绍该测试网络的启动，包括channel的部署等。</p>
 <a id="more"></a>
 
-<p>请先看<a href="/articles/79376746/index.html">fabric-samples基本使用（一）- 下载准备</a></p>
+<h2 id="前述"><a href="#前述" class="headerlink" title="前述"></a>前述</h2><ol>
+<li>请先看<a href="/articles/79376746/index.html">fabric-samples基本使用（一）- 下载准备</a></li>
+<li><code>test-network</code>网络中，默认提供了一个<code>order</code>以及两个<code>peer</code>，peer分别属于org1和org2两个组织，这两个组织均在同一个channel中</li>
+</ol>
+<h2 id="使用方式"><a href="#使用方式" class="headerlink" title="使用方式"></a>使用方式</h2><h3 id="步骤1-启动网络"><a href="#步骤1-启动网络" class="headerlink" title="步骤1-启动网络"></a>步骤1-启动网络</h3><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">./network.sh up -s couchdb</span><br></pre></td></tr></table></figure>
+<p>该命令将启动一个order和两个peer节点，每个节点各自生成自己对组织文件（包含MSP、账户、tls等），fabric默认使用的是leveldb存储数据存储状态数据，如果要对数据做富文本查询，建议用<code>-s couchdb</code>来启用couchdb，<br>创建联盟选择好数据库后，以后则不可再更换数据库（基于当前规则）。<br><code>注意</code>：账户、证书的生成，这里是用的fabric自带的工具生成的，这个仅仅适用于测试环境，在真正的生产环境，是需要有专门的CA中心来统一管理证书发放。</p>
+<h3 id="步骤2-创建通道"><a href="#步骤2-创建通道" class="headerlink" title="步骤2-创建通道"></a>步骤2-创建通道</h3><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">./network.sh createChannel</span><br></pre></td></tr></table></figure>
+<p>该命令将创建一条名为<code>mychannel</code>的channel，一条channel就可以理解为是一条链，创建channel的过程就是初始化一条链的过程。主要经历以下过程：</p>
+<ol>
+<li>channel初始化配置文件生成，</li>
+<li>org1组织根据上一步生成的配置文件，创建<code>mychannel</code>并提交给order（需要order签名文件授权），order确认后，<code>mychannel</code>创建成功</li>
+<li>分别将org1和org2加入<code>mychannel</code></li>
+<li>分别为org1和org2设置锚节点，每个组织至少要有一个锚节点，主要用于更新普通channel，通道间通信</li>
+</ol>
+<h3 id="步骤3-关闭清除网络"><a href="#步骤3-关闭清除网络" class="headerlink" title="步骤3-关闭清除网络"></a>步骤3-关闭清除网络</h3><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">./network.sh down</span><br></pre></td></tr></table></figure>
+<p>若部署操作有异常，或者要清除已有环境，可使用该命令停止和清除测试网络相关文件，包括docker容器等。</p>
+<h3 id="完成"><a href="#完成" class="headerlink" title="完成"></a>完成</h3><p>至此，一条基本的fabric测试联盟链搭建完成。一个order、2个peer组成一个联盟，在这个联盟中，总共只有一条通道mychannel。</p>
+<h2 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h2><p>本文主要是<code>fabric-samples</code>节点网络的创建以及channel的生成，大概讲了下操作流程，具体细节需要自己去<code>network.sh</code>脚本中查看。<br>接触fabric之后，你会发现，整个使用过程你都是在围绕着账户签名和证书来进行的，fabric在区块链领域中最大的特点就是<code>鉴权</code>。</p>
  
       <!-- reward -->
       
@@ -185,10 +204,19 @@
    
   <nav class="article-nav">
     
+      <a href="/articles/b7ef0ae1/" class="article-nav-link">
+        <strong class="article-nav-caption">上一篇</strong>
+        <div class="article-nav-title">
+          
+            fabric-samples基本使用（3）- 合约部署及操作
+          
+        </div>
+      </a>
+    
     
       <a href="/articles/79376746/" class="article-nav-link">
         <strong class="article-nav-caption">下一篇</strong>
-        <div class="article-nav-title">fabric-samples基本使用（一）- 下载准备</div>
+        <div class="article-nav-title">fabric-samples基本使用（1）- 下载准备</div>
       </a>
     
   </nav>

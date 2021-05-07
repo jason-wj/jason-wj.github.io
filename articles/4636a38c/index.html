@@ -11,7 +11,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
   <title>
-    应用 |  Jason漫谈区块链
+    fabric基本概念 |  Jason漫谈区块链
   </title>
   <meta name="generator" content="hexo-theme-ayer">
   
@@ -45,112 +45,229 @@
       
     <main class="content on">
       <section class="outer">
-  
-  
-  <article class="articles">
+  <article
+  id="post-fabric/desc/fabric基本概念"
+  class="article article-type-post"
+  itemscope
+  itemprop="blogPost"
+  data-scroll-reveal
+>
+  <div class="article-inner">
     
-    
-    <h1 class="page-type-title">应用</h1>
-    
-    
+    <header class="article-header">
+       
+<h1 class="article-title sea-center" style="border-left:0" itemprop="name">
+  fabric基本概念
+</h1>
+ 
+
+    </header>
+     
+    <div class="article-meta">
+      <a href="/articles/4636a38c/" class="article-date">
+  <time datetime="2021-04-15T14:00:23.000Z" itemprop="datePublished">2021-04-15</time>
+</a> 
+  <div class="article-category">
+    <a class="article-category-link" href="/categories/Hyperledger-Fabric/">Hyperledger Fabric</a> / <a class="article-category-link" href="/categories/Hyperledger-Fabric/%E5%9F%BA%E7%A1%80%E8%AE%B2%E8%A7%A3/">基础讲解</a>
+  </div>
   
-  
-  
-  
-  
-  
-  <div class="archives-wrap">
-    <div class="archive-year-wrap">
-      <a href="/archives/2021" class="archive-year">2021</a>
+<div class="word_count">
+    <span class="post-time">
+        <span class="post-meta-item-icon">
+            <i class="ri-quill-pen-line"></i>
+            <span class="post-meta-item-text"> Word count:</span>
+            <span class="post-count">1k</span>
+        </span>
+    </span>
+
+    <span class="post-time">
+        &nbsp; | &nbsp;
+        <span class="post-meta-item-icon">
+            <i class="ri-book-open-line"></i>
+            <span class="post-meta-item-text"> Reading time≈</span>
+            <span class="post-count">3 min</span>
+        </span>
+    </span>
+</div>
+ 
     </div>
-    <div class="archives">
       
-      <article class="archive-article archive-type-post">
-  <div class="archive-article-inner">
-    <header class="archive-article-header">
-      <a href="/articles/b7ef0ae1/" class="archive-article-date">
-  <time datetime="2021-04-14T04:10:23.000Z" itemprop="datePublished">04/14</time>
-</a>
+    <div class="tocbot"></div>
+
+
+
+
+  
+    <div class="article-entry" itemprop="articleBody">
        
-<h2 itemprop="name">
-  <a class="archive-article-title" href="/articles/b7ef0ae1/"
-    >fabric-samples基本使用（3）- 合约部署及操作</a> 
-</h2>
+  <p>比起了解fabric的架构，需要先了解一些fabric的概念，这样在见到这个生态内的内容时，心里会有个底。本文主要介绍fabric中的一些核心概念</p>
+<a id="more"></a>
+
+<h2 id="Peer节点"><a href="#Peer节点" class="headerlink" title="Peer节点"></a>Peer节点</h2><p>Peer节点是Fabric区块链网络中的一种记账节点，负责区块数据的校验和保存。同时在Peer节点上，也可以安装和执行Chaincode(智能合约)， 对账本进行读写操作。</p>
+<h2 id="Orderer节点"><a href="#Orderer节点" class="headerlink" title="Orderer节点"></a>Orderer节点</h2><p>Orderer节点依据先到先服务的原则，为区块链网络中的所有channel提供公共服务，将交易排序后组装为区块。Orderer节点独立于Peer节点运行， 其架构被设计为支持可插拔的共识算法实现，包括1.4已经实现SOLO、Kafka以及未来的其他共识算法（2.3已经支持Raft算法）。</p>
+<h2 id="通道"><a href="#通道" class="headerlink" title="通道"></a>通道</h2><p>通道(Channel)是构建在Fabric区块链网络上的私有区块链，每个channel拥有自己独立的账本，实现了数据的隔离和保密。 通道私有的账本在通道中是与所有参与该通道的对等节点共享的，并且交易方必须通过该通道的相关验证后才能与账本进行交互。</p>
+<h2 id="智能合约"><a href="#智能合约" class="headerlink" title="智能合约"></a>智能合约</h2><p>Hyperledger Fabric的智能合约是指Chaincode，也有人翻译为链码，其实就是一段实现交易逻辑的程序，在Farbric中所起的作用和其它区块链平台(比如以太坊)的智能合约一样。 它需要安装运行在充当Endorser(背书者)角色的Peer节点上，通过交易指令对账本数据进行修改。目前Fabirc只支持Go语言编写的Chaincode。</p>
+<h2 id="共识算法"><a href="#共识算法" class="headerlink" title="共识算法"></a>共识算法</h2><p>共识(Consensus)作用于区块链交易的全过程，用于同意交易的排序以及确认区块交易数据集的正确性。共识算法(Consensus Algorithm)是共识过程的软件实现。</p>
+<h2 id="MSP"><a href="#MSP" class="headerlink" title="MSP"></a>MSP</h2><p>MSP全称为Membership Service Provider，是为区块链应用和Peer节点参与Fabric区块链网络而定义的证书系统的一种抽象组件。 区块链应用用这些证书来对它们的交易做身份认证，Peer节点用证书来对交易结果做签名背书。 Fabric的每个Peeer节点或者Orderer节点都必须属于一个组织（组织可以用来代表某个公司、机构或者行业联盟等）， MSP被用作组织和用户(包括管理员和普通用户)在区块链的标识。</p>
+<h2 id="EventHub"><a href="#EventHub" class="headerlink" title="EventHub"></a>EventHub</h2><p>EventHub是Peer节点用于发送事件通知到区块链应用的网络通信接口。区块链应用可以在Peer节点上注册其希望接收到的事件通知。</p>
+<h2 id="区块链组织"><a href="#区块链组织" class="headerlink" title="区块链组织"></a>区块链组织</h2><p>区块链组织(Organization)被Hyperledger Fabric用于管理Peer节点、Orderer节点的相互关系。 每个Peer节点或Orderer节点都需要属于某个组织，每个组织可以包含多个Peer或Orderer节点，有自己的管理员和普通用户。</p>
+<h2 id="区块链联盟"><a href="#区块链联盟" class="headerlink" title="区块链联盟"></a>区块链联盟</h2><p>区块链联盟(Consortium)是包含一个或多个区块链组织的集合。每个Channel被创建时，都需要指定一个与之关联的联盟。 只有在这个联盟中的组织才可以在该channel中执行初始化、调用、查询智能合约等操作。</p>
+<h2 id="区块链用户"><a href="#区块链用户" class="headerlink" title="区块链用户"></a>区块链用户</h2><p>区块链用户是用来对区块链进行管理、使用和维护的身份设定，每个用户都有代表自己身份的证书和私钥，由某个组织下的根证书签发。 每个组织下面都可以根据需要创建一个或者多个区块链用户。根据用户权限的不同，可以将用户划分为两种角色：</p>
+<p>管理员：可以管理属于该用户所在组织的Peer节点或Orderer节点， 通常具有安装、初始化和执行智能合约的权限。</p>
+<p>普通用户：通常具有在属于该用户所在组织下的Peer节点上执行智能合约的权限。</p>
  
-
-    </header>
-    
+      <!-- reward -->
       
-  <div class="article-category">
-    <a class="article-category-link" href="/categories/Hyperledger-Fabric/">Hyperledger Fabric</a> / <a class="article-category-link" href="/categories/Hyperledger-Fabric/%E5%BA%94%E7%94%A8/">应用</a>
-  </div>
-
-    
-    
-  </div>
-</article>
-      
-  
-  
-      <article class="archive-article archive-type-post">
-  <div class="archive-article-inner">
-    <header class="archive-article-header">
-      <a href="/articles/3b7f5326/" class="archive-article-date">
-  <time datetime="2021-04-09T15:14:23.000Z" itemprop="datePublished">04/09</time>
-</a>
-       
-<h2 itemprop="name">
-  <a class="archive-article-title" href="/articles/3b7f5326/"
-    >fabric-samples基本使用（2）- 启动测试网络</a> 
-</h2>
- 
-
-    </header>
-    
-      
-  <div class="article-category">
-    <a class="article-category-link" href="/categories/Hyperledger-Fabric/">Hyperledger Fabric</a> / <a class="article-category-link" href="/categories/Hyperledger-Fabric/%E5%BA%94%E7%94%A8/">应用</a>
-  </div>
-
-    
-    
-  </div>
-</article>
-      
-  
-  
-      <article class="archive-article archive-type-post">
-  <div class="archive-article-inner">
-    <header class="archive-article-header">
-      <a href="/articles/79376746/" class="archive-article-date">
-  <time datetime="2021-04-09T10:34:04.000Z" itemprop="datePublished">04/09</time>
-</a>
-       
-<h2 itemprop="name">
-  <a class="archive-article-title" href="/articles/79376746/"
-    >fabric-samples基本使用（1）- 下载准备</a> 
-</h2>
- 
-
-    </header>
-    
-      
-  <div class="article-category">
-    <a class="article-category-link" href="/categories/Hyperledger-Fabric/">Hyperledger Fabric</a> / <a class="article-category-link" href="/categories/Hyperledger-Fabric/%E5%BA%94%E7%94%A8/">应用</a>
-  </div>
-
-    
-    
-  </div>
-</article>
-      
+      <div id="reword-out">
+        <div id="reward-btn">
+          Donate
+        </div>
+      </div>
       
     </div>
-  </div>
-  
-  
+    
 
-  
+    <!-- copyright -->
+    
+    <div class="declare">
+      <ul class="post-copyright">
+        <li>
+          <i class="ri-copyright-line"></i>
+          <strong>Copyright： </strong>
+          
+          Copyright is owned by the author. For commercial reprints, please contact the author for authorization. For non-commercial reprints, please indicate the source.
+          
+        </li>
+      </ul>
+    </div>
+    
+    <footer class="article-footer">
+       
+<div class="share-btn">
+      <span class="share-sns share-outer">
+        <i class="ri-share-forward-line"></i>
+        分享
+      </span>
+      <div class="share-wrap">
+        <i class="arrow"></i>
+        <div class="share-icons">
+          
+          <a class="weibo share-sns" href="javascript:;" data-type="weibo">
+            <i class="ri-weibo-fill"></i>
+          </a>
+          <a class="weixin share-sns wxFab" href="javascript:;" data-type="weixin">
+            <i class="ri-wechat-fill"></i>
+          </a>
+          <a class="qq share-sns" href="javascript:;" data-type="qq">
+            <i class="ri-qq-fill"></i>
+          </a>
+          <a class="douban share-sns" href="javascript:;" data-type="douban">
+            <i class="ri-douban-line"></i>
+          </a>
+          <!-- <a class="qzone share-sns" href="javascript:;" data-type="qzone">
+            <i class="icon icon-qzone"></i>
+          </a> -->
+          
+          <a class="facebook share-sns" href="javascript:;" data-type="facebook">
+            <i class="ri-facebook-circle-fill"></i>
+          </a>
+          <a class="twitter share-sns" href="javascript:;" data-type="twitter">
+            <i class="ri-twitter-fill"></i>
+          </a>
+          <a class="google share-sns" href="javascript:;" data-type="google">
+            <i class="ri-google-fill"></i>
+          </a>
+        </div>
+      </div>
+</div>
+
+<div class="wx-share-modal">
+    <a class="modal-close" href="javascript:;"><i class="ri-close-circle-line"></i></a>
+    <p>扫一扫，分享到微信</p>
+    <div class="wx-qrcode">
+      <img src="//api.qrserver.com/v1/create-qr-code/?size=150x150&data=http://jason-wj.gitee.io/articles/4636a38c/" alt="微信分享二维码">
+    </div>
+</div>
+
+<div id="share-mask"></div>  
+  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/Fabric/" rel="tag">Fabric</a></li></ul>
+
+    </footer>
+  </div>
+
+   
+  <nav class="article-nav">
+    
+      <a href="/articles/7e379521/" class="article-nav-link">
+        <strong class="article-nav-caption">上一篇</strong>
+        <div class="article-nav-title">
+          
+            fabric生命周期
+          
+        </div>
+      </a>
+    
+    
+      <a href="/articles/b7ef0ae1/" class="article-nav-link">
+        <strong class="article-nav-caption">下一篇</strong>
+        <div class="article-nav-title">fabric-samples基本使用（3）- 合约部署及操作</div>
+      </a>
+    
+  </nav>
+
+   
+<!-- valine评论 -->
+<div id="vcomments-box">
+  <div id="vcomments"></div>
+</div>
+<script src="//cdn1.lncld.net/static/js/3.0.4/av-min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/valine@1.4.14/dist/Valine.min.js"></script>
+<script>
+  new Valine({
+    el: "#vcomments",
+    app_id: "gdw0hVSwW3l6KgEMulSAc9Rx-gzGzoHsz",
+    app_key: "M4iiVXe0CuXWQEKuyIzWWDMh",
+    path: window.location.pathname,
+    avatar: "monsterid",
+    placeholder: "给我的文章加点评论吧~",
+    recordIP: true,
+  });
+  const infoEle = document.querySelector("#vcomments .info");
+  if (infoEle && infoEle.childNodes && infoEle.childNodes.length > 0) {
+    infoEle.childNodes.forEach(function (item) {
+      item.parentNode.removeChild(item);
+    });
+  }
+</script>
+<style>
+  #vcomments-box {
+    padding: 5px 30px;
+  }
+
+  @media screen and (max-width: 800px) {
+    #vcomments-box {
+      padding: 5px 0px;
+    }
+  }
+
+  #vcomments-box #vcomments {
+    background-color: #fff;
+  }
+
+  .v .vlist .vcard .vh {
+    padding-right: 20px;
+  }
+
+  .v .vlist .vcard {
+    padding-left: 10px;
+  }
+</style>
+
+ 
+   
+     
+</article>
+
 </section>
       <footer class="footer">
   <div class="outer">
@@ -294,6 +411,23 @@
 <script src="/js/lazyload.min.js"></script>
 
 <!-- Tocbot -->
+
+
+<script src="/js/tocbot.min.js"></script>
+
+<script>
+  tocbot.init({
+    tocSelector: '.tocbot',
+    contentSelector: '.article-entry',
+    headingSelector: 'h1, h2, h3, h4, h5, h6',
+    hasInnerContainers: true,
+    scrollSmooth: true,
+    scrollContainer: 'main',
+    positionFixedSelector: '.tocbot',
+    positionFixedClass: 'is-position-fixed',
+    fixedSidebarOffset: 'auto'
+  });
+</script>
 
 <script src="https://cdn.jsdelivr.net/npm/jquery-modal@0.9.2/jquery.modal.min.js"></script>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/jquery-modal@0.9.2/jquery.modal.min.css">

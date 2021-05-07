@@ -147,6 +147,308 @@
     
     
     <article
+  id="post-ethereum/truffle/official_translate/(truffle官翻)第6讲_合约发布"
+  class="article article-type-post"
+  itemscope
+  itemprop="blogPost"
+  data-scroll-reveal
+>
+  <div class="article-inner">
+    
+    <header class="article-header">
+       
+<h2 itemprop="name">
+  <a class="article-title" href="/articles/615df6fa/"
+    >(truffle官翻)第6讲 发布合约</a> 
+</h2>
+ 
+
+    </header>
+     
+    <div class="article-meta">
+      <a href="/articles/615df6fa/" class="article-date">
+  <time datetime="2018-03-24T02:14:54.000Z" itemprop="datePublished">2018-03-24</time>
+</a> 
+  <div class="article-category">
+    <a class="article-category-link" href="/categories/%E4%BB%A5%E5%A4%AA%E5%9D%8A/">以太坊</a> / <a class="article-category-link" href="/categories/%E4%BB%A5%E5%A4%AA%E5%9D%8A/truffle/">truffle</a> / <a class="article-category-link" href="/categories/%E4%BB%A5%E5%A4%AA%E5%9D%8A/truffle/%E5%AE%98%E7%BF%BB/">官翻</a>
+  </div>
+   
+    </div>
+      
+    <div class="article-entry" itemprop="articleBody">
+       
+  <h2 id="概述"><a href="#概述" class="headerlink" title="概述"></a>概述</h2><ol>
+<li>migrations说白了就是将编译好的智能合约移到网上</li>
+<li>truffle项目的根目录中，会找到一个名叫migrations目录：  </li>
+<li>该目录中都是javascript文件，用于将智能合约发布到以太坊网上</li>
+<li>中文翻译migrate，叫做移植，或者是发布，后面就都这么称呼了</li>
+<li>就是说，需要再该目录下，编辑一些发布文件，这样才能将合约部署到以太坊上</li>
+</ol>
+<h2 id="命令"><a href="#命令" class="headerlink" title="命令"></a>命令</h2><p>为了运行migrations目录，同样是在项目根目录下，输入如下命令：  </p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">truffle develop  //进入环境（若已经在项目根目录下进入该环境，则不需要执行该命令）</span><br><span class="line">migrate  //该环境中发布，migrate可以指定发布网络，网络在truffle.js中：migrate —live</span><br></pre></td></tr></table></figure>
+<p>运行后，在migrations中的所有文件都会被执行。<br>如果你之前已经运行过，则将从上次运行的位置开始执行。<br>若其中的文件没有改变，则该命令不生效。<br>可以加入—reset配置，则可覆盖重新运行该命令。<br><img src="/doc/img/truffle/6-1.png" width = "300" height = "150"/></p>
+<h2 id="初始化发布"><a href="#初始化发布" class="headerlink" title="初始化发布"></a>初始化发布</h2><ol>
+<li>综述：<br>我先大概解释下，要不然后面看的一脸懵逼，按我的理解，就是初始化truffle项目的时候，contracts目录中会自动生成一个叫做<em>Migrations.sol</em>的智能合约文件，然后你需要按照“迁移文件（下面介绍）”的规则实现具体的迁移，其中需要引用到该Migrations.sol中的合约，否则移植功能无法实现。<br>下面的内容都是官方的翻译，基本就是我这句话的意思。</li>
+<li>Truffle需要你有一个发布合约以便可以使用提供的移植功能。这个合约必须包含一个特殊的接口，但是你按照你的想法任意修改合约。对于大多数项目，这个合约将会作为第一次迁移进行部署，并且不会再被更新。<br>另外，这个发布合约在你使用truffle init命令时候，就会被创建出。然后你就可以按着你的想法在里面进行调整了。默认创建的该移植合约如下：<br>文件地址：<strong>项目根目录/contracts/Migrations.sol</strong>   <figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br></pre></td><td class="code"><pre><span class="line">pragma solidity ^0.4.17;</span><br><span class="line"></span><br><span class="line">contract Migrations &#123;</span><br><span class="line">  address public owner;</span><br><span class="line">  uint public last_completed_migration;</span><br><span class="line"></span><br><span class="line">  modifier restricted() &#123;</span><br><span class="line">    if (msg.sender &#x3D;&#x3D; owner) _;</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  function Migrations() public &#123;</span><br><span class="line">    owner &#x3D; msg.sender;</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  function setCompleted(uint completed) public restricted &#123;</span><br><span class="line">    last_completed_migration &#x3D; completed;</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  function upgrade(address new_address) public restricted &#123;</span><br><span class="line">    Migrations upgraded &#x3D; Migrations(new_address);</span><br><span class="line">    upgraded.setCompleted(last_completed_migration);</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></li>
+<li>请注意！：<br>你必须在你第一次发布时候，部署上面的Migrations合约，这样才能移植功能才能生效。为此，你必须创建一个移植文件，类似如下：</li>
+</ol>
+<p><strong>文件名：migrations/1_initial_migration.js</strong><br>    <figure class="highlight js"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">var</span> Migrations = artifacts.require(<span class="string">&quot;./Migrations.sol&quot;</span>);</span><br><span class="line"></span><br><span class="line"><span class="built_in">module</span>.exports = <span class="function"><span class="keyword">function</span>(<span class="params">deployer</span>) </span>&#123;</span><br><span class="line">  deployer.deploy(Migrations);</span><br><span class="line">&#125;;</span><br><span class="line"></span><br></pre></td></tr></table></figure><br>    <strong>备注</strong>：<br>    1. 文件名需要以数字开头，之后的文件名随意。需要数字编号，才能知道记录迁移是否成功。<br>    2. artifacts.require(“MyContract”)：<br>在开始移植前，我们会通过该方法告诉Truffle，我们想和哪个合约进行交互。这个方法类似于nodejs中的require，但是在这里，它可以返回一个合约的抽象层，我们可以在我们发布的其余脚本中使用该合约抽象层。<br>    3. 注意：传入的MyContract必须是指具体的合约，而不是一个合约文件名（因为一个文中可能有多个合约）。<br>    4. module.exports：<br>所有的迁移必须通过module.exports语法导出一个函数。每个导出的函数必须接受一个deployer对象作为它的第一个参数。该对象提供了一个清晰的语法结构，同时提供了一些通用的职责（比如保存发布的文件，以备稍后使用）<br>    5. deployer对象是用来缓存发布任务的主要操作接口，这些接口稍后介绍。<br>4. 可以依照编号继续创建新的发布</p>
+<h2 id="部署"><a href="#部署" class="headerlink" title="部署"></a>部署</h2><ol>
+<li>你的迁移文件被deployer放到部署任务中，，你可以同步编写部署任务，deployer将会按照顺序继续执行：   <figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">deployer.deploy(A);</span><br><span class="line">deployer.deploy(B);</span><br></pre></td></tr></table></figure></li>
+<li>或者也可以按照如下方式进行部署   <figure class="highlight js"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// Deploy A, then deploy B, passing in A&#x27;s newly deployed address</span></span><br><span class="line">deployer.deploy(A).then(<span class="function"><span class="keyword">function</span>(<span class="params"></span>) </span>&#123;</span><br><span class="line">  <span class="keyword">return</span> deployer.deploy(B, A.address);</span><br><span class="line">&#125;);</span><br></pre></td></tr></table></figure>
+<h2 id="网络考虑"><a href="#网络考虑" class="headerlink" title="网络考虑"></a>网络考虑</h2></li>
+<li>根据网络条件部署，这是一项高级功能，请先参考：第15讲 网络和app发布</li>
+<li>要考虑网络，则需要按如下编写迁移文件   <figure class="highlight js"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="built_in">module</span>.exports = <span class="function"><span class="keyword">function</span>(<span class="params">deployer, network</span>) </span>&#123;</span><br><span class="line">  <span class="keyword">if</span> (network == <span class="string">&quot;live&quot;</span>) &#123;</span><br><span class="line">    <span class="comment">// Do something specific to the network named &quot;live&quot;.</span></span><br><span class="line">  &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">    <span class="comment">// Perform a different step otherwise.</span></span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<h2 id="可用账户"><a href="#可用账户" class="headerlink" title="可用账户"></a>可用账户</h2>移植文件可以通过客户端或者web3返回一些账户列表如下：  <figure class="highlight js"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="built_in">module</span>.exports = <span class="function"><span class="keyword">function</span>(<span class="params">deployer, network, accounts</span>) </span>&#123;</span><br><span class="line">  <span class="comment">// Use the accounts within your migrations.</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<h2 id="API"><a href="#API" class="headerlink" title="API"></a>API</h2>deployer中包含有很多可以简化移植的功能  </li>
+<li>deployer.deploy(合同，参数…选项)<br>用于部署一个具体的合同，其中涉及到传入一个合约，还有一些特定的参数。这对单例合约是很有用的，在整个dapp中，只会被实例化一次。</li>
+<li>你可以部署一个或者一组合约，以便加速合约的部署。对于第二个参数，可以包含指定的键名（例如：overwrite）或者别的参数(如：gas、from)，如果overwrite设置为false，则表示不会覆盖，不执行该合约。</li>
+<li>请注意，在调用deploy部署前，你需要先部署和链接（关于链接，看下一节）好你所依赖的库，   <figure class="highlight js"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// Deploy a single contract without constructor arguments</span></span><br><span class="line">deployer.deploy(A);  </span><br><span class="line"></span><br><span class="line"><span class="comment">// Deploy a single contract with constructor arguments</span></span><br><span class="line">deployer.deploy(A, arg1, arg2, ...);</span><br><span class="line"></span><br><span class="line"><span class="comment">// Don&#x27;t deploy this contract if it has already been deployed</span></span><br><span class="line">deployer.deploy(A, &#123;<span class="attr">overwrite</span>: <span class="literal">false</span>&#125;);</span><br><span class="line"></span><br><span class="line"><span class="comment">// Set a maximum amount of gas and `from` address for the deployment</span></span><br><span class="line">deployer.deploy(A, &#123;<span class="attr">gas</span>: <span class="number">4612388</span>, <span class="attr">from</span>: <span class="string">&quot;0x....&quot;</span>&#125;);</span><br><span class="line"></span><br><span class="line"><span class="comment">// Deploy multiple contracts, some with arguments and some without.</span></span><br><span class="line"><span class="comment">// This is quicker than writing three `deployer.deploy()` statements as the deployer</span></span><br><span class="line"><span class="comment">// can perform the deployment as a single batched request.</span></span><br><span class="line">deployer.deploy([</span><br><span class="line">  [A, arg1, arg2, ...],</span><br><span class="line">   B,</span><br><span class="line">  [C, arg1]</span><br><span class="line">]);  </span><br><span class="line"><span class="comment">// External dependency example:</span></span><br><span class="line"><span class="comment">//</span></span><br><span class="line"><span class="comment">// For this example, our dependency provides an address when we&#x27;re deploying to the</span></span><br><span class="line"><span class="comment">// live network, but not for any other networks like testing and development.</span></span><br><span class="line"><span class="comment">// When we&#x27;re deploying to the live network we want it to use that address, but in</span></span><br><span class="line"><span class="comment">// testing and development we need to deploy a version of our own. Instead of writing</span></span><br><span class="line"><span class="comment">// a bunch of conditionals, we can simply use the `overwrite` key.</span></span><br><span class="line">deployer.deploy(SomeDependency, &#123;<span class="attr">overwrite</span>: <span class="literal">false</span>&#125;);</span><br></pre></td></tr></table></figure></li>
+<li>deployer.link(library,destinations)用于将一个已经部署的library连接到一个或者多个合约。<br>destinations，目的地，可以是一个或者多个合约，如果目的地不含有效的库，则忽略   <figure class="highlight js"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// Deploy library LibA, then link LibA to contract B, then deploy B.</span></span><br><span class="line">deployer.deploy(LibA);</span><br><span class="line">deployer.link(LibA, B);</span><br><span class="line">deployer.deploy(B);</span><br><span class="line"></span><br><span class="line"><span class="comment">// Link LibA to many contracts</span></span><br><span class="line">deployer.link(LibA, [B, C, D]);</span><br></pre></td></tr></table></figure></li>
+<li>deployer.then(function(){…})<br>运行任意一个步骤。在移植过程中使用它来调用特定的合同功能，以添加，编辑和重新组织合同数据。   <figure class="highlight js"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">var</span> a, b;</span><br><span class="line">deployer.then(<span class="function"><span class="keyword">function</span>(<span class="params"></span>) </span>&#123;</span><br><span class="line">  <span class="comment">// Create a new version of A</span></span><br><span class="line">  <span class="keyword">return</span> A.new();</span><br><span class="line">&#125;).then(<span class="function"><span class="keyword">function</span>(<span class="params">instance</span>) </span>&#123;</span><br><span class="line">  a = instance;</span><br><span class="line">  <span class="comment">// Get the deployed instance of B</span></span><br><span class="line">  <span class="keyword">return</span> B.deployed();</span><br><span class="line">&#125;).then(<span class="function"><span class="keyword">function</span>(<span class="params">instance</span>) </span>&#123;</span><br><span class="line">  b = instance;</span><br><span class="line">  <span class="comment">// Set the new instance of A&#x27;s address on B via B&#x27;s setA() function.</span></span><br><span class="line">  <span class="keyword">return</span> b.setA(a.address);</span><br><span class="line">&#125;);</span><br></pre></td></tr></table></figure>
+
+
+</li>
+</ol>
+ 
+      <!-- reward -->
+      
+    </div>
+    
+
+    <!-- copyright -->
+    
+    <footer class="article-footer">
+       
+  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/ethereum/" rel="tag">ethereum</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/truffle/" rel="tag">truffle</a></li></ul>
+
+    </footer>
+  </div>
+
+    
+ 
+    
+</article>
+
+    
+    <article
+  id="post-ethereum/truffle/official_translate/(truffle官翻)第5讲_编译合约"
+  class="article article-type-post"
+  itemscope
+  itemprop="blogPost"
+  data-scroll-reveal
+>
+  <div class="article-inner">
+    
+    <header class="article-header">
+       
+<h2 itemprop="name">
+  <a class="article-title" href="/articles/fad85707/"
+    >(truffle官翻)第5讲 编译合约</a> 
+</h2>
+ 
+
+    </header>
+     
+    <div class="article-meta">
+      <a href="/articles/fad85707/" class="article-date">
+  <time datetime="2018-03-24T02:14:05.000Z" itemprop="datePublished">2018-03-24</time>
+</a> 
+  <div class="article-category">
+    <a class="article-category-link" href="/categories/%E4%BB%A5%E5%A4%AA%E5%9D%8A/">以太坊</a> / <a class="article-category-link" href="/categories/%E4%BB%A5%E5%A4%AA%E5%9D%8A/truffle/">truffle</a> / <a class="article-category-link" href="/categories/%E4%BB%A5%E5%A4%AA%E5%9D%8A/truffle/%E5%AE%98%E7%BF%BB/">官翻</a>
+  </div>
+   
+    </div>
+      
+    <div class="article-entry" itemprop="articleBody">
+       
+  <h2 id="概述"><a href="#概述" class="headerlink" title="概述"></a>概述</h2><p>小编使用的是Truffle Develope环境，因此，关于项目编译的命令，都没有加上前缀truffle，若使用Ganache环境，请加上该前缀，具体可参考其中的描述：第4讲 选择一个以太坊客户端</p>
+<h2 id="位置"><a href="#位置" class="headerlink" title="位置"></a>位置</h2><ul>
+<li>在/contracts中，所有的智能合约原文件都在这里（后缀为.sol的文件）</li>
+<li>在/contracts中，有一个默认的Migrations.sol文件，它是用来协助部署的。</li>
+</ul>
+<h2 id="命令行"><a href="#命令行" class="headerlink" title="命令行"></a>命令行</h2><p>为了编译truffle项目，需要先进入到项目根目录，然后输入如下命令：</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">truffle develop  //进入环境</span><br><span class="line">compile  //该环境中编译</span><br></pre></td></tr></table></figure>
+<p>当你第一次编译的时候，所有的合约都会被编译；<br>当再次编译的时候，只会编译改动过的合约文件；<br>如果要覆盖重新编译，则需要输入配置项：–all</p>
+<h2 id="编译出的文件"><a href="#编译出的文件" class="headerlink" title="编译出的文件"></a>编译出的文件</h2><p>编译生成的文件会被放在/build/contracts目录中，不可以修改其中的文件</p>
+<h2 id="依赖"><a href="#依赖" class="headerlink" title="依赖"></a>依赖</h2><p>可以使用import命令来申明合约的依赖关系，truffle会依照正确的顺序编译合同，并且确保所有的依赖关系发送给编译器，可以使用两种方式指定依赖  </p>
+<ol>
+<li>通过文件名导入依赖<br>要从单独的文件导入别的合约，需要填入如下代码到你的当前合约源文件中：   <figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">import <span class="string">&quot;./AnotherContract.sol&quot;</span></span><br></pre></td></tr></table></figure>
+ 这将会使得AnotherContract.sol中的合约都生效</li>
+<li>从现有的包中导入合约，  <ol>
+<li>truffle支持从EthPM或者npm安装的包文件中导入的合约，在你当前编辑的合约中加入（编译时，truffle会先检索EthPM的包，然后才是npm的）：  <pre><code>import &quot;somepackage/SomeContract.sol&quot;</code></pre>
+</li>
+<li>EthPM没用过。。。自行网上搜索吧  </li>
+</ol>
+</li>
+</ol>
+ 
+      <!-- reward -->
+      
+    </div>
+    
+
+    <!-- copyright -->
+    
+    <footer class="article-footer">
+       
+  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/ethereum/" rel="tag">ethereum</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/truffle/" rel="tag">truffle</a></li></ul>
+
+    </footer>
+  </div>
+
+    
+ 
+    
+</article>
+
+    
+    <article
+  id="post-ethereum/truffle/official_translate/(truffle官翻)第3讲_创建项目"
+  class="article article-type-post"
+  itemscope
+  itemprop="blogPost"
+  data-scroll-reveal
+>
+  <div class="article-inner">
+    
+    <header class="article-header">
+       
+<h2 itemprop="name">
+  <a class="article-title" href="/articles/39ce2b06/"
+    >(truffle官翻)第3讲 创建项目</a> 
+</h2>
+ 
+
+    </header>
+     
+    <div class="article-meta">
+      <a href="/articles/39ce2b06/" class="article-date">
+  <time datetime="2018-03-24T02:13:30.000Z" itemprop="datePublished">2018-03-24</time>
+</a> 
+  <div class="article-category">
+    <a class="article-category-link" href="/categories/%E4%BB%A5%E5%A4%AA%E5%9D%8A/">以太坊</a> / <a class="article-category-link" href="/categories/%E4%BB%A5%E5%A4%AA%E5%9D%8A/truffle/">truffle</a> / <a class="article-category-link" href="/categories/%E4%BB%A5%E5%A4%AA%E5%9D%8A/truffle/%E5%AE%98%E7%BF%BB/">官翻</a>
+  </div>
+   
+    </div>
+      
+    <div class="article-entry" itemprop="articleBody">
+       
+  <h2 id="概述"><a href="#概述" class="headerlink" title="概述"></a>概述</h2><p>官方和社区已有项目应用地址：<a target="_blank" rel="noopener" href="http://truffleframework.com/boxes/metacoin">http://truffleframework.com/boxes/metacoin</a>  </p>
+<h2 id="安装"><a href="#安装" class="headerlink" title="安装"></a>安装</h2><ul>
+<li>从头开始项目建立空项目  <ol>
+<li>创建和初始化：   <figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">mkdir testproject</span><br><span class="line"><span class="built_in">cd</span> testproject</span><br><span class="line">truffle init</span><br></pre></td></tr></table></figure></li>
+<li>目录结构：   <figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">find . -<span class="built_in">print</span> | sed -e <span class="string">&#x27;s;[^/]*/;|____;g;s;____|; |;g’ //mac环境</span></span><br></pre></td></tr></table></figure>
+
+
+</li>
+</ol>
+</li>
+</ul>
+ 
+      <!-- reward -->
+      
+    </div>
+    
+
+    <!-- copyright -->
+    
+    <footer class="article-footer">
+       
+  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/ethereum/" rel="tag">ethereum</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/truffle/" rel="tag">truffle</a></li></ul>
+
+    </footer>
+  </div>
+
+    
+ 
+    
+</article>
+
+    
+    <article
+  id="post-ethereum/truffle/official_translate/(truffle官翻)第4讲_选择一个以太坊客户端"
+  class="article article-type-post"
+  itemscope
+  itemprop="blogPost"
+  data-scroll-reveal
+>
+  <div class="article-inner">
+    
+    <header class="article-header">
+       
+<h2 itemprop="name">
+  <a class="article-title" href="/articles/dbe1bf88/"
+    >(truffle官翻)第4讲 选择一个以太坊客户端</a> 
+</h2>
+ 
+
+    </header>
+     
+    <div class="article-meta">
+      <a href="/articles/dbe1bf88/" class="article-date">
+  <time datetime="2018-03-24T02:13:30.000Z" itemprop="datePublished">2018-03-24</time>
+</a> 
+  <div class="article-category">
+    <a class="article-category-link" href="/categories/%E4%BB%A5%E5%A4%AA%E5%9D%8A/">以太坊</a> / <a class="article-category-link" href="/categories/%E4%BB%A5%E5%A4%AA%E5%9D%8A/truffle/">truffle</a> / <a class="article-category-link" href="/categories/%E4%BB%A5%E5%A4%AA%E5%9D%8A/truffle/%E5%AE%98%E7%BF%BB/">官翻</a>
+  </div>
+   
+    </div>
+      
+    <div class="article-entry" itemprop="articleBody">
+       
+  <h1 id="第4讲-选择一个以太坊客户端"><a href="#第4讲-选择一个以太坊客户端" class="headerlink" title="第4讲_选择一个以太坊客户端"></a>第4讲_选择一个以太坊客户端</h1><h2 id="概述"><a href="#概述" class="headerlink" title="概述"></a>概述</h2><p>需要选择一个以太坊客户端环境来测试truffle项目  </p>
+<h2 id="环境介绍"><a href="#环境介绍" class="headerlink" title="环境介绍"></a>环境介绍</h2><p>truffle推荐我们使用三种测试使用的客户端（小编选择第二种方式了，再安装别的，电脑就要爆了）  </p>
+<ol>
+<li>Ganache（图形界面）  <ol>
+<li>以前我们使用的是testrpc环境，但是Truffle建议我们使用Ganache，也就是testrpc的升级版，它已经取代了testrpc</li>
+<li>需要单独安装，安装地址：<a target="_blank" rel="noopener" href="http://truffleframework.com/ganache">http://truffleframework.com/ganache</a></li>
+<li>Ganache优点  <ol>
+<li>它简化了dapp的开发，可以快速的了解truffle项目是怎样影响区块链，</li>
+<li>查看账户、余额、合同创建以及gas成本等细节。</li>
+<li>可以对挖矿进行微调</li>
+</ol>
+</li>
+<li>启动后，Ganache是运行在：<a href="http://127.0.0.1:7545地址下。它将会展示前10个默认账户以及每个账户对应的助记符（mnemonic，毕竟原始账户一个那么长的字符串，很难记忆，改成助记符得方便很多）">http://127.0.0.1:7545地址下。它将会展示前10个默认账户以及每个账户对应的助记符（mnemonic，毕竟原始账户一个那么长的字符串，很难记忆，改成助记符得方便很多）</a></li>
+<li>另外：  <ol>
+<li>不要在公网使用助记符，会丢失你的财产  </li>
+<li>助记符参考地址：<a target="_blank" rel="noopener" href="https://github.com/bitcoin/bips/blob/master/bip-0039.mediawiki">https://github.com/bitcoin/bips/blob/master/bip-0039.mediawiki</a></li>
+</ol>
+</li>
+</ol>
+</li>
+<li>Truffle Develop  <ol>
+<li>默认端口号是9545</li>
+<li>Truffle内置的一个客户端，不需要单独安装，使用如下命令即可进入该环境：  <pre><code class="bash">truffle develop</code></pre>
+ <img src="/articles/dbe1bf88/1.png" class="" title="启动界面"></li>
+<li>启动后，就像前面提到的Ganache，同样会给出助记符</li>
+<li>之后就可以输入truffle相关命令了<br>注意：Ganache中环境中，每个命令都要加上前缀truffle，但是在Truffle Develop环境中，不需要。</li>
+</ol>
+</li>
+<li>Ganache 命令行<br>略，小编用第二种方式就够了</li>
+</ol>
+ 
+      <!-- reward -->
+      
+    </div>
+    
+
+    <!-- copyright -->
+    
+    <footer class="article-footer">
+       
+  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/ethereum/" rel="tag">ethereum</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/truffle/" rel="tag">truffle</a></li></ul>
+
+    </footer>
+  </div>
+
+    
+ 
+    
+</article>
+
+    
+    <article
   id="post-ethereum/truffle/official_translate/(truffle官翻)第2讲_安装"
   class="article article-type-post"
   itemscope

@@ -147,6 +147,230 @@
     
     
     <article
+  id="post-ethereum/src_analysis/以太坊源码解读-第9讲-blockchain"
+  class="article article-type-post"
+  itemscope
+  itemprop="blogPost"
+  data-scroll-reveal
+>
+  <div class="article-inner">
+    
+    <header class="article-header">
+       
+<h2 itemprop="name">
+  <a class="article-title" href="/articles/a749acc8/"
+    >以太坊源码解读-第9讲-blockchain</a> 
+</h2>
+ 
+
+    </header>
+     
+    <div class="article-meta">
+      <a href="/articles/a749acc8/" class="article-date">
+  <time datetime="2019-01-04T09:25:20.000Z" itemprop="datePublished">2019-01-04</time>
+</a> 
+  <div class="article-category">
+    <a class="article-category-link" href="/categories/%E4%BB%A5%E5%A4%AA%E5%9D%8A/">以太坊</a> / <a class="article-category-link" href="/categories/%E4%BB%A5%E5%A4%AA%E5%9D%8A/%E6%BA%90%E7%A0%81%E8%A7%A3%E8%AF%BB/">源码解读</a>
+  </div>
+   
+    </div>
+      
+    <div class="article-entry" itemprop="articleBody">
+       
+  <h2 id="前言"><a href="#前言" class="headerlink" title="前言"></a>前言</h2><p>多条链分叉时候，如何选择？链中的块如何验证？每个块是如何组合的？怎样插入？还原？。。。<br>要理清这些问题，就必须了解<code>core-&gt;blockchain.go</code>其中的原理</p> 
+      <a class="article-more-link" href="/articles/a749acc8/"
+        >阅读更多...</a
+      >
+       
+      <!-- reward -->
+      
+    </div>
+    
+
+    <!-- copyright -->
+    
+    <footer class="article-footer">
+       
+  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/ethereum/" rel="tag">ethereum</a></li></ul>
+
+    </footer>
+  </div>
+
+    
+ 
+    
+</article>
+
+    
+    <article
+  id="post-ethereum/src_analysis/以太坊源码解读-第8讲-块-block"
+  class="article article-type-post"
+  itemscope
+  itemprop="blogPost"
+  data-scroll-reveal
+>
+  <div class="article-inner">
+    
+    <header class="article-header">
+       
+<h2 itemprop="name">
+  <a class="article-title" href="/articles/10e60082/"
+    >以太坊源码解读-第8讲-块(block)</a> 
+</h2>
+ 
+
+    </header>
+     
+    <div class="article-meta">
+      <a href="/articles/10e60082/" class="article-date">
+  <time datetime="2018-12-16T12:00:47.000Z" itemprop="datePublished">2018-12-16</time>
+</a> 
+  <div class="article-category">
+    <a class="article-category-link" href="/categories/%E4%BB%A5%E5%A4%AA%E5%9D%8A/">以太坊</a> / <a class="article-category-link" href="/categories/%E4%BB%A5%E5%A4%AA%E5%9D%8A/%E6%BA%90%E7%A0%81%E8%A7%A3%E8%AF%BB/">源码解读</a>
+  </div>
+   
+    </div>
+      
+    <div class="article-entry" itemprop="articleBody">
+       
+  <h2 id="前言"><a href="#前言" class="headerlink" title="前言"></a>前言</h2><p><code>块</code>贯穿了这个区块链的始终，前面的几篇文章总讲到块的生成，但具体到底怎么一回事，一直没提。<br>因此，小编认为还是有必要把一个block的细节梳理一下，本文主要是讲<code>core-&gt;types-&gt;block.go</code>文件中的内容。</p> 
+      <a class="article-more-link" href="/articles/10e60082/"
+        >阅读更多...</a
+      >
+       
+      <!-- reward -->
+      
+    </div>
+    
+
+    <!-- copyright -->
+    
+    <footer class="article-footer">
+       
+  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/ethereum/" rel="tag">ethereum</a></li></ul>
+
+    </footer>
+  </div>
+
+    
+ 
+    
+</article>
+
+    
+    <article
+  id="post-ethereum/src_analysis/以太坊源码解读-第7讲-创世块"
+  class="article article-type-post"
+  itemscope
+  itemprop="blogPost"
+  data-scroll-reveal
+>
+  <div class="article-inner">
+    
+    <header class="article-header">
+       
+<h2 itemprop="name">
+  <a class="article-title" href="/articles/85deafe/"
+    >以太坊源码解读-第7讲-创世块</a> 
+</h2>
+ 
+
+    </header>
+     
+    <div class="article-meta">
+      <a href="/articles/85deafe/" class="article-date">
+  <time datetime="2018-12-15T11:09:52.000Z" itemprop="datePublished">2018-12-15</time>
+</a> 
+  <div class="article-category">
+    <a class="article-category-link" href="/categories/%E4%BB%A5%E5%A4%AA%E5%9D%8A/">以太坊</a> / <a class="article-category-link" href="/categories/%E4%BB%A5%E5%A4%AA%E5%9D%8A/%E6%BA%90%E7%A0%81%E8%A7%A3%E8%AF%BB/">源码解读</a>
+  </div>
+   
+    </div>
+      
+    <div class="article-entry" itemprop="articleBody">
+       
+  <h2 id="前言"><a href="#前言" class="headerlink" title="前言"></a>前言</h2><p>创世块是以太坊的第一个块，随着逐步对以太坊的了解，越来越发现应该关注一下这些地方细节上的实现了。</p> 
+      <a class="article-more-link" href="/articles/85deafe/"
+        >阅读更多...</a
+      >
+       
+      <!-- reward -->
+      
+    </div>
+    
+
+    <!-- copyright -->
+    
+    <footer class="article-footer">
+       
+  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/ethereum/" rel="tag">ethereum</a></li></ul>
+
+    </footer>
+  </div>
+
+    
+ 
+    
+</article>
+
+    
+    <article
+  id="post-ethereum/others/以太坊各阶段说明"
+  class="article article-type-post"
+  itemscope
+  itemprop="blogPost"
+  data-scroll-reveal
+>
+  <div class="article-inner">
+    
+    <header class="article-header">
+       
+<h2 itemprop="name">
+  <a class="article-title" href="/articles/ba73f461/"
+    >以太坊各阶段说明</a> 
+</h2>
+ 
+
+    </header>
+     
+    <div class="article-meta">
+      <a href="/articles/ba73f461/" class="article-date">
+  <time datetime="2018-11-16T03:33:10.000Z" itemprop="datePublished">2018-11-16</time>
+</a> 
+  <div class="article-category">
+    <a class="article-category-link" href="/categories/%E4%BB%A5%E5%A4%AA%E5%9D%8A/">以太坊</a> / <a class="article-category-link" href="/categories/%E4%BB%A5%E5%A4%AA%E5%9D%8A/%E7%BB%BC%E5%90%88/">综合</a>
+  </div>
+   
+    </div>
+      
+    <div class="article-entry" itemprop="articleBody">
+       
+  <h2 id="前言"><a href="#前言" class="headerlink" title="前言"></a>前言</h2><p>以太坊正式发布后总共会分为4大阶段，加上最早的一个测试阶段，总共5各阶段，为了后面方便跟踪，在此做一些详细记录。</p> 
+      <a class="article-more-link" href="/articles/ba73f461/"
+        >阅读更多...</a
+      >
+       
+      <!-- reward -->
+      
+    </div>
+    
+
+    <!-- copyright -->
+    
+    <footer class="article-footer">
+       
+  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/ethereum/" rel="tag">ethereum</a></li></ul>
+
+    </footer>
+  </div>
+
+    
+ 
+    
+</article>
+
+    
+    <article
   id="post-ethereum/src_analysis/以太坊源码解读-第6.2讲-pow共识算法实现"
   class="article article-type-post"
   itemscope
@@ -472,230 +696,6 @@
     <footer class="article-footer">
        
   <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/ethereum/" rel="tag">ethereum</a></li></ul>
-
-    </footer>
-  </div>
-
-    
- 
-    
-</article>
-
-    
-    <article
-  id="post-ipfs/ipfs应用/ipfs集群客户端操作"
-  class="article article-type-post"
-  itemscope
-  itemprop="blogPost"
-  data-scroll-reveal
->
-  <div class="article-inner">
-    
-    <header class="article-header">
-       
-<h2 itemprop="name">
-  <a class="article-title" href="/articles/ccf3d056/"
-    >ipfs集群客户端操作</a> 
-</h2>
- 
-
-    </header>
-     
-    <div class="article-meta">
-      <a href="/articles/ccf3d056/" class="article-date">
-  <time datetime="2018-11-01T01:39:17.000Z" itemprop="datePublished">2018-11-01</time>
-</a> 
-  <div class="article-category">
-    <a class="article-category-link" href="/categories/ipfs/">ipfs</a> / <a class="article-category-link" href="/categories/ipfs/ipfs%E5%BA%94%E7%94%A8/">ipfs应用</a>
-  </div>
-   
-    </div>
-      
-    <div class="article-entry" itemprop="articleBody">
-       
-  <h2 id="前言"><a href="#前言" class="headerlink" title="前言"></a>前言</h2><p>本文主要讲的是ipfs集群客户端的操作，这种操作分为两类，一类是通过命令行来控制，另一类是通过restful api来操作，后者对于开发者来说，会有很大帮助。<br>操作本文内容前，需要先完成前两篇文章中的内容：<br><a href="/articles/7987f3ac">ipfs私有环境搭建</a><br><a href="/articles/ba940e6d">ipfs集群搭建</a></p> 
-      <a class="article-more-link" href="/articles/ccf3d056/"
-        >阅读更多...</a
-      >
-       
-      <!-- reward -->
-      
-    </div>
-    
-
-    <!-- copyright -->
-    
-    <footer class="article-footer">
-       
-  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/ipfs/" rel="tag">ipfs</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/storate/" rel="tag">storate</a></li></ul>
-
-    </footer>
-  </div>
-
-    
- 
-    
-</article>
-
-    
-    <article
-  id="post-ipfs/ipfs应用/ipfs集群搭建"
-  class="article article-type-post"
-  itemscope
-  itemprop="blogPost"
-  data-scroll-reveal
->
-  <div class="article-inner">
-    
-    <header class="article-header">
-       
-<h2 itemprop="name">
-  <a class="article-title" href="/articles/ba940e6d/"
-    >ipfs集群搭建</a> 
-</h2>
- 
-
-    </header>
-     
-    <div class="article-meta">
-      <a href="/articles/ba940e6d/" class="article-date">
-  <time datetime="2018-11-01T01:19:01.000Z" itemprop="datePublished">2018-11-01</time>
-</a> 
-  <div class="article-category">
-    <a class="article-category-link" href="/categories/ipfs/">ipfs</a> / <a class="article-category-link" href="/categories/ipfs/ipfs%E5%BA%94%E7%94%A8/">ipfs应用</a>
-  </div>
-   
-    </div>
-      
-    <div class="article-entry" itemprop="articleBody">
-       
-  <h2 id="前言"><a href="#前言" class="headerlink" title="前言"></a>前言</h2><p>本文主要是讲ipfs私有集群的搭建，本文是在上一篇文章<a href="/articles/7987f3ac">ipfs私有环境搭建</a>的基础上进一步搭建的。文中涉及到小编项目隐私的内容，已经做了脱敏处理。</p> 
-      <a class="article-more-link" href="/articles/ba940e6d/"
-        >阅读更多...</a
-      >
-       
-      <!-- reward -->
-      
-    </div>
-    
-
-    <!-- copyright -->
-    
-    <footer class="article-footer">
-       
-  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/ipfs/" rel="tag">ipfs</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/storate/" rel="tag">storate</a></li></ul>
-
-    </footer>
-  </div>
-
-    
- 
-    
-</article>
-
-    
-    <article
-  id="post-ipfs/ipfs应用/ipfs私有环境搭建"
-  class="article article-type-post"
-  itemscope
-  itemprop="blogPost"
-  data-scroll-reveal
->
-  <div class="article-inner">
-    
-    <header class="article-header">
-       
-<h2 itemprop="name">
-  <a class="article-title" href="/articles/7987f3ac/"
-    >ipfs私有环境搭建</a> 
-</h2>
- 
-
-    </header>
-     
-    <div class="article-meta">
-      <a href="/articles/7987f3ac/" class="article-date">
-  <time datetime="2018-11-01T01:01:50.000Z" itemprop="datePublished">2018-11-01</time>
-</a> 
-  <div class="article-category">
-    <a class="article-category-link" href="/categories/ipfs/">ipfs</a> / <a class="article-category-link" href="/categories/ipfs/ipfs%E5%BA%94%E7%94%A8/">ipfs应用</a>
-  </div>
-   
-    </div>
-      
-    <div class="article-entry" itemprop="articleBody">
-       
-  <h2 id="前言"><a href="#前言" class="headerlink" title="前言"></a>前言</h2><p>本文主要讲的是ipfs私有环境的配置，使用两个节点。</p> 
-      <a class="article-more-link" href="/articles/7987f3ac/"
-        >阅读更多...</a
-      >
-       
-      <!-- reward -->
-      
-    </div>
-    
-
-    <!-- copyright -->
-    
-    <footer class="article-footer">
-       
-  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/ipfs/" rel="tag">ipfs</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/storate/" rel="tag">storate</a></li></ul>
-
-    </footer>
-  </div>
-
-    
- 
-    
-</article>
-
-    
-    <article
-  id="post-ethereum/src_analysis/vm/evm架构梳理"
-  class="article article-type-post"
-  itemscope
-  itemprop="blogPost"
-  data-scroll-reveal
->
-  <div class="article-inner">
-    
-    <header class="article-header">
-       
-<h2 itemprop="name">
-  <a class="article-title" href="/articles/414c120c/"
-    >evm架构梳理</a> 
-</h2>
- 
-
-    </header>
-     
-    <div class="article-meta">
-      <a href="/articles/414c120c/" class="article-date">
-  <time datetime="2018-08-03T06:30:03.000Z" itemprop="datePublished">2018-08-03</time>
-</a> 
-  <div class="article-category">
-    <a class="article-category-link" href="/categories/%E4%BB%A5%E5%A4%AA%E5%9D%8A/">以太坊</a> / <a class="article-category-link" href="/categories/%E4%BB%A5%E5%A4%AA%E5%9D%8A/%E6%BA%90%E7%A0%81%E8%A7%A3%E8%AF%BB/">源码解读</a>
-  </div>
-   
-    </div>
-      
-    <div class="article-entry" itemprop="articleBody">
-       
-  <h2 id="前言"><a href="#前言" class="headerlink" title="前言"></a>前言</h2><p>这段时间在看evm，不是说evm偏底层就不该了解。它是支撑整个ethereum运行等基石，把握了它才能把握了以太坊的整个设计方向。</p> 
-      <a class="article-more-link" href="/articles/414c120c/"
-        >阅读更多...</a
-      >
-       
-      <!-- reward -->
-      
-    </div>
-    
-
-    <!-- copyright -->
-    
-    <footer class="article-footer">
-       
-  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/EVM/" rel="tag">EVM</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/ethereum/" rel="tag">ethereum</a></li></ul>
 
     </footer>
   </div>
