@@ -1,0 +1,662 @@
+<!DOCTYPE html>
+
+
+<html lang="zh-Hans">
+
+
+<head>
+  <meta charset="utf-8" />
+    
+  <meta name="description" content="谈天谈地，谈古谈今，一起谈谈我们的未来。" />
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
+  <title>
+    IPFS基础操作 |  Jason漫谈区块链
+  </title>
+  <meta name="generator" content="hexo-theme-ayer">
+  
+  <link rel="shortcut icon" href="/images/my_head-16x16-next.ico" />
+  
+  
+<link rel="stylesheet" href="/dist/main.css">
+
+  
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/Shen-Yu/cdn/css/remixicon.min.css">
+
+  
+<link rel="stylesheet" href="/css/custom.css">
+
+  
+  
+<script src="https://cdn.jsdelivr.net/npm/pace-js@1.0.2/pace.min.js"></script>
+
+  
+  
+
+  
+
+</head>
+
+</html>
+
+<body>
+  <div id="app">
+    
+      
+    <main class="content on">
+      <section class="outer">
+  <article
+  id="post-ipfs/ipfs基础/IPFS基础操作"
+  class="article article-type-post"
+  itemscope
+  itemprop="blogPost"
+  data-scroll-reveal
+>
+  <div class="article-inner">
+    
+    <header class="article-header">
+       
+<h1 class="article-title sea-center" style="border-left:0" itemprop="name">
+  IPFS基础操作
+</h1>
+ 
+
+    </header>
+     
+    <div class="article-meta">
+      <a href="/articles/600687bc/" class="article-date">
+  <time datetime="2021-05-11T14:06:09.000Z" itemprop="datePublished">2021-05-11</time>
+</a> 
+  <div class="article-category">
+    <a class="article-category-link" href="/categories/ipfs/">ipfs</a> / <a class="article-category-link" href="/categories/ipfs/ipfs%E5%BA%94%E7%94%A8/">ipfs应用</a>
+  </div>
+  
+<div class="word_count">
+    <span class="post-time">
+        <span class="post-meta-item-icon">
+            <i class="ri-quill-pen-line"></i>
+            <span class="post-meta-item-text"> Word count:</span>
+            <span class="post-count">1.8k</span>
+        </span>
+    </span>
+
+    <span class="post-time">
+        &nbsp; | &nbsp;
+        <span class="post-meta-item-icon">
+            <i class="ri-book-open-line"></i>
+            <span class="post-meta-item-text"> Reading time≈</span>
+            <span class="post-count">8 min</span>
+        </span>
+    </span>
+</div>
+ 
+    </div>
+      
+    <div class="tocbot"></div>
+
+
+
+
+  
+    <div class="article-entry" itemprop="articleBody">
+       
+  <p>本文主要是综合的介绍IPFS的命令行使用方式，掌握对文件的基本操作，同时从整体上对IPFS有一个初步的了解。</p>
+<a id="more"></a>
+
+<h2 id="IPFS初始化"><a href="#IPFS初始化" class="headerlink" title="IPFS初始化"></a>IPFS初始化</h2><h3 id="初始化"><a href="#初始化" class="headerlink" title="初始化"></a>初始化</h3><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#</span><span class="bash"> 初始化IPFS仓库，会在~/.ipfs目录中生成初始化文件，具体文件作用，稍后介绍</span></span><br><span class="line">ipfs init</span><br></pre></td></tr></table></figure>
+<h3 id="初始化文件说明"><a href="#初始化文件说明" class="headerlink" title="初始化文件说明"></a>初始化文件说明</h3><p>在<code>~/.ipfs</code>中，会生成如下几个文件：</p>
+<ol>
+<li><code>blocks</code>：本地仓库存储的CID文件块链接目录</li>
+<li><code>keystore</code>：密钥对文件存储目录</li>
+<li><code>datastore</code>：LevelDB数据文件目录</li>
+<li><code>config</code>：配置文件(非目录),json格式</li>
+<li><code>version</code>：文件，记录当前IPFS的版本号</li>
+</ol>
+<h3 id="IPFS存储文件目录设置"><a href="#IPFS存储文件目录设置" class="headerlink" title="IPFS存储文件目录设置"></a>IPFS存储文件目录设置</h3><p>在环境变量中，设置<code>$IPFS_PATH</code>，docker镜像的默认地址设置为了：<code>/data/ipfs/</code>，其余默认一般为：<code>~/.ipfs</code></p>
+<h3 id="config配置文件说明"><a href="#config配置文件说明" class="headerlink" title="config配置文件说明"></a>config配置文件说明</h3><p>配置文件无疑是当前最关心的内容，后续可根据需要来调整配置，具体内容如下：</p>
+<figure class="highlight json"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br><span class="line">95</span><br><span class="line">96</span><br><span class="line">97</span><br><span class="line">98</span><br><span class="line">99</span><br><span class="line">100</span><br><span class="line">101</span><br><span class="line">102</span><br><span class="line">103</span><br><span class="line">104</span><br><span class="line">105</span><br><span class="line">106</span><br><span class="line">107</span><br><span class="line">108</span><br><span class="line">109</span><br><span class="line">110</span><br><span class="line">111</span><br><span class="line">112</span><br><span class="line">113</span><br><span class="line">114</span><br><span class="line">115</span><br><span class="line">116</span><br><span class="line">117</span><br><span class="line">118</span><br><span class="line">119</span><br><span class="line">120</span><br><span class="line">121</span><br><span class="line">122</span><br><span class="line">123</span><br><span class="line">124</span><br><span class="line">125</span><br><span class="line">126</span><br><span class="line">127</span><br><span class="line">128</span><br><span class="line">129</span><br><span class="line">130</span><br><span class="line">131</span><br><span class="line">132</span><br><span class="line">133</span><br><span class="line">134</span><br><span class="line">135</span><br><span class="line">136</span><br><span class="line">137</span><br><span class="line">138</span><br><span class="line">139</span><br><span class="line">140</span><br><span class="line">141</span><br><span class="line">142</span><br><span class="line">143</span><br><span class="line">144</span><br><span class="line">145</span><br><span class="line">146</span><br><span class="line">147</span><br><span class="line">148</span><br><span class="line">149</span><br><span class="line">150</span><br><span class="line">151</span><br></pre></td><td class="code"><pre><span class="line">&#123;</span><br><span class="line">  <span class="attr">&quot;API&quot;</span>: &#123;   <span class="comment">//节点API配置</span></span><br><span class="line">    <span class="attr">&quot;HTTPHeaders&quot;</span>: &#123;&#125;</span><br><span class="line">  &#125;,</span><br><span class="line">  <span class="attr">&quot;Addresses&quot;</span>: &#123;   <span class="comment">//节点网络通信multiaddress配置</span></span><br><span class="line">    <span class="attr">&quot;API&quot;</span>: <span class="string">&quot;/ip4/0.0.0.0/tcp/5001&quot;</span>,</span><br><span class="line">    <span class="attr">&quot;Announce&quot;</span>: [],</span><br><span class="line">    <span class="attr">&quot;Gateway&quot;</span>: <span class="string">&quot;/ip4/0.0.0.0/tcp/8080&quot;</span>,</span><br><span class="line">    <span class="attr">&quot;NoAnnounce&quot;</span>: [],</span><br><span class="line">    <span class="attr">&quot;Swarm&quot;</span>: [</span><br><span class="line">      <span class="string">&quot;/ip4/0.0.0.0/tcp/4001&quot;</span>,</span><br><span class="line">      <span class="string">&quot;/ip6/::/tcp/4001&quot;</span>,</span><br><span class="line">      <span class="string">&quot;/ip4/0.0.0.0/udp/4001/quic&quot;</span>,</span><br><span class="line">      <span class="string">&quot;/ip6/::/udp/4001/quic&quot;</span></span><br><span class="line">    ]</span><br><span class="line">  &#125;,</span><br><span class="line">  <span class="attr">&quot;AutoNAT&quot;</span>: &#123;&#125;,</span><br><span class="line">  <span class="attr">&quot;Bootstrap&quot;</span>: [   <span class="comment">//中继节点multiaddress配置</span></span><br><span class="line">    <span class="string">&quot;/dnsaddr/bootstrap.libp2p.io/p2p/QmNnooDu7bfjPFoTZYxMNLWUQJyrVwtbZg5gBMjTezGAJN&quot;</span>,</span><br><span class="line">    <span class="string">&quot;/dnsaddr/bootstrap.libp2p.io/p2p/QmQCU2EcMqAqQPR2i9bChDtGNJchTbq5TbXJJ16u19uLTa&quot;</span>,</span><br><span class="line">    <span class="string">&quot;/dnsaddr/bootstrap.libp2p.io/p2p/QmbLHAnMoJPWSCR5Zhtx6BHJX9KiKNN6tpvbUcqanj75Nb&quot;</span>,</span><br><span class="line">    <span class="string">&quot;/dnsaddr/bootstrap.libp2p.io/p2p/QmcZf59bWwK5XFi76CZX8cbJ4BhTzzA3gU1ZjYZcYW3dwt&quot;</span>,</span><br><span class="line">    <span class="string">&quot;/ip4/104.131.131.82/tcp/4001/p2p/QmaCpDMGvV2BGHeYERUEnRQAwe3N8SzbUtfsmvsqQLuvuJ&quot;</span>,</span><br><span class="line">    <span class="string">&quot;/ip4/104.131.131.82/udp/4001/quic/p2p/QmaCpDMGvV2BGHeYERUEnRQAwe3N8SzbUtfsmvsqQLuvuJ&quot;</span></span><br><span class="line">  ],</span><br><span class="line">  <span class="attr">&quot;Datastore&quot;</span>: &#123;  <span class="comment">//存储配置</span></span><br><span class="line">    <span class="attr">&quot;BloomFilterSize&quot;</span>: <span class="number">0</span>,</span><br><span class="line">    <span class="attr">&quot;GCPeriod&quot;</span>: <span class="string">&quot;1h&quot;</span>,</span><br><span class="line">    <span class="attr">&quot;HashOnRead&quot;</span>: <span class="literal">false</span>,</span><br><span class="line">    <span class="attr">&quot;Spec&quot;</span>: &#123;</span><br><span class="line">      <span class="attr">&quot;mounts&quot;</span>: [</span><br><span class="line">        &#123;</span><br><span class="line">          <span class="attr">&quot;child&quot;</span>: &#123;</span><br><span class="line">            <span class="attr">&quot;path&quot;</span>: <span class="string">&quot;blocks&quot;</span>,</span><br><span class="line">            <span class="attr">&quot;shardFunc&quot;</span>: <span class="string">&quot;/repo/flatfs/shard/v1/next-to-last/2&quot;</span>,</span><br><span class="line">            <span class="attr">&quot;sync&quot;</span>: <span class="literal">true</span>,</span><br><span class="line">            <span class="attr">&quot;type&quot;</span>: <span class="string">&quot;flatfs&quot;</span></span><br><span class="line">          &#125;,</span><br><span class="line">          <span class="attr">&quot;mountpoint&quot;</span>: <span class="string">&quot;/blocks&quot;</span>,</span><br><span class="line">          <span class="attr">&quot;prefix&quot;</span>: <span class="string">&quot;flatfs.datastore&quot;</span>,</span><br><span class="line">          <span class="attr">&quot;type&quot;</span>: <span class="string">&quot;measure&quot;</span></span><br><span class="line">        &#125;,</span><br><span class="line">        &#123;</span><br><span class="line">          <span class="attr">&quot;child&quot;</span>: &#123;</span><br><span class="line">            <span class="attr">&quot;compression&quot;</span>: <span class="string">&quot;none&quot;</span>,</span><br><span class="line">            <span class="attr">&quot;path&quot;</span>: <span class="string">&quot;datastore&quot;</span>,</span><br><span class="line">            <span class="attr">&quot;type&quot;</span>: <span class="string">&quot;levelds&quot;</span></span><br><span class="line">          &#125;,</span><br><span class="line">          <span class="attr">&quot;mountpoint&quot;</span>: <span class="string">&quot;/&quot;</span>,</span><br><span class="line">          <span class="attr">&quot;prefix&quot;</span>: <span class="string">&quot;leveldb.datastore&quot;</span>,</span><br><span class="line">          <span class="attr">&quot;type&quot;</span>: <span class="string">&quot;measure&quot;</span></span><br><span class="line">        &#125;</span><br><span class="line">      ],</span><br><span class="line">      <span class="attr">&quot;type&quot;</span>: <span class="string">&quot;mount&quot;</span></span><br><span class="line">    &#125;,</span><br><span class="line">    <span class="attr">&quot;StorageGCWatermark&quot;</span>: <span class="number">90</span>,</span><br><span class="line">    <span class="attr">&quot;StorageMax&quot;</span>: <span class="string">&quot;10GB&quot;</span></span><br><span class="line">  &#125;,</span><br><span class="line">  <span class="attr">&quot;Discovery&quot;</span>: &#123;  <span class="comment">//LibP2P Discovery配置</span></span><br><span class="line">    <span class="attr">&quot;MDNS&quot;</span>: &#123;</span><br><span class="line">      <span class="attr">&quot;Enabled&quot;</span>: <span class="literal">true</span>,</span><br><span class="line">      <span class="attr">&quot;Interval&quot;</span>: <span class="number">10</span></span><br><span class="line">    &#125;</span><br><span class="line">  &#125;,</span><br><span class="line">  <span class="attr">&quot;Experimental&quot;</span>: &#123;   <span class="comment">//实验功能开关配置</span></span><br><span class="line">    <span class="attr">&quot;FilestoreEnabled&quot;</span>: <span class="literal">false</span>,</span><br><span class="line">    <span class="attr">&quot;GraphsyncEnabled&quot;</span>: <span class="literal">false</span>,</span><br><span class="line">    <span class="attr">&quot;Libp2pStreamMounting&quot;</span>: <span class="literal">false</span>,</span><br><span class="line">    <span class="attr">&quot;P2pHttpProxy&quot;</span>: <span class="literal">false</span>,</span><br><span class="line">    <span class="attr">&quot;ShardingEnabled&quot;</span>: <span class="literal">false</span>,</span><br><span class="line">    <span class="attr">&quot;StrategicProviding&quot;</span>: <span class="literal">false</span>,</span><br><span class="line">    <span class="attr">&quot;UrlstoreEnabled&quot;</span>: <span class="literal">false</span></span><br><span class="line">  &#125;,</span><br><span class="line">  <span class="attr">&quot;Gateway&quot;</span>: &#123;   <span class="comment">//HTTP 网关配置</span></span><br><span class="line">    <span class="attr">&quot;APICommands&quot;</span>: [],</span><br><span class="line">    <span class="attr">&quot;HTTPHeaders&quot;</span>: &#123;</span><br><span class="line">      <span class="attr">&quot;Access-Control-Allow-Headers&quot;</span>: [</span><br><span class="line">        <span class="string">&quot;X-Requested-With&quot;</span>,</span><br><span class="line">        <span class="string">&quot;Range&quot;</span>,</span><br><span class="line">        <span class="string">&quot;User-Agent&quot;</span></span><br><span class="line">      ],</span><br><span class="line">      <span class="attr">&quot;Access-Control-Allow-Methods&quot;</span>: [</span><br><span class="line">        <span class="string">&quot;GET&quot;</span></span><br><span class="line">      ],</span><br><span class="line">      <span class="attr">&quot;Access-Control-Allow-Origin&quot;</span>: [</span><br><span class="line">        <span class="string">&quot;*&quot;</span></span><br><span class="line">      ]</span><br><span class="line">    &#125;,</span><br><span class="line">    <span class="attr">&quot;NoDNSLink&quot;</span>: <span class="literal">false</span>,</span><br><span class="line">    <span class="attr">&quot;NoFetch&quot;</span>: <span class="literal">false</span>,</span><br><span class="line">    <span class="attr">&quot;PathPrefixes&quot;</span>: [],</span><br><span class="line">    <span class="attr">&quot;PublicGateways&quot;</span>: <span class="literal">null</span>,</span><br><span class="line">    <span class="attr">&quot;RootRedirect&quot;</span>: <span class="string">&quot;&quot;</span>,</span><br><span class="line">    <span class="attr">&quot;Writable&quot;</span>: <span class="literal">false</span></span><br><span class="line">  &#125;,</span><br><span class="line">  <span class="attr">&quot;Identity&quot;</span>: &#123;  <span class="comment">//节点身份信息</span></span><br><span class="line">    <span class="attr">&quot;PeerID&quot;</span>: <span class="string">&quot;12D3KooWSVzdPE1nXHAh9CyqAayFA8psJ9n6DwTkByiD8gWnm9b1&quot;</span>,</span><br><span class="line">    <span class="attr">&quot;PrivKey&quot;</span>: <span class="string">&quot;CAESQMQL3NrWkdjsQ++yxdWvlnCSaltDpYTKRA4+CRZhibgQ9+Hd9lslOXRd0pF4dqCtOIMHMpgtbTVaqba5bfOqYeQ=&quot;</span></span><br><span class="line">  &#125;,</span><br><span class="line">  <span class="attr">&quot;Ipns&quot;</span>: &#123;   <span class="comment">//Ipns配置</span></span><br><span class="line">    <span class="attr">&quot;RecordLifetime&quot;</span>: <span class="string">&quot;&quot;</span>,</span><br><span class="line">    <span class="attr">&quot;RepublishPeriod&quot;</span>: <span class="string">&quot;&quot;</span>,</span><br><span class="line">    <span class="attr">&quot;ResolveCacheSize&quot;</span>: <span class="number">128</span></span><br><span class="line">  &#125;,</span><br><span class="line">  <span class="attr">&quot;Mounts&quot;</span>: &#123;  <span class="comment">//文件系统挂载配置</span></span><br><span class="line">    <span class="attr">&quot;FuseAllowOther&quot;</span>: <span class="literal">false</span>,</span><br><span class="line">    <span class="attr">&quot;IPFS&quot;</span>: <span class="string">&quot;/ipfs&quot;</span>,</span><br><span class="line">    <span class="attr">&quot;IPNS&quot;</span>: <span class="string">&quot;/ipns&quot;</span></span><br><span class="line">  &#125;,</span><br><span class="line">  <span class="attr">&quot;Peering&quot;</span>: &#123;</span><br><span class="line">    <span class="attr">&quot;Peers&quot;</span>: <span class="literal">null</span></span><br><span class="line">  &#125;,</span><br><span class="line">  <span class="attr">&quot;Pinning&quot;</span>: &#123;</span><br><span class="line">    <span class="attr">&quot;RemoteServices&quot;</span>: &#123;&#125;</span><br><span class="line">  &#125;,</span><br><span class="line">  <span class="attr">&quot;Plugins&quot;</span>: &#123;</span><br><span class="line">    <span class="attr">&quot;Plugins&quot;</span>: <span class="literal">null</span></span><br><span class="line">  &#125;,</span><br><span class="line">  <span class="attr">&quot;Provider&quot;</span>: &#123;</span><br><span class="line">    <span class="attr">&quot;Strategy&quot;</span>: <span class="string">&quot;&quot;</span></span><br><span class="line">  &#125;,</span><br><span class="line">  <span class="attr">&quot;Pubsub&quot;</span>: &#123;</span><br><span class="line">    <span class="attr">&quot;DisableSigning&quot;</span>: <span class="literal">false</span>,</span><br><span class="line">    <span class="attr">&quot;Router&quot;</span>: <span class="string">&quot;&quot;</span></span><br><span class="line">  &#125;,</span><br><span class="line">  <span class="attr">&quot;Reprovider&quot;</span>: &#123;</span><br><span class="line">    <span class="attr">&quot;Interval&quot;</span>: <span class="string">&quot;12h&quot;</span>,</span><br><span class="line">    <span class="attr">&quot;Strategy&quot;</span>: <span class="string">&quot;all&quot;</span></span><br><span class="line">  &#125;,</span><br><span class="line">  <span class="attr">&quot;Routing&quot;</span>: &#123;</span><br><span class="line">    <span class="attr">&quot;Type&quot;</span>: <span class="string">&quot;dht&quot;</span></span><br><span class="line">  &#125;,</span><br><span class="line">  <span class="attr">&quot;Swarm&quot;</span>: &#123;  <span class="comment">//P2P Swarm配置</span></span><br><span class="line">    <span class="attr">&quot;AddrFilters&quot;</span>: <span class="literal">null</span>,</span><br><span class="line">    <span class="attr">&quot;ConnMgr&quot;</span>: &#123;</span><br><span class="line">      <span class="attr">&quot;GracePeriod&quot;</span>: <span class="string">&quot;20s&quot;</span>,</span><br><span class="line">      <span class="attr">&quot;HighWater&quot;</span>: <span class="number">900</span>,</span><br><span class="line">      <span class="attr">&quot;LowWater&quot;</span>: <span class="number">600</span>,</span><br><span class="line">      <span class="attr">&quot;Type&quot;</span>: <span class="string">&quot;basic&quot;</span></span><br><span class="line">    &#125;,</span><br><span class="line">    <span class="attr">&quot;DisableBandwidthMetrics&quot;</span>: <span class="literal">false</span>,</span><br><span class="line">    <span class="attr">&quot;DisableNatPortMap&quot;</span>: <span class="literal">false</span>,</span><br><span class="line">    <span class="attr">&quot;EnableAutoRelay&quot;</span>: <span class="literal">false</span>,</span><br><span class="line">    <span class="attr">&quot;EnableRelayHop&quot;</span>: <span class="literal">false</span>,</span><br><span class="line">    <span class="attr">&quot;Transports&quot;</span>: &#123;</span><br><span class="line">      <span class="attr">&quot;Multiplexers&quot;</span>: &#123;&#125;,</span><br><span class="line">      <span class="attr">&quot;Network&quot;</span>: &#123;&#125;,</span><br><span class="line">      <span class="attr">&quot;Security&quot;</span>: &#123;&#125;</span><br><span class="line">    &#125;</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<h2 id="加入IPFS网络环境"><a href="#加入IPFS网络环境" class="headerlink" title="加入IPFS网络环境"></a>加入IPFS网络环境</h2><h3 id="接入网络"><a href="#接入网络" class="headerlink" title="接入网络"></a>接入网络</h3><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">ipfs daemon</span><br></pre></td></tr></table></figure>
+<p>通过该命令，可以将本机的IPFS连接到公网的IPFS网络，同时启动了HTTP网关服务，方便后续HTTP WEB交互</p>
+<h3 id="查看对等方IPFS节点信息"><a href="#查看对等方IPFS节点信息" class="headerlink" title="查看对等方IPFS节点信息"></a>查看对等方IPFS节点信息</h3><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">ipfs swarm peers</span><br></pre></td></tr></table></figure>
+<p>执行后，可以看到有大量节点地址</p>
+<h2 id="与IPFS进行交互"><a href="#与IPFS进行交互" class="headerlink" title="与IPFS进行交互"></a>与IPFS进行交互</h2><h3 id="添加文件"><a href="#添加文件" class="headerlink" title="添加文件"></a>添加文件</h3><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">echo &quot;hello jason&quot; &gt; test.txt</span><br><span class="line">ipfs add test.txt </span><br></pre></td></tr></table></figure>
+<p>此时控制台返回结果：<code>added QmcMR7dqXvUxgCXpwmKHyeu4mbwGAfvd5zoa7fY4UYmtPP test.txt</code><br>表示<code>test.txt</code>文件在IPFS的hash地址(CID)为：<code>QmcMR7dqXvUxgCXpwmKHyeu4mbwGAfvd5zoa7fY4UYmtPP</code></p>
+<h3 id="读取文件"><a href="#读取文件" class="headerlink" title="读取文件"></a>读取文件</h3><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">ipfs cat QmcMR7dqXvUxgCXpwmKHyeu4mbwGAfvd5zoa7fY4UYmtPP</span><br></pre></td></tr></table></figure>
+<p>读出的内容和<code>test.txt</code>中完全一致：<code>hello jason</code></p>
+<h3 id="验证内容唯一性"><a href="#验证内容唯一性" class="headerlink" title="验证内容唯一性"></a>验证内容唯一性</h3><p>只要文件内容不变，则CID不变</p>
+<h3 id="写入文件的名称和目录信息"><a href="#写入文件的名称和目录信息" class="headerlink" title="写入文件的名称和目录信息"></a>写入文件的名称和目录信息</h3><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">ipfs add -w test.txt</span><br></pre></td></tr></table></figure>
+<p>返回两个<code>CID</code>，具体输出结果为：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">added QmcMR7dqXvUxgCXpwmKHyeu4mbwGAfvd5zoa7fY4UYmtPP test.txt</span><br><span class="line">added QmY8utLB2d9KKpjaR3mhTngqYc1grAZDnTaXgMfMzUsXGT </span><br></pre></td></tr></table></figure>
+<p>其中第一条问文件内容的CID；第二条指向的是一个目录（即 <code>IPFS Wrapped</code>），记录了文件内容的文件内容的CID、文件名、文件大小、</p>
+<h3 id="读取IPFS-Wrapped获取文件信息"><a href="#读取IPFS-Wrapped获取文件信息" class="headerlink" title="读取IPFS Wrapped获取文件信息"></a>读取IPFS Wrapped获取文件信息</h3><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">ipfs ls -v QmY8utLB2d9KKpjaR3mhTngqYc1grAZDnTaXgMfMzUsXGT</span><br></pre></td></tr></table></figure>
+<p>输出结果为：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">Hash                                           Size Name</span><br><span class="line">QmcMR7dqXvUxgCXpwmKHyeu4mbwGAfvd5zoa7fY4UYmtPP 12   test.txt</span><br></pre></td></tr></table></figure>
+<p><code>IPFS Wrapped</code>的CID为目录，因此只能用<code>ls</code>命令，不能用<code>cat</code>命令，<code>-v</code>是将字段描述展示出来。</p>
+<h3 id="通过父目录来获取文件内容"><a href="#通过父目录来获取文件内容" class="headerlink" title="通过父目录来获取文件内容"></a>通过父目录来获取文件内容</h3><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">ipfs cat QmY8utLB2d9KKpjaR3mhTngqYc1grAZDnTaXgMfMzUsXGT/test.txt</span><br></pre></td></tr></table></figure>
+<p>地址就是那个<code>IPFS Wrapped</code>的CID</p>
+<h3 id="查看哪些节点存储了指定文件"><a href="#查看哪些节点存储了指定文件" class="headerlink" title="查看哪些节点存储了指定文件"></a>查看哪些节点存储了指定文件</h3><p>这里通过<code>test.txt</code>的CID来查看有哪些节点存储了这个文件</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">ipfs dht findprovs QmcMR7dqXvUxgCXpwmKHyeu4mbwGAfvd5zoa7fY4UYmtPP</span><br></pre></td></tr></table></figure>
+<p>输出结果：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">12D3KooWSVzdPE1nXHAh9CyqAayFA8psJ9n6DwTkByiD8gWnm9b1</span><br></pre></td></tr></table></figure>
+<p>可以看出，输出的是本机的节点地址，也就是当前只有本机节点存储了这个文件</p>
+<h2 id="与HTTP-Web交互"><a href="#与HTTP-Web交互" class="headerlink" title="与HTTP Web交互"></a>与HTTP Web交互</h2><h3 id="前提要求"><a href="#前提要求" class="headerlink" title="前提要求"></a>前提要求</h3><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#</span><span class="bash"> 一定要先启动守护进程</span></span><br><span class="line">ipfs daemon</span><br></pre></td></tr></table></figure>
+<h3 id="从本地HTTP网关中获取IPFS数据"><a href="#从本地HTTP网关中获取IPFS数据" class="headerlink" title="从本地HTTP网关中获取IPFS数据"></a>从本地HTTP网关中获取IPFS数据</h3><p>在浏览器地址中输入如下内容，地址可以是localhost，也可以是远端的指定地址。默认是8080端口为web端口，我用的是自己的docker镜像，将端口映射为了8081</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">http://localhost:8081/ipfs/QmcMR7dqXvUxgCXpwmKHyeu4mbwGAfvd5zoa7fY4UYmtPP</span><br></pre></td></tr></table></figure>
+<p>页面输出的就是<code>test.txt</code>的内容：<code>hello jason</code></p>
+<h3 id="从公共HTTP网关获取IPFS数据"><a href="#从公共HTTP网关获取IPFS数据" class="headerlink" title="从公共HTTP网关获取IPFS数据"></a>从公共HTTP网关获取IPFS数据</h3><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">http://ipfs.io/ipfs/QmcMR7dqXvUxgCXpwmKHyeu4mbwGAfvd5zoa7fY4UYmtPP</span><br><span class="line">http://ipfs.infura.io/ipfs/QmcMR7dqXvUxgCXpwmKHyeu4mbwGAfvd5zoa7fY4UYmtPP</span><br></pre></td></tr></table></figure>
+<p>基于IPFS的特点，既然我的IPFS节点已经和公共网络的连接上了，那在别的公共节点上，也应该能通过CID读取到我的<code>test.txt</code>内容，也就是说，以上两个链接也能访问到<code>test.txt</code>的内容。</p>
+<h3 id="IPFS-Web控制台"><a href="#IPFS-Web控制台" class="headerlink" title="IPFS Web控制台"></a>IPFS Web控制台</h3><p>IPFS自带一个web控制台，界面很简单，能够满足基础操作，端口号默认为<code>5001</code>，具体如下浏览器访问：</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">http://localhost:5001/webui</span><br></pre></td></tr></table></figure>
+<p>在启动<code>ipfs daemon</code>的情况下，默认的IPFS是无法远程访问web控制台的，或者不允许跨域请求，因此需要在节点上配置：</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">ipfs config --json API.HTTPHeaders.Access-Control-Allow-Origin &#x27;[&quot;http://xx.xx.xx.xx:5001&quot;, &quot;http://localhost:3000&quot;, &quot;http://127.0.0.1:5001&quot;, &quot;https://webui.ipfs.io&quot;]&#x27;</span><br><span class="line">ipfs config --json API.HTTPHeaders.Access-Control-Allow-Methods &#x27;[&quot;PUT&quot;, &quot;POST&quot;]&#x27;</span><br></pre></td></tr></table></figure>
+<p>具体IP和端口号需要自己根据实际情况调整。<br>若依旧无法访问，检查下自己的接口是不是被防火墙拦截了，以下是我启动后的一张图示：</p>
+<img src="/articles/600687bc/1.jpg" class="" title="IPFS Web控制台">
+<img src="/articles/600687bc/2.jpg" class="" title="已存储文件">
+
+<h2 id="在线调试工具"><a href="#在线调试工具" class="headerlink" title="在线调试工具"></a>在线调试工具</h2><p>ipfs官方提供了一个线上环境，不用部署IPFS即可操作相关命令，线上环境地址：<code>https://ipfs.docs.apiary.io</code></p>
+<h2 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h2><p>本文只讲了IPFS的基础命令，而IPFS还有大量高级命令，需要自己根据官方文档逐步去了解。相信在此处，对IPFS的应用已经有了一定的基础。</p>
+ 
+      <!-- reward -->
+      
+      <div id="reword-out">
+        <div id="reward-btn">
+          Donate
+        </div>
+      </div>
+      
+    </div>
+    
+
+    <!-- copyright -->
+    
+    <div class="declare">
+      <ul class="post-copyright">
+        <li>
+          <i class="ri-copyright-line"></i>
+          <strong>Copyright： </strong>
+          
+          Copyright is owned by the author. For commercial reprints, please contact the author for authorization. For non-commercial reprints, please indicate the source.
+          
+        </li>
+      </ul>
+    </div>
+    
+    <footer class="article-footer">
+       
+<div class="share-btn">
+      <span class="share-sns share-outer">
+        <i class="ri-share-forward-line"></i>
+        分享
+      </span>
+      <div class="share-wrap">
+        <i class="arrow"></i>
+        <div class="share-icons">
+          
+          <a class="weibo share-sns" href="javascript:;" data-type="weibo">
+            <i class="ri-weibo-fill"></i>
+          </a>
+          <a class="weixin share-sns wxFab" href="javascript:;" data-type="weixin">
+            <i class="ri-wechat-fill"></i>
+          </a>
+          <a class="qq share-sns" href="javascript:;" data-type="qq">
+            <i class="ri-qq-fill"></i>
+          </a>
+          <a class="douban share-sns" href="javascript:;" data-type="douban">
+            <i class="ri-douban-line"></i>
+          </a>
+          <!-- <a class="qzone share-sns" href="javascript:;" data-type="qzone">
+            <i class="icon icon-qzone"></i>
+          </a> -->
+          
+          <a class="facebook share-sns" href="javascript:;" data-type="facebook">
+            <i class="ri-facebook-circle-fill"></i>
+          </a>
+          <a class="twitter share-sns" href="javascript:;" data-type="twitter">
+            <i class="ri-twitter-fill"></i>
+          </a>
+          <a class="google share-sns" href="javascript:;" data-type="google">
+            <i class="ri-google-fill"></i>
+          </a>
+        </div>
+      </div>
+</div>
+
+<div class="wx-share-modal">
+    <a class="modal-close" href="javascript:;"><i class="ri-close-circle-line"></i></a>
+    <p>扫一扫，分享到微信</p>
+    <div class="wx-qrcode">
+      <img src="//api.qrserver.com/v1/create-qr-code/?size=150x150&data=http://jason-wj.gitee.io/articles/600687bc/" alt="微信分享二维码">
+    </div>
+</div>
+
+<div id="share-mask"></div>  
+  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/ipfs/" rel="tag">ipfs</a></li></ul>
+
+    </footer>
+  </div>
+
+   
+  <nav class="article-nav">
+    
+    
+      <a href="/articles/25678954/" class="article-nav-link">
+        <strong class="article-nav-caption">下一篇</strong>
+        <div class="article-nav-title">IPFS开篇-ipfs单机安装</div>
+      </a>
+    
+  </nav>
+
+   
+<!-- valine评论 -->
+<div id="vcomments-box">
+  <div id="vcomments"></div>
+</div>
+<script src="//cdn1.lncld.net/static/js/3.0.4/av-min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/valine@1.4.14/dist/Valine.min.js"></script>
+<script>
+  new Valine({
+    el: "#vcomments",
+    app_id: "gdw0hVSwW3l6KgEMulSAc9Rx-gzGzoHsz",
+    app_key: "M4iiVXe0CuXWQEKuyIzWWDMh",
+    path: window.location.pathname,
+    avatar: "monsterid",
+    placeholder: "给我的文章加点评论吧~",
+    recordIP: true,
+  });
+  const infoEle = document.querySelector("#vcomments .info");
+  if (infoEle && infoEle.childNodes && infoEle.childNodes.length > 0) {
+    infoEle.childNodes.forEach(function (item) {
+      item.parentNode.removeChild(item);
+    });
+  }
+</script>
+<style>
+  #vcomments-box {
+    padding: 5px 30px;
+  }
+
+  @media screen and (max-width: 800px) {
+    #vcomments-box {
+      padding: 5px 0px;
+    }
+  }
+
+  #vcomments-box #vcomments {
+    background-color: #fff;
+  }
+
+  .v .vlist .vcard .vh {
+    padding-right: 20px;
+  }
+
+  .v .vlist .vcard {
+    padding-left: 10px;
+  }
+</style>
+
+ 
+   
+     
+</article>
+
+</section>
+      <footer class="footer">
+  <div class="outer">
+    <ul>
+      <li>
+        Copyrights &copy;
+        2017-2021
+        <i class="ri-heart-fill heart_icon"></i> Jason
+      </li>
+    </ul>
+    <ul>
+      <li>
+        
+      </li>
+    </ul>
+    <ul>
+      <li>
+        
+        
+        <span>
+  <span><i class="ri-user-3-fill"></i>Visitors:<span id="busuanzi_value_site_uv"></span></s>
+  <span class="division">|</span>
+  <span><i class="ri-eye-fill"></i>Views:<span id="busuanzi_value_page_pv"></span></span>
+</span>
+        
+      </li>
+    </ul>
+    <ul>
+      
+    </ul>
+    <ul>
+      
+    </ul>
+    <ul>
+      <li>
+        <!-- cnzz统计 -->
+        
+        <script type="text/javascript" src='https://s4.cnzz.com/z_stat.php?id=1279593399&amp;web_id=1279593399'></script>
+        
+      </li>
+    </ul>
+  </div>
+</footer>
+      <div class="float_btns">
+        <div class="totop" id="totop">
+  <i class="ri-arrow-up-line"></i>
+</div>
+
+<div class="todark" id="todark">
+  <i class="ri-moon-line"></i>
+</div>
+
+      </div>
+    </main>
+    <aside class="sidebar on">
+      <button class="navbar-toggle"></button>
+<nav class="navbar">
+  
+  <div class="logo">
+    <a href="/"><img src="/images/my_head-touch-icon-next.png" alt="Jason漫谈区块链"></a>
+  </div>
+  
+  <ul class="nav nav-main">
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/">主页</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/archives">归档</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/categories">分类</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/tags">标签</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/friends">友链</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/about">关于我</a>
+    </li>
+    
+  </ul>
+</nav>
+<nav class="navbar navbar-bottom">
+  <ul class="nav">
+    <li class="nav-item">
+      
+      <a class="nav-item-link nav-item-search"  title="Search">
+        <i class="ri-search-line"></i>
+      </a>
+      
+      
+    </li>
+  </ul>
+</nav>
+<div class="search-form-wrap">
+  <div class="local-search local-search-plugin">
+  <input type="search" id="local-search-input" class="local-search-input" placeholder="Search...">
+  <div id="local-search-result" class="local-search-result"></div>
+</div>
+</div>
+    </aside>
+    <script>
+      if (window.matchMedia("(max-width: 768px)").matches) {
+        document.querySelector('.content').classList.remove('on');
+        document.querySelector('.sidebar').classList.remove('on');
+      }
+    </script>
+    <div id="mask"></div>
+
+<!-- #reward -->
+<div id="reward">
+  <span class="close"><i class="ri-close-line"></i></span>
+  <p class="reward-p"><i class="ri-cup-line"></i>请我喝杯咖啡吧~</p>
+  <div class="reward-box">
+    
+    <div class="reward-item">
+      <img class="reward-img" src="/images/pay_ali.jpg">
+      <span class="reward-type">支付宝</span>
+    </div>
+    
+    
+    <div class="reward-item">
+      <img class="reward-img" src="/images/pay_wechat.jpg">
+      <span class="reward-type">微信</span>
+    </div>
+    
+  </div>
+</div>
+    
+<script src="/js/jquery-2.0.3.min.js"></script>
+
+
+<script src="/js/lazyload.min.js"></script>
+
+<!-- Tocbot -->
+
+
+<script src="/js/tocbot.min.js"></script>
+
+<script>
+  tocbot.init({
+    tocSelector: '.tocbot',
+    contentSelector: '.article-entry',
+    headingSelector: 'h1, h2, h3, h4, h5, h6',
+    hasInnerContainers: true,
+    scrollSmooth: true,
+    scrollContainer: 'main',
+    positionFixedSelector: '.tocbot',
+    positionFixedClass: 'is-position-fixed',
+    fixedSidebarOffset: 'auto'
+  });
+</script>
+
+<script src="https://cdn.jsdelivr.net/npm/jquery-modal@0.9.2/jquery.modal.min.js"></script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/jquery-modal@0.9.2/jquery.modal.min.css">
+<script src="https://cdn.jsdelivr.net/npm/justifiedGallery@3.7.0/dist/js/jquery.justifiedGallery.min.js"></script>
+
+<script src="/dist/main.js"></script>
+
+<!-- ImageViewer -->
+
+<!-- Root element of PhotoSwipe. Must have class pswp. -->
+<div class="pswp" tabindex="-1" role="dialog" aria-hidden="true">
+
+    <!-- Background of PhotoSwipe. 
+         It's a separate element as animating opacity is faster than rgba(). -->
+    <div class="pswp__bg"></div>
+
+    <!-- Slides wrapper with overflow:hidden. -->
+    <div class="pswp__scroll-wrap">
+
+        <!-- Container that holds slides. 
+            PhotoSwipe keeps only 3 of them in the DOM to save memory.
+            Don't modify these 3 pswp__item elements, data is added later on. -->
+        <div class="pswp__container">
+            <div class="pswp__item"></div>
+            <div class="pswp__item"></div>
+            <div class="pswp__item"></div>
+        </div>
+
+        <!-- Default (PhotoSwipeUI_Default) interface on top of sliding area. Can be changed. -->
+        <div class="pswp__ui pswp__ui--hidden">
+
+            <div class="pswp__top-bar">
+
+                <!--  Controls are self-explanatory. Order can be changed. -->
+
+                <div class="pswp__counter"></div>
+
+                <button class="pswp__button pswp__button--close" title="Close (Esc)"></button>
+
+                <button class="pswp__button pswp__button--share" style="display:none" title="Share"></button>
+
+                <button class="pswp__button pswp__button--fs" title="Toggle fullscreen"></button>
+
+                <button class="pswp__button pswp__button--zoom" title="Zoom in/out"></button>
+
+                <!-- Preloader demo http://codepen.io/dimsemenov/pen/yyBWoR -->
+                <!-- element will get class pswp__preloader--active when preloader is running -->
+                <div class="pswp__preloader">
+                    <div class="pswp__preloader__icn">
+                        <div class="pswp__preloader__cut">
+                            <div class="pswp__preloader__donut"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="pswp__share-modal pswp__share-modal--hidden pswp__single-tap">
+                <div class="pswp__share-tooltip"></div>
+            </div>
+
+            <button class="pswp__button pswp__button--arrow--left" title="Previous (arrow left)">
+            </button>
+
+            <button class="pswp__button pswp__button--arrow--right" title="Next (arrow right)">
+            </button>
+
+            <div class="pswp__caption">
+                <div class="pswp__caption__center"></div>
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe.min.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/default-skin/default-skin.min.css">
+<script src="https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe-ui-default.min.js"></script>
+
+<script>
+    function viewer_init() {
+        let pswpElement = document.querySelectorAll('.pswp')[0];
+        let $imgArr = document.querySelectorAll(('.article-entry img:not(.reward-img)'))
+
+        $imgArr.forEach(($em, i) => {
+            $em.onclick = () => {
+                // slider展开状态
+                // todo: 这样不好，后面改成状态
+                if (document.querySelector('.left-col.show')) return
+                let items = []
+                $imgArr.forEach(($em2, i2) => {
+                    let img = $em2.getAttribute('data-idx', i2)
+                    let src = $em2.getAttribute('data-target') || $em2.getAttribute('src')
+                    let title = $em2.getAttribute('alt')
+                    // 获得原图尺寸
+                    const image = new Image()
+                    image.src = src
+                    items.push({
+                        src: src,
+                        w: image.width || $em2.width,
+                        h: image.height || $em2.height,
+                        title: title
+                    })
+                })
+                var gallery = new PhotoSwipe(pswpElement, PhotoSwipeUI_Default, items, {
+                    index: parseInt(i)
+                });
+                gallery.init()
+            }
+        })
+    }
+    viewer_init()
+</script>
+
+<!-- MathJax -->
+
+<!-- Katex -->
+
+<!-- busuanzi  -->
+
+
+<script src="/js/busuanzi-2.3.pure.min.js"></script>
+
+
+<!-- ClickLove -->
+
+<!-- ClickBoom1 -->
+
+<!-- ClickBoom2 -->
+
+<!-- CodeCopy -->
+
+
+<link rel="stylesheet" href="/css/clipboard.css">
+
+<script src="https://cdn.jsdelivr.net/npm/clipboard@2/dist/clipboard.min.js"></script>
+<script>
+  function wait(callback, seconds) {
+    var timelag = null;
+    timelag = window.setTimeout(callback, seconds);
+  }
+  !function (e, t, a) {
+    var initCopyCode = function(){
+      var copyHtml = '';
+      copyHtml += '<button class="btn-copy" data-clipboard-snippet="">';
+      copyHtml += '<i class="ri-file-copy-2-line"></i><span>COPY</span>';
+      copyHtml += '</button>';
+      $(".highlight .code pre").before(copyHtml);
+      $(".article pre code").before(copyHtml);
+      var clipboard = new ClipboardJS('.btn-copy', {
+        target: function(trigger) {
+          return trigger.nextElementSibling;
+        }
+      });
+      clipboard.on('success', function(e) {
+        let $btn = $(e.trigger);
+        $btn.addClass('copied');
+        let $icon = $($btn.find('i'));
+        $icon.removeClass('ri-file-copy-2-line');
+        $icon.addClass('ri-checkbox-circle-line');
+        let $span = $($btn.find('span'));
+        $span[0].innerText = 'COPIED';
+        
+        wait(function () { // 等待两秒钟后恢复
+          $icon.removeClass('ri-checkbox-circle-line');
+          $icon.addClass('ri-file-copy-2-line');
+          $span[0].innerText = 'COPY';
+        }, 2000);
+      });
+      clipboard.on('error', function(e) {
+        e.clearSelection();
+        let $btn = $(e.trigger);
+        $btn.addClass('copy-failed');
+        let $icon = $($btn.find('i'));
+        $icon.removeClass('ri-file-copy-2-line');
+        $icon.addClass('ri-time-line');
+        let $span = $($btn.find('span'));
+        $span[0].innerText = 'COPY FAILED';
+        
+        wait(function () { // 等待两秒钟后恢复
+          $icon.removeClass('ri-time-line');
+          $icon.addClass('ri-file-copy-2-line');
+          $span[0].innerText = 'COPY';
+        }, 2000);
+      });
+    }
+    initCopyCode();
+  }(window, document);
+</script>
+
+
+<!-- CanvasBackground -->
+
+
+    
+  </div>
+</body>
+
+</html>

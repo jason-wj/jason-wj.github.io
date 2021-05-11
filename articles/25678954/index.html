@@ -11,7 +11,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
   <title>
-    IPFS开篇-ipfss单机安装 |  Jason漫谈区块链
+    IPFS开篇-ipfs单机安装 |  Jason漫谈区块链
   </title>
   <meta name="generator" content="hexo-theme-ayer">
   
@@ -57,7 +57,7 @@
     <header class="article-header">
        
 <h1 class="article-title sea-center" style="border-left:0" itemprop="name">
-  IPFS开篇-ipfss单机安装
+  IPFS开篇-ipfs单机安装
 </h1>
  
 
@@ -76,7 +76,7 @@
         <span class="post-meta-item-icon">
             <i class="ri-quill-pen-line"></i>
             <span class="post-meta-item-text"> Word count:</span>
-            <span class="post-count">525</span>
+            <span class="post-count">564</span>
         </span>
     </span>
 
@@ -85,7 +85,7 @@
         <span class="post-meta-item-icon">
             <i class="ri-book-open-line"></i>
             <span class="post-meta-item-text"> Reading time≈</span>
-            <span class="post-count">1 min</span>
+            <span class="post-count">2 min</span>
         </span>
     </span>
 </div>
@@ -109,7 +109,10 @@
 <h2 id="启动IPFS容器"><a href="#启动IPFS容器" class="headerlink" title="启动IPFS容器"></a>启动IPFS容器</h2><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">./main.sh start ipfs</span><br></pre></td></tr></table></figure>
 <p>该操作可以通过docker-compose将IPFS启动</p>
 <h2 id="进入IPFS容器"><a href="#进入IPFS容器" class="headerlink" title="进入IPFS容器"></a>进入IPFS容器</h2><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">./main.sh exec ipfs</span><br></pre></td></tr></table></figure>
-<p>该操作可以直接进入到IPFS容器中，然后操作ipfs的各种命令，比如第一条命令，查看版本号：<code>ipfs --version</code></p>
+<ol>
+<li>该操作可以直接进入到IPFS容器中，然后操作ipfs的各种命令，比如第一条命令，查看版本号：<code>ipfs --version</code></li>
+<li>在容器内部，ipfs实例已运行，也就是<code>ipfs init</code>在容器启动前就已经完成了，文件默认存储位置在<code>/data/ipfs/</code></li>
+</ol>
 <h2 id="停止IPFS容器"><a href="#停止IPFS容器" class="headerlink" title="停止IPFS容器"></a>停止IPFS容器</h2><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">./main.sh </span><br></pre></td></tr></table></figure>
 <p>该操作将会停止并清除IPFS容器，当然，映射出来的文件依旧存在，下次重新启动后，依旧可以继续读取先前保存的内容。</p>
 <h2 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h2><p>官方也提供了IPFS的多种安装方式，有直接安装二进制命令行的，有可视化安装本地客户端的等等，都可以试试。本文我只是根据自己情况，为简化流程，<br>使用自己封装的脚本来运行IPFS。一个节点启动后，后续即可用于掌握命令或者掌握程序对接和调用。</p>
@@ -195,6 +198,15 @@
 
    
   <nav class="article-nav">
+    
+      <a href="/articles/600687bc/" class="article-nav-link">
+        <strong class="article-nav-caption">上一篇</strong>
+        <div class="article-nav-title">
+          
+            IPFS基础操作
+          
+        </div>
+      </a>
     
     
       <a href="/articles/7e379521/" class="article-nav-link">

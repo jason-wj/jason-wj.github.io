@@ -8,7 +8,74 @@
 ]]></content>
   </entry>
   <entry>
-    <title>IPFS开篇-ipfss单机安装</title>
+    <title>IPFS基础操作</title>
+    <url>/articles/600687bc/</url>
+    <content><![CDATA[<p>本文主要是综合的介绍IPFS的命令行使用方式，掌握对文件的基本操作，同时从整体上对IPFS有一个初步的了解。</p>
+<a id="more"></a>
+
+<h2 id="IPFS初始化"><a href="#IPFS初始化" class="headerlink" title="IPFS初始化"></a>IPFS初始化</h2><h3 id="初始化"><a href="#初始化" class="headerlink" title="初始化"></a>初始化</h3><figure class="highlight shell"><table><tr><td class="code"><pre><span class="line"><span class="meta">#</span><span class="bash"> 初始化IPFS仓库，会在~/.ipfs目录中生成初始化文件，具体文件作用，稍后介绍</span></span><br><span class="line">ipfs init</span><br></pre></td></tr></table></figure>
+<h3 id="初始化文件说明"><a href="#初始化文件说明" class="headerlink" title="初始化文件说明"></a>初始化文件说明</h3><p>在<code>~/.ipfs</code>中，会生成如下几个文件：</p>
+<ol>
+<li><code>blocks</code>：本地仓库存储的CID文件块链接目录</li>
+<li><code>keystore</code>：密钥对文件存储目录</li>
+<li><code>datastore</code>：LevelDB数据文件目录</li>
+<li><code>config</code>：配置文件(非目录),json格式</li>
+<li><code>version</code>：文件，记录当前IPFS的版本号</li>
+</ol>
+<h3 id="IPFS存储文件目录设置"><a href="#IPFS存储文件目录设置" class="headerlink" title="IPFS存储文件目录设置"></a>IPFS存储文件目录设置</h3><p>在环境变量中，设置<code>$IPFS_PATH</code>，docker镜像的默认地址设置为了：<code>/data/ipfs/</code>，其余默认一般为：<code>~/.ipfs</code></p>
+<h3 id="config配置文件说明"><a href="#config配置文件说明" class="headerlink" title="config配置文件说明"></a>config配置文件说明</h3><p>配置文件无疑是当前最关心的内容，后续可根据需要来调整配置，具体内容如下：</p>
+<figure class="highlight json"><table><tr><td class="code"><pre><span class="line">&#123;</span><br><span class="line">  <span class="attr">&quot;API&quot;</span>: &#123;   <span class="comment">//节点API配置</span></span><br><span class="line">    <span class="attr">&quot;HTTPHeaders&quot;</span>: &#123;&#125;</span><br><span class="line">  &#125;,</span><br><span class="line">  <span class="attr">&quot;Addresses&quot;</span>: &#123;   <span class="comment">//节点网络通信multiaddress配置</span></span><br><span class="line">    <span class="attr">&quot;API&quot;</span>: <span class="string">&quot;/ip4/0.0.0.0/tcp/5001&quot;</span>,</span><br><span class="line">    <span class="attr">&quot;Announce&quot;</span>: [],</span><br><span class="line">    <span class="attr">&quot;Gateway&quot;</span>: <span class="string">&quot;/ip4/0.0.0.0/tcp/8080&quot;</span>,</span><br><span class="line">    <span class="attr">&quot;NoAnnounce&quot;</span>: [],</span><br><span class="line">    <span class="attr">&quot;Swarm&quot;</span>: [</span><br><span class="line">      <span class="string">&quot;/ip4/0.0.0.0/tcp/4001&quot;</span>,</span><br><span class="line">      <span class="string">&quot;/ip6/::/tcp/4001&quot;</span>,</span><br><span class="line">      <span class="string">&quot;/ip4/0.0.0.0/udp/4001/quic&quot;</span>,</span><br><span class="line">      <span class="string">&quot;/ip6/::/udp/4001/quic&quot;</span></span><br><span class="line">    ]</span><br><span class="line">  &#125;,</span><br><span class="line">  <span class="attr">&quot;AutoNAT&quot;</span>: &#123;&#125;,</span><br><span class="line">  <span class="attr">&quot;Bootstrap&quot;</span>: [   <span class="comment">//中继节点multiaddress配置</span></span><br><span class="line">    <span class="string">&quot;/dnsaddr/bootstrap.libp2p.io/p2p/QmNnooDu7bfjPFoTZYxMNLWUQJyrVwtbZg5gBMjTezGAJN&quot;</span>,</span><br><span class="line">    <span class="string">&quot;/dnsaddr/bootstrap.libp2p.io/p2p/QmQCU2EcMqAqQPR2i9bChDtGNJchTbq5TbXJJ16u19uLTa&quot;</span>,</span><br><span class="line">    <span class="string">&quot;/dnsaddr/bootstrap.libp2p.io/p2p/QmbLHAnMoJPWSCR5Zhtx6BHJX9KiKNN6tpvbUcqanj75Nb&quot;</span>,</span><br><span class="line">    <span class="string">&quot;/dnsaddr/bootstrap.libp2p.io/p2p/QmcZf59bWwK5XFi76CZX8cbJ4BhTzzA3gU1ZjYZcYW3dwt&quot;</span>,</span><br><span class="line">    <span class="string">&quot;/ip4/104.131.131.82/tcp/4001/p2p/QmaCpDMGvV2BGHeYERUEnRQAwe3N8SzbUtfsmvsqQLuvuJ&quot;</span>,</span><br><span class="line">    <span class="string">&quot;/ip4/104.131.131.82/udp/4001/quic/p2p/QmaCpDMGvV2BGHeYERUEnRQAwe3N8SzbUtfsmvsqQLuvuJ&quot;</span></span><br><span class="line">  ],</span><br><span class="line">  <span class="attr">&quot;Datastore&quot;</span>: &#123;  <span class="comment">//存储配置</span></span><br><span class="line">    <span class="attr">&quot;BloomFilterSize&quot;</span>: <span class="number">0</span>,</span><br><span class="line">    <span class="attr">&quot;GCPeriod&quot;</span>: <span class="string">&quot;1h&quot;</span>,</span><br><span class="line">    <span class="attr">&quot;HashOnRead&quot;</span>: <span class="literal">false</span>,</span><br><span class="line">    <span class="attr">&quot;Spec&quot;</span>: &#123;</span><br><span class="line">      <span class="attr">&quot;mounts&quot;</span>: [</span><br><span class="line">        &#123;</span><br><span class="line">          <span class="attr">&quot;child&quot;</span>: &#123;</span><br><span class="line">            <span class="attr">&quot;path&quot;</span>: <span class="string">&quot;blocks&quot;</span>,</span><br><span class="line">            <span class="attr">&quot;shardFunc&quot;</span>: <span class="string">&quot;/repo/flatfs/shard/v1/next-to-last/2&quot;</span>,</span><br><span class="line">            <span class="attr">&quot;sync&quot;</span>: <span class="literal">true</span>,</span><br><span class="line">            <span class="attr">&quot;type&quot;</span>: <span class="string">&quot;flatfs&quot;</span></span><br><span class="line">          &#125;,</span><br><span class="line">          <span class="attr">&quot;mountpoint&quot;</span>: <span class="string">&quot;/blocks&quot;</span>,</span><br><span class="line">          <span class="attr">&quot;prefix&quot;</span>: <span class="string">&quot;flatfs.datastore&quot;</span>,</span><br><span class="line">          <span class="attr">&quot;type&quot;</span>: <span class="string">&quot;measure&quot;</span></span><br><span class="line">        &#125;,</span><br><span class="line">        &#123;</span><br><span class="line">          <span class="attr">&quot;child&quot;</span>: &#123;</span><br><span class="line">            <span class="attr">&quot;compression&quot;</span>: <span class="string">&quot;none&quot;</span>,</span><br><span class="line">            <span class="attr">&quot;path&quot;</span>: <span class="string">&quot;datastore&quot;</span>,</span><br><span class="line">            <span class="attr">&quot;type&quot;</span>: <span class="string">&quot;levelds&quot;</span></span><br><span class="line">          &#125;,</span><br><span class="line">          <span class="attr">&quot;mountpoint&quot;</span>: <span class="string">&quot;/&quot;</span>,</span><br><span class="line">          <span class="attr">&quot;prefix&quot;</span>: <span class="string">&quot;leveldb.datastore&quot;</span>,</span><br><span class="line">          <span class="attr">&quot;type&quot;</span>: <span class="string">&quot;measure&quot;</span></span><br><span class="line">        &#125;</span><br><span class="line">      ],</span><br><span class="line">      <span class="attr">&quot;type&quot;</span>: <span class="string">&quot;mount&quot;</span></span><br><span class="line">    &#125;,</span><br><span class="line">    <span class="attr">&quot;StorageGCWatermark&quot;</span>: <span class="number">90</span>,</span><br><span class="line">    <span class="attr">&quot;StorageMax&quot;</span>: <span class="string">&quot;10GB&quot;</span></span><br><span class="line">  &#125;,</span><br><span class="line">  <span class="attr">&quot;Discovery&quot;</span>: &#123;  <span class="comment">//LibP2P Discovery配置</span></span><br><span class="line">    <span class="attr">&quot;MDNS&quot;</span>: &#123;</span><br><span class="line">      <span class="attr">&quot;Enabled&quot;</span>: <span class="literal">true</span>,</span><br><span class="line">      <span class="attr">&quot;Interval&quot;</span>: <span class="number">10</span></span><br><span class="line">    &#125;</span><br><span class="line">  &#125;,</span><br><span class="line">  <span class="attr">&quot;Experimental&quot;</span>: &#123;   <span class="comment">//实验功能开关配置</span></span><br><span class="line">    <span class="attr">&quot;FilestoreEnabled&quot;</span>: <span class="literal">false</span>,</span><br><span class="line">    <span class="attr">&quot;GraphsyncEnabled&quot;</span>: <span class="literal">false</span>,</span><br><span class="line">    <span class="attr">&quot;Libp2pStreamMounting&quot;</span>: <span class="literal">false</span>,</span><br><span class="line">    <span class="attr">&quot;P2pHttpProxy&quot;</span>: <span class="literal">false</span>,</span><br><span class="line">    <span class="attr">&quot;ShardingEnabled&quot;</span>: <span class="literal">false</span>,</span><br><span class="line">    <span class="attr">&quot;StrategicProviding&quot;</span>: <span class="literal">false</span>,</span><br><span class="line">    <span class="attr">&quot;UrlstoreEnabled&quot;</span>: <span class="literal">false</span></span><br><span class="line">  &#125;,</span><br><span class="line">  <span class="attr">&quot;Gateway&quot;</span>: &#123;   <span class="comment">//HTTP 网关配置</span></span><br><span class="line">    <span class="attr">&quot;APICommands&quot;</span>: [],</span><br><span class="line">    <span class="attr">&quot;HTTPHeaders&quot;</span>: &#123;</span><br><span class="line">      <span class="attr">&quot;Access-Control-Allow-Headers&quot;</span>: [</span><br><span class="line">        <span class="string">&quot;X-Requested-With&quot;</span>,</span><br><span class="line">        <span class="string">&quot;Range&quot;</span>,</span><br><span class="line">        <span class="string">&quot;User-Agent&quot;</span></span><br><span class="line">      ],</span><br><span class="line">      <span class="attr">&quot;Access-Control-Allow-Methods&quot;</span>: [</span><br><span class="line">        <span class="string">&quot;GET&quot;</span></span><br><span class="line">      ],</span><br><span class="line">      <span class="attr">&quot;Access-Control-Allow-Origin&quot;</span>: [</span><br><span class="line">        <span class="string">&quot;*&quot;</span></span><br><span class="line">      ]</span><br><span class="line">    &#125;,</span><br><span class="line">    <span class="attr">&quot;NoDNSLink&quot;</span>: <span class="literal">false</span>,</span><br><span class="line">    <span class="attr">&quot;NoFetch&quot;</span>: <span class="literal">false</span>,</span><br><span class="line">    <span class="attr">&quot;PathPrefixes&quot;</span>: [],</span><br><span class="line">    <span class="attr">&quot;PublicGateways&quot;</span>: <span class="literal">null</span>,</span><br><span class="line">    <span class="attr">&quot;RootRedirect&quot;</span>: <span class="string">&quot;&quot;</span>,</span><br><span class="line">    <span class="attr">&quot;Writable&quot;</span>: <span class="literal">false</span></span><br><span class="line">  &#125;,</span><br><span class="line">  <span class="attr">&quot;Identity&quot;</span>: &#123;  <span class="comment">//节点身份信息</span></span><br><span class="line">    <span class="attr">&quot;PeerID&quot;</span>: <span class="string">&quot;12D3KooWSVzdPE1nXHAh9CyqAayFA8psJ9n6DwTkByiD8gWnm9b1&quot;</span>,</span><br><span class="line">    <span class="attr">&quot;PrivKey&quot;</span>: <span class="string">&quot;CAESQMQL3NrWkdjsQ++yxdWvlnCSaltDpYTKRA4+CRZhibgQ9+Hd9lslOXRd0pF4dqCtOIMHMpgtbTVaqba5bfOqYeQ=&quot;</span></span><br><span class="line">  &#125;,</span><br><span class="line">  <span class="attr">&quot;Ipns&quot;</span>: &#123;   <span class="comment">//Ipns配置</span></span><br><span class="line">    <span class="attr">&quot;RecordLifetime&quot;</span>: <span class="string">&quot;&quot;</span>,</span><br><span class="line">    <span class="attr">&quot;RepublishPeriod&quot;</span>: <span class="string">&quot;&quot;</span>,</span><br><span class="line">    <span class="attr">&quot;ResolveCacheSize&quot;</span>: <span class="number">128</span></span><br><span class="line">  &#125;,</span><br><span class="line">  <span class="attr">&quot;Mounts&quot;</span>: &#123;  <span class="comment">//文件系统挂载配置</span></span><br><span class="line">    <span class="attr">&quot;FuseAllowOther&quot;</span>: <span class="literal">false</span>,</span><br><span class="line">    <span class="attr">&quot;IPFS&quot;</span>: <span class="string">&quot;/ipfs&quot;</span>,</span><br><span class="line">    <span class="attr">&quot;IPNS&quot;</span>: <span class="string">&quot;/ipns&quot;</span></span><br><span class="line">  &#125;,</span><br><span class="line">  <span class="attr">&quot;Peering&quot;</span>: &#123;</span><br><span class="line">    <span class="attr">&quot;Peers&quot;</span>: <span class="literal">null</span></span><br><span class="line">  &#125;,</span><br><span class="line">  <span class="attr">&quot;Pinning&quot;</span>: &#123;</span><br><span class="line">    <span class="attr">&quot;RemoteServices&quot;</span>: &#123;&#125;</span><br><span class="line">  &#125;,</span><br><span class="line">  <span class="attr">&quot;Plugins&quot;</span>: &#123;</span><br><span class="line">    <span class="attr">&quot;Plugins&quot;</span>: <span class="literal">null</span></span><br><span class="line">  &#125;,</span><br><span class="line">  <span class="attr">&quot;Provider&quot;</span>: &#123;</span><br><span class="line">    <span class="attr">&quot;Strategy&quot;</span>: <span class="string">&quot;&quot;</span></span><br><span class="line">  &#125;,</span><br><span class="line">  <span class="attr">&quot;Pubsub&quot;</span>: &#123;</span><br><span class="line">    <span class="attr">&quot;DisableSigning&quot;</span>: <span class="literal">false</span>,</span><br><span class="line">    <span class="attr">&quot;Router&quot;</span>: <span class="string">&quot;&quot;</span></span><br><span class="line">  &#125;,</span><br><span class="line">  <span class="attr">&quot;Reprovider&quot;</span>: &#123;</span><br><span class="line">    <span class="attr">&quot;Interval&quot;</span>: <span class="string">&quot;12h&quot;</span>,</span><br><span class="line">    <span class="attr">&quot;Strategy&quot;</span>: <span class="string">&quot;all&quot;</span></span><br><span class="line">  &#125;,</span><br><span class="line">  <span class="attr">&quot;Routing&quot;</span>: &#123;</span><br><span class="line">    <span class="attr">&quot;Type&quot;</span>: <span class="string">&quot;dht&quot;</span></span><br><span class="line">  &#125;,</span><br><span class="line">  <span class="attr">&quot;Swarm&quot;</span>: &#123;  <span class="comment">//P2P Swarm配置</span></span><br><span class="line">    <span class="attr">&quot;AddrFilters&quot;</span>: <span class="literal">null</span>,</span><br><span class="line">    <span class="attr">&quot;ConnMgr&quot;</span>: &#123;</span><br><span class="line">      <span class="attr">&quot;GracePeriod&quot;</span>: <span class="string">&quot;20s&quot;</span>,</span><br><span class="line">      <span class="attr">&quot;HighWater&quot;</span>: <span class="number">900</span>,</span><br><span class="line">      <span class="attr">&quot;LowWater&quot;</span>: <span class="number">600</span>,</span><br><span class="line">      <span class="attr">&quot;Type&quot;</span>: <span class="string">&quot;basic&quot;</span></span><br><span class="line">    &#125;,</span><br><span class="line">    <span class="attr">&quot;DisableBandwidthMetrics&quot;</span>: <span class="literal">false</span>,</span><br><span class="line">    <span class="attr">&quot;DisableNatPortMap&quot;</span>: <span class="literal">false</span>,</span><br><span class="line">    <span class="attr">&quot;EnableAutoRelay&quot;</span>: <span class="literal">false</span>,</span><br><span class="line">    <span class="attr">&quot;EnableRelayHop&quot;</span>: <span class="literal">false</span>,</span><br><span class="line">    <span class="attr">&quot;Transports&quot;</span>: &#123;</span><br><span class="line">      <span class="attr">&quot;Multiplexers&quot;</span>: &#123;&#125;,</span><br><span class="line">      <span class="attr">&quot;Network&quot;</span>: &#123;&#125;,</span><br><span class="line">      <span class="attr">&quot;Security&quot;</span>: &#123;&#125;</span><br><span class="line">    &#125;</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<h2 id="加入IPFS网络环境"><a href="#加入IPFS网络环境" class="headerlink" title="加入IPFS网络环境"></a>加入IPFS网络环境</h2><h3 id="接入网络"><a href="#接入网络" class="headerlink" title="接入网络"></a>接入网络</h3><figure class="highlight shell"><table><tr><td class="code"><pre><span class="line">ipfs daemon</span><br></pre></td></tr></table></figure>
+<p>通过该命令，可以将本机的IPFS连接到公网的IPFS网络，同时启动了HTTP网关服务，方便后续HTTP WEB交互</p>
+<h3 id="查看对等方IPFS节点信息"><a href="#查看对等方IPFS节点信息" class="headerlink" title="查看对等方IPFS节点信息"></a>查看对等方IPFS节点信息</h3><figure class="highlight shell"><table><tr><td class="code"><pre><span class="line">ipfs swarm peers</span><br></pre></td></tr></table></figure>
+<p>执行后，可以看到有大量节点地址</p>
+<h2 id="与IPFS进行交互"><a href="#与IPFS进行交互" class="headerlink" title="与IPFS进行交互"></a>与IPFS进行交互</h2><h3 id="添加文件"><a href="#添加文件" class="headerlink" title="添加文件"></a>添加文件</h3><figure class="highlight shell"><table><tr><td class="code"><pre><span class="line">echo &quot;hello jason&quot; &gt; test.txt</span><br><span class="line">ipfs add test.txt </span><br></pre></td></tr></table></figure>
+<p>此时控制台返回结果：<code>added QmcMR7dqXvUxgCXpwmKHyeu4mbwGAfvd5zoa7fY4UYmtPP test.txt</code><br>表示<code>test.txt</code>文件在IPFS的hash地址(CID)为：<code>QmcMR7dqXvUxgCXpwmKHyeu4mbwGAfvd5zoa7fY4UYmtPP</code></p>
+<h3 id="读取文件"><a href="#读取文件" class="headerlink" title="读取文件"></a>读取文件</h3><figure class="highlight shell"><table><tr><td class="code"><pre><span class="line">ipfs cat QmcMR7dqXvUxgCXpwmKHyeu4mbwGAfvd5zoa7fY4UYmtPP</span><br></pre></td></tr></table></figure>
+<p>读出的内容和<code>test.txt</code>中完全一致：<code>hello jason</code></p>
+<h3 id="验证内容唯一性"><a href="#验证内容唯一性" class="headerlink" title="验证内容唯一性"></a>验证内容唯一性</h3><p>只要文件内容不变，则CID不变</p>
+<h3 id="写入文件的名称和目录信息"><a href="#写入文件的名称和目录信息" class="headerlink" title="写入文件的名称和目录信息"></a>写入文件的名称和目录信息</h3><figure class="highlight shell"><table><tr><td class="code"><pre><span class="line">ipfs add -w test.txt</span><br></pre></td></tr></table></figure>
+<p>返回两个<code>CID</code>，具体输出结果为：</p>
+<figure class="highlight text"><table><tr><td class="code"><pre><span class="line">added QmcMR7dqXvUxgCXpwmKHyeu4mbwGAfvd5zoa7fY4UYmtPP test.txt</span><br><span class="line">added QmY8utLB2d9KKpjaR3mhTngqYc1grAZDnTaXgMfMzUsXGT </span><br></pre></td></tr></table></figure>
+<p>其中第一条问文件内容的CID；第二条指向的是一个目录（即 <code>IPFS Wrapped</code>），记录了文件内容的文件内容的CID、文件名、文件大小、</p>
+<h3 id="读取IPFS-Wrapped获取文件信息"><a href="#读取IPFS-Wrapped获取文件信息" class="headerlink" title="读取IPFS Wrapped获取文件信息"></a>读取IPFS Wrapped获取文件信息</h3><figure class="highlight shell"><table><tr><td class="code"><pre><span class="line">ipfs ls -v QmY8utLB2d9KKpjaR3mhTngqYc1grAZDnTaXgMfMzUsXGT</span><br></pre></td></tr></table></figure>
+<p>输出结果为：</p>
+<figure class="highlight text"><table><tr><td class="code"><pre><span class="line">Hash                                           Size Name</span><br><span class="line">QmcMR7dqXvUxgCXpwmKHyeu4mbwGAfvd5zoa7fY4UYmtPP 12   test.txt</span><br></pre></td></tr></table></figure>
+<p><code>IPFS Wrapped</code>的CID为目录，因此只能用<code>ls</code>命令，不能用<code>cat</code>命令，<code>-v</code>是将字段描述展示出来。</p>
+<h3 id="通过父目录来获取文件内容"><a href="#通过父目录来获取文件内容" class="headerlink" title="通过父目录来获取文件内容"></a>通过父目录来获取文件内容</h3><figure class="highlight shell"><table><tr><td class="code"><pre><span class="line">ipfs cat QmY8utLB2d9KKpjaR3mhTngqYc1grAZDnTaXgMfMzUsXGT/test.txt</span><br></pre></td></tr></table></figure>
+<p>地址就是那个<code>IPFS Wrapped</code>的CID</p>
+<h3 id="查看哪些节点存储了指定文件"><a href="#查看哪些节点存储了指定文件" class="headerlink" title="查看哪些节点存储了指定文件"></a>查看哪些节点存储了指定文件</h3><p>这里通过<code>test.txt</code>的CID来查看有哪些节点存储了这个文件</p>
+<figure class="highlight shell"><table><tr><td class="code"><pre><span class="line">ipfs dht findprovs QmcMR7dqXvUxgCXpwmKHyeu4mbwGAfvd5zoa7fY4UYmtPP</span><br></pre></td></tr></table></figure>
+<p>输出结果：</p>
+<figure class="highlight text"><table><tr><td class="code"><pre><span class="line">12D3KooWSVzdPE1nXHAh9CyqAayFA8psJ9n6DwTkByiD8gWnm9b1</span><br></pre></td></tr></table></figure>
+<p>可以看出，输出的是本机的节点地址，也就是当前只有本机节点存储了这个文件</p>
+<h2 id="与HTTP-Web交互"><a href="#与HTTP-Web交互" class="headerlink" title="与HTTP Web交互"></a>与HTTP Web交互</h2><h3 id="前提要求"><a href="#前提要求" class="headerlink" title="前提要求"></a>前提要求</h3><figure class="highlight shell"><table><tr><td class="code"><pre><span class="line"><span class="meta">#</span><span class="bash"> 一定要先启动守护进程</span></span><br><span class="line">ipfs daemon</span><br></pre></td></tr></table></figure>
+<h3 id="从本地HTTP网关中获取IPFS数据"><a href="#从本地HTTP网关中获取IPFS数据" class="headerlink" title="从本地HTTP网关中获取IPFS数据"></a>从本地HTTP网关中获取IPFS数据</h3><p>在浏览器地址中输入如下内容，地址可以是localhost，也可以是远端的指定地址。默认是8080端口为web端口，我用的是自己的docker镜像，将端口映射为了8081</p>
+<figure class="highlight shell"><table><tr><td class="code"><pre><span class="line">http://localhost:8081/ipfs/QmcMR7dqXvUxgCXpwmKHyeu4mbwGAfvd5zoa7fY4UYmtPP</span><br></pre></td></tr></table></figure>
+<p>页面输出的就是<code>test.txt</code>的内容：<code>hello jason</code></p>
+<h3 id="从公共HTTP网关获取IPFS数据"><a href="#从公共HTTP网关获取IPFS数据" class="headerlink" title="从公共HTTP网关获取IPFS数据"></a>从公共HTTP网关获取IPFS数据</h3><figure class="highlight shell"><table><tr><td class="code"><pre><span class="line">http://ipfs.io/ipfs/QmcMR7dqXvUxgCXpwmKHyeu4mbwGAfvd5zoa7fY4UYmtPP</span><br><span class="line">http://ipfs.infura.io/ipfs/QmcMR7dqXvUxgCXpwmKHyeu4mbwGAfvd5zoa7fY4UYmtPP</span><br></pre></td></tr></table></figure>
+<p>基于IPFS的特点，既然我的IPFS节点已经和公共网络的连接上了，那在别的公共节点上，也应该能通过CID读取到我的<code>test.txt</code>内容，也就是说，以上两个链接也能访问到<code>test.txt</code>的内容。</p>
+<h3 id="IPFS-Web控制台"><a href="#IPFS-Web控制台" class="headerlink" title="IPFS Web控制台"></a>IPFS Web控制台</h3><p>IPFS自带一个web控制台，界面很简单，能够满足基础操作，端口号默认为<code>5001</code>，具体如下浏览器访问：</p>
+<figure class="highlight shell"><table><tr><td class="code"><pre><span class="line">http://localhost:5001/webui</span><br></pre></td></tr></table></figure>
+<p>在启动<code>ipfs daemon</code>的情况下，默认的IPFS是无法远程访问web控制台的，或者不允许跨域请求，因此需要在节点上配置：</p>
+<figure class="highlight shell"><table><tr><td class="code"><pre><span class="line">ipfs config --json API.HTTPHeaders.Access-Control-Allow-Origin &#x27;[&quot;http://xx.xx.xx.xx:5001&quot;, &quot;http://localhost:3000&quot;, &quot;http://127.0.0.1:5001&quot;, &quot;https://webui.ipfs.io&quot;]&#x27;</span><br><span class="line">ipfs config --json API.HTTPHeaders.Access-Control-Allow-Methods &#x27;[&quot;PUT&quot;, &quot;POST&quot;]&#x27;</span><br></pre></td></tr></table></figure>
+<p>具体IP和端口号需要自己根据实际情况调整。<br>若依旧无法访问，检查下自己的接口是不是被防火墙拦截了，以下是我启动后的一张图示：</p>
+<img src="/articles/600687bc/1.jpg" class="" title="IPFS Web控制台">
+<img src="/articles/600687bc/2.jpg" class="" title="已存储文件">
+
+<h2 id="在线调试工具"><a href="#在线调试工具" class="headerlink" title="在线调试工具"></a>在线调试工具</h2><p>ipfs官方提供了一个线上环境，不用部署IPFS即可操作相关命令，线上环境地址：<code>https://ipfs.docs.apiary.io</code></p>
+<h2 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h2><p>本文只讲了IPFS的基础命令，而IPFS还有大量高级命令，需要自己根据官方文档逐步去了解。相信在此处，对IPFS的应用已经有了一定的基础。</p>
+]]></content>
+      <categories>
+        <category>ipfs</category>
+        <category>ipfs应用</category>
+      </categories>
+      <tags>
+        <tag>ipfs</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>IPFS开篇-ipfs单机安装</title>
     <url>/articles/25678954/</url>
     <content><![CDATA[<p>2018年也曾有一段时间在研究IPFS并在项目中应用，也写了一篇类似文章：<a href="/articles/7987f3ac/index.html">ipfs私有环境搭建</a>，一晃眼已经3年了，<br>兜兜转转，我又重新拿起了IPFS，因为这三年的经历以及现在所处的工作环境让我明白，它的价值是毋庸置疑的。现在的IPFS也非曾经的IPFS，很有必要在重新掌握一遍。</p>
 <a id="more"></a>
@@ -19,7 +86,10 @@
 <h2 id="启动IPFS容器"><a href="#启动IPFS容器" class="headerlink" title="启动IPFS容器"></a>启动IPFS容器</h2><figure class="highlight shell"><table><tr><td class="code"><pre><span class="line">./main.sh start ipfs</span><br></pre></td></tr></table></figure>
 <p>该操作可以通过docker-compose将IPFS启动</p>
 <h2 id="进入IPFS容器"><a href="#进入IPFS容器" class="headerlink" title="进入IPFS容器"></a>进入IPFS容器</h2><figure class="highlight shell"><table><tr><td class="code"><pre><span class="line">./main.sh exec ipfs</span><br></pre></td></tr></table></figure>
-<p>该操作可以直接进入到IPFS容器中，然后操作ipfs的各种命令，比如第一条命令，查看版本号：<code>ipfs --version</code></p>
+<ol>
+<li>该操作可以直接进入到IPFS容器中，然后操作ipfs的各种命令，比如第一条命令，查看版本号：<code>ipfs --version</code></li>
+<li>在容器内部，ipfs实例已运行，也就是<code>ipfs init</code>在容器启动前就已经完成了，文件默认存储位置在<code>/data/ipfs/</code></li>
+</ol>
 <h2 id="停止IPFS容器"><a href="#停止IPFS容器" class="headerlink" title="停止IPFS容器"></a>停止IPFS容器</h2><figure class="highlight shell"><table><tr><td class="code"><pre><span class="line">./main.sh </span><br></pre></td></tr></table></figure>
 <p>该操作将会停止并清除IPFS容器，当然，映射出来的文件依旧存在，下次重新启动后，依旧可以继续读取先前保存的内容。</p>
 <h2 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h2><p>官方也提供了IPFS的多种安装方式，有直接安装二进制命令行的，有可视化安装本地客户端的等等，都可以试试。本文我只是根据自己情况，为简化流程，<br>使用自己封装的脚本来运行IPFS。一个节点启动后，后续即可用于掌握命令或者掌握程序对接和调用。</p>
@@ -908,12 +978,12 @@ http://192.168.3.100:8080/ipfs/QmbvBDKPhdHMVDthaafapqsis9g4YorjRp3bTLc4v7ZMp2/
 <a id="more"></a>
 
 <h2 id="ubuntu相关"><a href="#ubuntu相关" class="headerlink" title="ubuntu相关"></a>ubuntu相关</h2><h3 id="服务器信息"><a href="#服务器信息" class="headerlink" title="服务器信息"></a>服务器信息</h3><ol>
-<li>服务器1（节点1）:<a href="mailto:&#114;&#111;&#111;&#x74;&#64;&#49;&#57;&#50;&#x2e;&#x31;&#54;&#x38;&#46;&#x33;&#x2e;&#x31;&#48;&#48;">&#114;&#111;&#111;&#x74;&#64;&#49;&#57;&#50;&#x2e;&#x31;&#54;&#x38;&#46;&#x33;&#x2e;&#x31;&#48;&#48;</a><ol>
+<li>服务器1（节点1）:<a href="mailto:&#x72;&#x6f;&#111;&#x74;&#64;&#49;&#57;&#50;&#46;&#x31;&#x36;&#x38;&#x2e;&#x33;&#46;&#49;&#48;&#x30;">&#x72;&#x6f;&#111;&#x74;&#64;&#49;&#57;&#50;&#46;&#x31;&#x36;&#x38;&#x2e;&#x33;&#46;&#49;&#48;&#x30;</a><ol>
 <li>ipfs第一节点</li>
 <li>密码已修改******</li>
 </ol>
 </li>
-<li>服务器2（节点2）:<a href="mailto:&#114;&#111;&#x6f;&#x74;&#64;&#x31;&#x39;&#50;&#x2e;&#x31;&#54;&#x38;&#x2e;&#x33;&#46;&#x31;&#48;&#x31;">&#114;&#111;&#x6f;&#x74;&#64;&#x31;&#x39;&#50;&#x2e;&#x31;&#54;&#x38;&#x2e;&#x33;&#46;&#x31;&#48;&#x31;</a><ol>
+<li>服务器2（节点2）:<a href="mailto:&#x72;&#x6f;&#x6f;&#116;&#x40;&#x31;&#57;&#x32;&#x2e;&#x31;&#54;&#x38;&#x2e;&#x33;&#46;&#x31;&#48;&#49;">&#x72;&#x6f;&#x6f;&#116;&#x40;&#x31;&#57;&#x32;&#x2e;&#x31;&#54;&#x38;&#x2e;&#x33;&#46;&#x31;&#48;&#49;</a><ol>
 <li>ipfs第二节点</li>
 <li>密码已修改******</li>
 </ol>
@@ -2231,8 +2301,8 @@ http://192.168.3.100:8080/ipfs/QmbvBDKPhdHMVDthaafapqsis9g4YorjRp3bTLc4v7ZMp2/
         <category>官翻</category>
       </categories>
       <tags>
-        <tag>ethereum</tag>
         <tag>truffle</tag>
+        <tag>ethereum</tag>
       </tags>
   </entry>
   <entry>
@@ -2246,8 +2316,8 @@ http://192.168.3.100:8080/ipfs/QmbvBDKPhdHMVDthaafapqsis9g4YorjRp3bTLc4v7ZMp2/
         <category>官翻</category>
       </categories>
       <tags>
-        <tag>ethereum</tag>
         <tag>truffle</tag>
+        <tag>ethereum</tag>
       </tags>
   </entry>
   <entry>
@@ -2285,8 +2355,8 @@ http://192.168.3.100:8080/ipfs/QmbvBDKPhdHMVDthaafapqsis9g4YorjRp3bTLc4v7ZMp2/
         <category>官翻</category>
       </categories>
       <tags>
-        <tag>ethereum</tag>
         <tag>truffle</tag>
+        <tag>ethereum</tag>
       </tags>
   </entry>
   <entry>
@@ -2311,8 +2381,8 @@ http://192.168.3.100:8080/ipfs/QmbvBDKPhdHMVDthaafapqsis9g4YorjRp3bTLc4v7ZMp2/
         <category>官翻</category>
       </categories>
       <tags>
-        <tag>ethereum</tag>
         <tag>truffle</tag>
+        <tag>ethereum</tag>
       </tags>
   </entry>
   <entry>
@@ -2396,8 +2466,8 @@ http://192.168.3.100:8080/ipfs/QmbvBDKPhdHMVDthaafapqsis9g4YorjRp3bTLc4v7ZMp2/
         <category>官翻</category>
       </categories>
       <tags>
-        <tag>ethereum</tag>
         <tag>truffle</tag>
+        <tag>ethereum</tag>
       </tags>
   </entry>
   <entry>
@@ -2413,8 +2483,8 @@ http://192.168.3.100:8080/ipfs/QmbvBDKPhdHMVDthaafapqsis9g4YorjRp3bTLc4v7ZMp2/
         <category>官翻</category>
       </categories>
       <tags>
-        <tag>ethereum</tag>
         <tag>truffle</tag>
+        <tag>ethereum</tag>
       </tags>
   </entry>
   <entry>
@@ -2438,8 +2508,8 @@ http://192.168.3.100:8080/ipfs/QmbvBDKPhdHMVDthaafapqsis9g4YorjRp3bTLc4v7ZMp2/
         <category>官翻</category>
       </categories>
       <tags>
-        <tag>ethereum</tag>
         <tag>truffle</tag>
+        <tag>ethereum</tag>
       </tags>
   </entry>
   <entry>
@@ -2485,8 +2555,8 @@ http://192.168.3.100:8080/ipfs/QmbvBDKPhdHMVDthaafapqsis9g4YorjRp3bTLc4v7ZMp2/
         <category>官翻</category>
       </categories>
       <tags>
-        <tag>ethereum</tag>
         <tag>truffle</tag>
+        <tag>ethereum</tag>
       </tags>
   </entry>
   <entry>
@@ -2519,8 +2589,8 @@ http://192.168.3.100:8080/ipfs/QmbvBDKPhdHMVDthaafapqsis9g4YorjRp3bTLc4v7ZMp2/
         <category>官翻</category>
       </categories>
       <tags>
-        <tag>ethereum</tag>
         <tag>truffle</tag>
+        <tag>ethereum</tag>
       </tags>
   </entry>
   <entry>
@@ -2544,8 +2614,8 @@ http://192.168.3.100:8080/ipfs/QmbvBDKPhdHMVDthaafapqsis9g4YorjRp3bTLc4v7ZMp2/
         <category>官翻</category>
       </categories>
       <tags>
-        <tag>ethereum</tag>
         <tag>truffle</tag>
+        <tag>ethereum</tag>
       </tags>
   </entry>
   <entry>
@@ -2588,8 +2658,8 @@ http://192.168.3.100:8080/ipfs/QmbvBDKPhdHMVDthaafapqsis9g4YorjRp3bTLc4v7ZMp2/
         <category>官翻</category>
       </categories>
       <tags>
-        <tag>ethereum</tag>
         <tag>truffle</tag>
+        <tag>ethereum</tag>
       </tags>
   </entry>
   <entry>
@@ -2612,8 +2682,8 @@ http://192.168.3.100:8080/ipfs/QmbvBDKPhdHMVDthaafapqsis9g4YorjRp3bTLc4v7ZMp2/
         <category>官翻</category>
       </categories>
       <tags>
-        <tag>ethereum</tag>
         <tag>truffle</tag>
+        <tag>ethereum</tag>
       </tags>
   </entry>
   <entry>
@@ -2633,8 +2703,8 @@ http://192.168.3.100:8080/ipfs/QmbvBDKPhdHMVDthaafapqsis9g4YorjRp3bTLc4v7ZMp2/
         <category>官翻</category>
       </categories>
       <tags>
-        <tag>ethereum</tag>
         <tag>truffle</tag>
+        <tag>ethereum</tag>
       </tags>
   </entry>
 </search>
