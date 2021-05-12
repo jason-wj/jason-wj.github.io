@@ -11,7 +11,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
   <title>
-    IPFS基础操作 |  Jason漫谈区块链
+    IPFS入门-基础操作 |  Jason漫谈区块链
   </title>
   <meta name="generator" content="hexo-theme-ayer">
   
@@ -46,7 +46,7 @@
     <main class="content on">
       <section class="outer">
   <article
-  id="post-ipfs/ipfs基础/IPFS基础操作"
+  id="post-ipfs/ipfs基础/IPFS基础-基础操作"
   class="article article-type-post"
   itemscope
   itemprop="blogPost"
@@ -57,7 +57,7 @@
     <header class="article-header">
        
 <h1 class="article-title sea-center" style="border-left:0" itemprop="name">
-  IPFS基础操作
+  IPFS入门-基础操作
 </h1>
  
 
@@ -68,7 +68,7 @@
   <time datetime="2021-05-11T14:06:09.000Z" itemprop="datePublished">2021-05-11</time>
 </a> 
   <div class="article-category">
-    <a class="article-category-link" href="/categories/ipfs/">ipfs</a> / <a class="article-category-link" href="/categories/ipfs/ipfs%E5%BA%94%E7%94%A8/">ipfs应用</a>
+    <a class="article-category-link" href="/categories/ipfs/">ipfs</a> / <a class="article-category-link" href="/categories/ipfs/ipfs%E5%9F%BA%E7%A1%80/">ipfs基础</a>
   </div>
   
 <div class="word_count">
@@ -76,7 +76,7 @@
         <span class="post-meta-item-icon">
             <i class="ri-quill-pen-line"></i>
             <span class="post-meta-item-text"> Word count:</span>
-            <span class="post-count">1.8k</span>
+            <span class="post-count">1.9k</span>
         </span>
     </span>
 
@@ -103,7 +103,10 @@
   <p>本文主要是综合的介绍IPFS的命令行使用方式，掌握对文件的基本操作，同时从整体上对IPFS有一个初步的了解。</p>
 <a id="more"></a>
 
-<h2 id="IPFS初始化"><a href="#IPFS初始化" class="headerlink" title="IPFS初始化"></a>IPFS初始化</h2><h3 id="初始化"><a href="#初始化" class="headerlink" title="初始化"></a>初始化</h3><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#</span><span class="bash"> 初始化IPFS仓库，会在~/.ipfs目录中生成初始化文件，具体文件作用，稍后介绍</span></span><br><span class="line">ipfs init</span><br></pre></td></tr></table></figure>
+<h2 id="IPFS初始化"><a href="#IPFS初始化" class="headerlink" title="IPFS初始化"></a>IPFS初始化</h2><h3 id="初始化"><a href="#初始化" class="headerlink" title="初始化"></a>初始化</h3><p>首次使用IPFS时，需要执行该命令</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#</span><span class="bash"> 初始化IPFS仓库，会在~/.ipfs目录中生成初始化文件，</span></span><br><span class="line">ipfs init</span><br></pre></td></tr></table></figure>
+<p>该命令执行后，会被周围的公共节点发现该节点，如果不想被发现，或者在私有服务器使用IPFS，可以执行如下命令：</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">ipfs init --profile server</span><br></pre></td></tr></table></figure>
 <h3 id="初始化文件说明"><a href="#初始化文件说明" class="headerlink" title="初始化文件说明"></a>初始化文件说明</h3><p>在<code>~/.ipfs</code>中，会生成如下几个文件：</p>
 <ol>
 <li><code>blocks</code>：本地仓库存储的CID文件块链接目录</li>
@@ -237,6 +240,15 @@
 
    
   <nav class="article-nav">
+    
+      <a href="/articles/5ce15195/" class="article-nav-link">
+        <strong class="article-nav-caption">上一篇</strong>
+        <div class="article-nav-title">
+          
+            IPFS主要命令汇总
+          
+        </div>
+      </a>
     
     
       <a href="/articles/25678954/" class="article-nav-link">

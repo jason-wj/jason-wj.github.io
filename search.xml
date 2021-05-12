@@ -8,12 +8,273 @@
 ]]></content>
   </entry>
   <entry>
-    <title>IPFS基础操作</title>
+    <title>IPFS基础-高级操作</title>
+    <url>/articles/6ebd6fe7/</url>
+    <content><![CDATA[<p>本文主要讲IPFS的一些高级应用，虽说高级，但依旧属于IPFS基础中尽可能掌握的内容。主要讲解IPFS网络中如何持久保存数据、如何发布消息、命名空间怎样使用等。</p>
+<a id="more"></a>
+
+<h2 id="IPFS中发布动态内容"><a href="#IPFS中发布动态内容" class="headerlink" title="IPFS中发布动态内容"></a>IPFS中发布动态内容</h2><p>从IPFS原理可知，每上传一个文件，都有唯一的一个地址指向这个文件，假如我发布了一篇博客，此时得到一个地址<code>A</code>，如果我对博客内容做了一点改动，重新发布后，得到的地址变为了<code>B</code>， 这样会对博客浏览者造成很大困惑，无法通过一个稳定的地址来访问我的这篇博客。针对此类问题，IPFS推出了一个新的技术，叫<code>IPNS（星际文件命名系统）</code>，其实这技术也不算新了，很多年前就已经推出了。 使用该技术，会为一个文件提供一个稳定的命名空间或者叫地址（姑且这么理解），无论文件改变多少次，该地址始终都会指向最新改动后的文件。也就是说，无论我的博客修改并发布多少次，<code>IPNS</code>的地址始终指向我最后一次修改后的博客。</p>
+<h3 id="先新建一个文件，并上传到IPFS"><a href="#先新建一个文件，并上传到IPFS" class="headerlink" title="先新建一个文件，并上传到IPFS"></a>先新建一个文件，并上传到IPFS</h3><figure class="highlight shell"><table><tr><td class="code"><pre><span class="line">echo &quot;hello jason&quot; &gt; test.txt</span><br><span class="line">ipfs add test.txt</span><br></pre></td></tr></table></figure>
+<p>输出结果：</p>
+<figure class="highlight shell"><table><tr><td class="code"><pre><span class="line">added QmcMR7dqXvUxgCXpwmKHyeu4mbwGAfvd5zoa7fY4UYmtPP test.txt</span><br></pre></td></tr></table></figure>
+<h3 id="通过RSA公钥绑定文件内容"><a href="#通过RSA公钥绑定文件内容" class="headerlink" title="通过RSA公钥绑定文件内容"></a>通过RSA公钥绑定文件内容</h3><ol>
+<li>查看当前IPFS节点的所有公钥<figure class="highlight shell"><table><tr><td class="code"><pre><span class="line">ipfs key list -l</span><br></pre></td></tr></table></figure>
+输出结果：<figure class="highlight shell"><table><tr><td class="code"><pre><span class="line">k51qzi5uqu5dmd05ublqz4hxj2iuyy888cihg06pzda9lm4qghxnwrnwywaup0 self </span><br></pre></td></tr></table></figure>
+表示当前IPFS节点只有一个公钥key，且其别名为<code>self</code>，表示属于节点ID的，就是说该公钥唯一对应到IPFS的节点ID</li>
+<li>创建新的RSA公钥<figure class="highlight shell"><table><tr><td class="code"><pre><span class="line">ipfs key gen --type=rsa --size=2048 newkey</span><br></pre></td></tr></table></figure>
+生成新的公钥：<code>k2k4r8pp1pt90mojqe0xgerxyjum439xhob526rvmhd5iambe7ri60f1</code><br>也就是说，此时该IPFS节点有两个公钥了，用上面的命令<code>ipfs key list -l</code>查看:<figure class="highlight shell"><table><tr><td class="code"><pre><span class="line">k51qzi5uqu5dmd05ublqz4hxj2iuyy888cihg06pzda9lm4qghxnwrnwywaup0 self   </span><br><span class="line">k2k4r8pp1pt90mojqe0xgerxyjum439xhob526rvmhd5iambe7ri60f1       newkey</span><br></pre></td></tr></table></figure>
+发现新加了一个公钥匙，对应别称为<code>newkey</code></li>
+<li>将文件CID挂载到<code>newkey</code>的公钥地址上<figure class="highlight shell"><table><tr><td class="code"><pre><span class="line">ipfs name publish --key=newkey QmcMR7dqXvUxgCXpwmKHyeu4mbwGAfvd5zoa7fY4UYmtPP</span><br></pre></td></tr></table></figure>
+输出结果：<figure class="highlight shell"><table><tr><td class="code"><pre><span class="line">Published to k2k4r8pp1pt90mojqe0xgerxyjum439xhob526rvmhd5iambe7ri60f1: /ipfs/QmcMR7dqXvUxgCXpwmKHyeu4mbwGAfvd5zoa7fY4UYmtPP</span><br></pre></td></tr></table></figure>
+输出表明已经将文件CID关联到指定公钥了，即绑定了固定的一个地址，也就是IPNS地址</li>
+<li>浏览器访问：<figure class="highlight shell"><table><tr><td class="code"><pre><span class="line">http://localhost:8080/ipns/k51qzi5uqu5dmd05ublqz4hxj2iuyy888cihg06pzda9lm4qghxnwrnwywaup0</span><br></pre></td></tr></table></figure></li>
+<li>以后每次改动文件后，重复执行上面的步骤，最终都可以用同一个公钥来访问这个文件最新状态，其实也就是，每次公钥绑定了哪个CID，就能通过公钥(IPNS)在浏览器中看到对应CID的文件内容</li>
+</ol>
+<h3 id="通过当前节点绑定文件内容"><a href="#通过当前节点绑定文件内容" class="headerlink" title="通过当前节点绑定文件内容"></a>通过当前节点绑定文件内容</h3><p>看了上面的内容，其实很容易理解这个节点绑定文件内容的逻辑，也就是说<code>ipfs name publish</code>的时候，不要指定<code>--key</code>，则会默认将CID绑定到节点的<code>self</code>的公钥上，这个公钥本来就是关联节点ID的，因此文件就直接和节点绑定了，这样的坏处是，整个节点只能指向一个文件，很不灵活，因此一般不会在生产环境中使用这种方式。这里就不详细说明了（没啥好讲的，都是同一回事）。</p>
+<h2 id="持久保存IPFS网络数据"><a href="#持久保存IPFS网络数据" class="headerlink" title="持久保存IPFS网络数据"></a>持久保存IPFS网络数据</h2><p>如果文件存储在别人的IPFS节点上，直接在自己节点<code>ipfs cat 文件</code>，虽然能够读取到远程节点的这个文件，但这个文件只会临时缓存到自己的节点上，一段时间后，自己节点的缓存机制（<code>手动命令：ipfs repo gc</code>）会自动将这个文件给删除掉，造成下次从自己节点再次读取该文件的时，还得重新缓存的问题，严重影响了体验。<br>为此，需要一个方式，能够永久保留下从远程节点读取到的文件。这里需要用到的命令是：</p>
+<figure class="highlight shell"><table><tr><td class="code"><pre><span class="line">ipfs pin add QmcMR7dqXvUxgCXpwmKHyeu4mbwGAfvd5zoa7fY4UYmtPP</span><br></pre></td></tr></table></figure>
+<p>如此可以将远程文件永久保存在自己节点上</p>
+<h3 id="查看当前节点有哪些永久保存的文件和目录"><a href="#查看当前节点有哪些永久保存的文件和目录" class="headerlink" title="查看当前节点有哪些永久保存的文件和目录"></a>查看当前节点有哪些永久保存的文件和目录</h3><figure class="highlight shell"><table><tr><td class="code"><pre><span class="line">ipfs pin ls --type=all</span><br></pre></td></tr></table></figure>
+<h3 id="资源手动回收"><a href="#资源手动回收" class="headerlink" title="资源手动回收"></a>资源手动回收</h3><p>也就是手动清除缓存，释放资源</p>
+<figure class="highlight shell"><table><tr><td class="code"><pre><span class="line">ipfs repo gc</span><br></pre></td></tr></table></figure>
+<h3 id="强制删除本地的某个文件目录及其子文件"><a href="#强制删除本地的某个文件目录及其子文件" class="headerlink" title="强制删除本地的某个文件目录及其子文件"></a>强制删除本地的某个文件目录及其子文件</h3><figure class="highlight shell"><table><tr><td class="code"><pre><span class="line">ipfs pin rm -r QmejvEPop4D7YUadeGqYWmZxHhLc4JBUCzJJHWMzdcMe2y</span><br></pre></td></tr></table></figure>
+<h2 id="操作IPFS-Merkle-DAG"><a href="#操作IPFS-Merkle-DAG" class="headerlink" title="操作IPFS Merkle DAG"></a>操作IPFS Merkle DAG</h2><p>尽情期待</p>
+<h2 id="IPFS消息发布"><a href="#IPFS消息发布" class="headerlink" title="IPFS消息发布"></a>IPFS消息发布</h2><p>尽情期待</p>
+<h2 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h2><p>尽情期待</p>
+]]></content>
+      <categories>
+        <category>ipfs</category>
+        <category>ipfs基础</category>
+      </categories>
+      <tags>
+        <tag>ipfs</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>IPFS主要命令汇总</title>
+    <url>/articles/5ce15195/</url>
+    <content><![CDATA[<p>本文主要是汇总一些IPFS常用的命令，方便查询。</p>
+<a id="more"></a>
+
+<h2 id="配置IPFS存储目录"><a href="#配置IPFS存储目录" class="headerlink" title="配置IPFS存储目录"></a>配置IPFS存储目录</h2><p>设置IPFS_PATH环境命令，默认值为：~/.ipfs</p>
+<h2 id="根命令"><a href="#根命令" class="headerlink" title="根命令"></a>根命令</h2><table>
+<thead>
+<tr>
+<th>选项标识</th>
+<th>选项类型</th>
+<th>介绍</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>-c,-config</td>
+<td>string</td>
+<td>指定配置文件所在路径</td>
+</tr>
+<tr>
+<td>-D,-debug</td>
+<td>bool</td>
+<td>以debug模式操作，缺省为false</td>
+</tr>
+<tr>
+<td>-help</td>
+<td>bool</td>
+<td>展示完整的命令帮助文档，缺省为false</td>
+</tr>
+<tr>
+<td>-h</td>
+<td>bool</td>
+<td>展示精简命令帮助文档，缺省为false</td>
+</tr>
+<tr>
+<td>-L,-local</td>
+<td>bool</td>
+<td>在本地运行命令，缺省为false</td>
+</tr>
+<tr>
+<td>-api</td>
+<td>string</td>
+<td>使用具体的API实例（缺省为/ip4/127.0.0.1/tcp/5001）</td>
+</tr>
+</tbody></table>
+<h2 id="子命令"><a href="#子命令" class="headerlink" title="子命令"></a>子命令</h2><h3 id="基础命令"><a href="#基础命令" class="headerlink" title="基础命令"></a>基础命令</h3><table>
+<thead>
+<tr>
+<th>命令</th>
+<th>介绍</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>init</td>
+<td>初始化IPFS本地配置</td>
+</tr>
+<tr>
+<td>add(path)</td>
+<td>添加一个文件到IPFS</td>
+</tr>
+<tr>
+<td>cat(ref)</td>
+<td>展示IPFS对象数据</td>
+</tr>
+<tr>
+<td>get(ref)</td>
+<td>下载IPFS对象</td>
+</tr>
+<tr>
+<td>ls(ref)</td>
+<td>从一个对象中列出链接</td>
+</tr>
+<tr>
+<td>Refs(ref)</td>
+<td>从一个对象中列出链接哈希</td>
+</tr>
+</tbody></table>
+<h3 id="IPFS数据结构命令"><a href="#IPFS数据结构命令" class="headerlink" title="IPFS数据结构命令"></a>IPFS数据结构命令</h3><table>
+<thead>
+<tr>
+<th>命令</th>
+<th>介绍</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>block</td>
+<td>与数据存储中的原始块交互</td>
+</tr>
+<tr>
+<td>object</td>
+<td>与原始DAG节点交互</td>
+</tr>
+<tr>
+<td>fils</td>
+<td>将对象抽象为UNIX文件系统，并与对象交互</td>
+</tr>
+<tr>
+<td>dag</td>
+<td>与IPLD文件交互（<code>是否已上线？</code>）</td>
+</tr>
+</tbody></table>
+<h3 id="IPFS高级命令"><a href="#IPFS高级命令" class="headerlink" title="IPFS高级命令"></a>IPFS高级命令</h3><table>
+<thead>
+<tr>
+<th>命令</th>
+<th>介绍</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>daemon</td>
+<td>开启IPFS运行后台进程</td>
+</tr>
+<tr>
+<td>mount</td>
+<td>挂载一个IPFS只读的挂载点</td>
+</tr>
+<tr>
+<td>resolve</td>
+<td>解析多类型CID名称</td>
+</tr>
+<tr>
+<td>name</td>
+<td>发布并解析IPNS名字</td>
+</tr>
+<tr>
+<td>key</td>
+<td>发布并列出IPNS名字密钥对</td>
+</tr>
+<tr>
+<td>dns</td>
+<td>解析DNS链接</td>
+</tr>
+<tr>
+<td>pin</td>
+<td>将对象锁定到本地存储</td>
+</tr>
+<tr>
+<td>repo</td>
+<td>操作IPFS仓库</td>
+</tr>
+<tr>
+<td>stats</td>
+<td>各种操作状态</td>
+</tr>
+<tr>
+<td>filestore</td>
+<td>管理文件仓库(实验中)</td>
+</tr>
+</tbody></table>
+<h3 id="IPFS网络通信命令表"><a href="#IPFS网络通信命令表" class="headerlink" title="IPFS网络通信命令表"></a>IPFS网络通信命令表</h3><table>
+<thead>
+<tr>
+<th>命令</th>
+<th>介绍</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>id</td>
+<td>展示IPFS节点信息</td>
+</tr>
+<tr>
+<td>bootstrap</td>
+<td>添加或删除引导节点</td>
+</tr>
+<tr>
+<td>swarm</td>
+<td>管理P2P网络链接</td>
+</tr>
+<tr>
+<td>dht</td>
+<td>请求有关值或节点的分布式哈希表</td>
+</tr>
+<tr>
+<td>ping</td>
+<td>测量一个连接的延迟</td>
+</tr>
+<tr>
+<td>diag</td>
+<td>打印诊断信息</td>
+</tr>
+</tbody></table>
+<h3 id="IPFS工具命令命令"><a href="#IPFS工具命令命令" class="headerlink" title="IPFS工具命令命令"></a>IPFS工具命令命令</h3><table>
+<thead>
+<tr>
+<th>命令</th>
+<th>介绍</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>config</td>
+<td>管理配置</td>
+</tr>
+<tr>
+<td>version</td>
+<td>展示IPFS版本信息</td>
+</tr>
+<tr>
+<td>update</td>
+<td>下载并应用go-ipfs更新</td>
+</tr>
+<tr>
+<td>commands</td>
+<td>列出所有可用命令</td>
+</tr>
+</tbody></table>
+]]></content>
+      <categories>
+        <category>ipfs</category>
+        <category>ipfs基础</category>
+      </categories>
+      <tags>
+        <tag>ipfs</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>IPFS入门-基础操作</title>
     <url>/articles/600687bc/</url>
     <content><![CDATA[<p>本文主要是综合的介绍IPFS的命令行使用方式，掌握对文件的基本操作，同时从整体上对IPFS有一个初步的了解。</p>
 <a id="more"></a>
 
-<h2 id="IPFS初始化"><a href="#IPFS初始化" class="headerlink" title="IPFS初始化"></a>IPFS初始化</h2><h3 id="初始化"><a href="#初始化" class="headerlink" title="初始化"></a>初始化</h3><figure class="highlight shell"><table><tr><td class="code"><pre><span class="line"><span class="meta">#</span><span class="bash"> 初始化IPFS仓库，会在~/.ipfs目录中生成初始化文件，具体文件作用，稍后介绍</span></span><br><span class="line">ipfs init</span><br></pre></td></tr></table></figure>
+<h2 id="IPFS初始化"><a href="#IPFS初始化" class="headerlink" title="IPFS初始化"></a>IPFS初始化</h2><h3 id="初始化"><a href="#初始化" class="headerlink" title="初始化"></a>初始化</h3><p>首次使用IPFS时，需要执行该命令</p>
+<figure class="highlight shell"><table><tr><td class="code"><pre><span class="line"><span class="meta">#</span><span class="bash"> 初始化IPFS仓库，会在~/.ipfs目录中生成初始化文件，</span></span><br><span class="line">ipfs init</span><br></pre></td></tr></table></figure>
+<p>该命令执行后，会被周围的公共节点发现该节点，如果不想被发现，或者在私有服务器使用IPFS，可以执行如下命令：</p>
+<figure class="highlight shell"><table><tr><td class="code"><pre><span class="line">ipfs init --profile server</span><br></pre></td></tr></table></figure>
 <h3 id="初始化文件说明"><a href="#初始化文件说明" class="headerlink" title="初始化文件说明"></a>初始化文件说明</h3><p>在<code>~/.ipfs</code>中，会生成如下几个文件：</p>
 <ol>
 <li><code>blocks</code>：本地仓库存储的CID文件块链接目录</li>
@@ -68,7 +329,7 @@
 ]]></content>
       <categories>
         <category>ipfs</category>
-        <category>ipfs应用</category>
+        <category>ipfs基础</category>
       </categories>
       <tags>
         <tag>ipfs</tag>
@@ -96,7 +357,7 @@
 ]]></content>
       <categories>
         <category>ipfs</category>
-        <category>ipfs应用</category>
+        <category>ipfs基础</category>
       </categories>
       <tags>
         <tag>ipfs</tag>
@@ -978,12 +1239,12 @@ http://192.168.3.100:8080/ipfs/QmbvBDKPhdHMVDthaafapqsis9g4YorjRp3bTLc4v7ZMp2/
 <a id="more"></a>
 
 <h2 id="ubuntu相关"><a href="#ubuntu相关" class="headerlink" title="ubuntu相关"></a>ubuntu相关</h2><h3 id="服务器信息"><a href="#服务器信息" class="headerlink" title="服务器信息"></a>服务器信息</h3><ol>
-<li>服务器1（节点1）:<a href="mailto:&#x72;&#x6f;&#111;&#x74;&#64;&#49;&#57;&#50;&#46;&#x31;&#x36;&#x38;&#x2e;&#x33;&#46;&#49;&#48;&#x30;">&#x72;&#x6f;&#111;&#x74;&#64;&#49;&#57;&#50;&#46;&#x31;&#x36;&#x38;&#x2e;&#x33;&#46;&#49;&#48;&#x30;</a><ol>
+<li>服务器1（节点1）:<a href="mailto:&#x72;&#x6f;&#x6f;&#116;&#x40;&#49;&#x39;&#x32;&#46;&#x31;&#54;&#x38;&#46;&#51;&#x2e;&#49;&#48;&#x30;">&#x72;&#x6f;&#x6f;&#116;&#x40;&#49;&#x39;&#x32;&#46;&#x31;&#54;&#x38;&#46;&#51;&#x2e;&#49;&#48;&#x30;</a><ol>
 <li>ipfs第一节点</li>
 <li>密码已修改******</li>
 </ol>
 </li>
-<li>服务器2（节点2）:<a href="mailto:&#x72;&#x6f;&#x6f;&#116;&#x40;&#x31;&#57;&#x32;&#x2e;&#x31;&#54;&#x38;&#x2e;&#x33;&#46;&#x31;&#48;&#49;">&#x72;&#x6f;&#x6f;&#116;&#x40;&#x31;&#57;&#x32;&#x2e;&#x31;&#54;&#x38;&#x2e;&#x33;&#46;&#x31;&#48;&#49;</a><ol>
+<li>服务器2（节点2）:<a href="mailto:&#x72;&#x6f;&#x6f;&#x74;&#x40;&#x31;&#x39;&#x32;&#46;&#49;&#54;&#x38;&#x2e;&#x33;&#46;&#x31;&#48;&#x31;">&#x72;&#x6f;&#x6f;&#x74;&#x40;&#x31;&#x39;&#x32;&#46;&#49;&#54;&#x38;&#x2e;&#x33;&#46;&#x31;&#48;&#x31;</a><ol>
 <li>ipfs第二节点</li>
 <li>密码已修改******</li>
 </ol>
@@ -2301,8 +2562,8 @@ http://192.168.3.100:8080/ipfs/QmbvBDKPhdHMVDthaafapqsis9g4YorjRp3bTLc4v7ZMp2/
         <category>官翻</category>
       </categories>
       <tags>
-        <tag>truffle</tag>
         <tag>ethereum</tag>
+        <tag>truffle</tag>
       </tags>
   </entry>
   <entry>
@@ -2316,8 +2577,8 @@ http://192.168.3.100:8080/ipfs/QmbvBDKPhdHMVDthaafapqsis9g4YorjRp3bTLc4v7ZMp2/
         <category>官翻</category>
       </categories>
       <tags>
-        <tag>truffle</tag>
         <tag>ethereum</tag>
+        <tag>truffle</tag>
       </tags>
   </entry>
   <entry>
@@ -2355,8 +2616,8 @@ http://192.168.3.100:8080/ipfs/QmbvBDKPhdHMVDthaafapqsis9g4YorjRp3bTLc4v7ZMp2/
         <category>官翻</category>
       </categories>
       <tags>
-        <tag>truffle</tag>
         <tag>ethereum</tag>
+        <tag>truffle</tag>
       </tags>
   </entry>
   <entry>
@@ -2381,8 +2642,8 @@ http://192.168.3.100:8080/ipfs/QmbvBDKPhdHMVDthaafapqsis9g4YorjRp3bTLc4v7ZMp2/
         <category>官翻</category>
       </categories>
       <tags>
-        <tag>truffle</tag>
         <tag>ethereum</tag>
+        <tag>truffle</tag>
       </tags>
   </entry>
   <entry>
@@ -2466,8 +2727,8 @@ http://192.168.3.100:8080/ipfs/QmbvBDKPhdHMVDthaafapqsis9g4YorjRp3bTLc4v7ZMp2/
         <category>官翻</category>
       </categories>
       <tags>
-        <tag>truffle</tag>
         <tag>ethereum</tag>
+        <tag>truffle</tag>
       </tags>
   </entry>
   <entry>
@@ -2483,8 +2744,8 @@ http://192.168.3.100:8080/ipfs/QmbvBDKPhdHMVDthaafapqsis9g4YorjRp3bTLc4v7ZMp2/
         <category>官翻</category>
       </categories>
       <tags>
-        <tag>truffle</tag>
         <tag>ethereum</tag>
+        <tag>truffle</tag>
       </tags>
   </entry>
   <entry>
@@ -2508,8 +2769,8 @@ http://192.168.3.100:8080/ipfs/QmbvBDKPhdHMVDthaafapqsis9g4YorjRp3bTLc4v7ZMp2/
         <category>官翻</category>
       </categories>
       <tags>
-        <tag>truffle</tag>
         <tag>ethereum</tag>
+        <tag>truffle</tag>
       </tags>
   </entry>
   <entry>
@@ -2555,8 +2816,8 @@ http://192.168.3.100:8080/ipfs/QmbvBDKPhdHMVDthaafapqsis9g4YorjRp3bTLc4v7ZMp2/
         <category>官翻</category>
       </categories>
       <tags>
-        <tag>truffle</tag>
         <tag>ethereum</tag>
+        <tag>truffle</tag>
       </tags>
   </entry>
   <entry>
@@ -2589,8 +2850,8 @@ http://192.168.3.100:8080/ipfs/QmbvBDKPhdHMVDthaafapqsis9g4YorjRp3bTLc4v7ZMp2/
         <category>官翻</category>
       </categories>
       <tags>
-        <tag>truffle</tag>
         <tag>ethereum</tag>
+        <tag>truffle</tag>
       </tags>
   </entry>
   <entry>
@@ -2614,8 +2875,8 @@ http://192.168.3.100:8080/ipfs/QmbvBDKPhdHMVDthaafapqsis9g4YorjRp3bTLc4v7ZMp2/
         <category>官翻</category>
       </categories>
       <tags>
-        <tag>truffle</tag>
         <tag>ethereum</tag>
+        <tag>truffle</tag>
       </tags>
   </entry>
   <entry>
@@ -2658,8 +2919,8 @@ http://192.168.3.100:8080/ipfs/QmbvBDKPhdHMVDthaafapqsis9g4YorjRp3bTLc4v7ZMp2/
         <category>官翻</category>
       </categories>
       <tags>
-        <tag>truffle</tag>
         <tag>ethereum</tag>
+        <tag>truffle</tag>
       </tags>
   </entry>
   <entry>
@@ -2682,8 +2943,8 @@ http://192.168.3.100:8080/ipfs/QmbvBDKPhdHMVDthaafapqsis9g4YorjRp3bTLc4v7ZMp2/
         <category>官翻</category>
       </categories>
       <tags>
-        <tag>truffle</tag>
         <tag>ethereum</tag>
+        <tag>truffle</tag>
       </tags>
   </entry>
   <entry>
@@ -2703,8 +2964,8 @@ http://192.168.3.100:8080/ipfs/QmbvBDKPhdHMVDthaafapqsis9g4YorjRp3bTLc4v7ZMp2/
         <category>官翻</category>
       </categories>
       <tags>
-        <tag>truffle</tag>
         <tag>ethereum</tag>
+        <tag>truffle</tag>
       </tags>
   </entry>
 </search>

@@ -11,7 +11,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
   <title>
-    关于我 |  Jason漫谈区块链
+    IPFS基础-高级操作 |  Jason漫谈区块链
   </title>
   <meta name="generator" content="hexo-theme-ayer">
   
@@ -46,8 +46,8 @@
     <main class="content on">
       <section class="outer">
   <article
-  id="about-"
-  class="article article-type-about"
+  id="post-ipfs/ipfs基础/IPFS基础-高级操作"
+  class="article article-type-post"
   itemscope
   itemprop="blogPost"
   data-scroll-reveal
@@ -57,23 +57,105 @@
     <header class="article-header">
        
 <h1 class="article-title sea-center" style="border-left:0" itemprop="name">
-  关于我
+  IPFS基础-高级操作
 </h1>
  
 
     </header>
-       
+     
+    <div class="article-meta">
+      <a href="/articles/6ebd6fe7/" class="article-date">
+  <time datetime="2021-05-12T16:04:12.000Z" itemprop="datePublished">2021-05-13</time>
+</a> 
+  <div class="article-category">
+    <a class="article-category-link" href="/categories/ipfs/">ipfs</a> / <a class="article-category-link" href="/categories/ipfs/ipfs%E5%9F%BA%E7%A1%80/">ipfs基础</a>
+  </div>
+  
+<div class="word_count">
+    <span class="post-time">
+        <span class="post-meta-item-icon">
+            <i class="ri-quill-pen-line"></i>
+            <span class="post-meta-item-text"> Word count:</span>
+            <span class="post-count">1.1k</span>
+        </span>
+    </span>
+
+    <span class="post-time">
+        &nbsp; | &nbsp;
+        <span class="post-meta-item-icon">
+            <i class="ri-book-open-line"></i>
+            <span class="post-meta-item-text"> Reading time≈</span>
+            <span class="post-count">3 min</span>
+        </span>
+    </span>
+</div>
+ 
+    </div>
+      
+    <div class="tocbot"></div>
+
+
+
+
+  
     <div class="article-entry" itemprop="articleBody">
        
-  <h2 id="联系方式"><a href="#联系方式" class="headerlink" title="联系方式"></a>联系方式</h2><p>Email：<a href="mailto:&#105;&#x64;&#x65;&#x61;&#x5f;&#119;&#106;&#64;&#x31;&#x36;&#x33;&#46;&#x63;&#x6f;&#x6d;">&#105;&#x64;&#x65;&#x61;&#x5f;&#119;&#106;&#64;&#x31;&#x36;&#x33;&#46;&#x63;&#x6f;&#x6d;</a></p>
-<hr>
+  <p>本文主要讲IPFS的一些高级应用，虽说高级，但依旧属于IPFS基础中尽可能掌握的内容。主要讲解IPFS网络中如何持久保存数据、如何发布消息、命名空间怎样使用等。</p>
+<a id="more"></a>
+
+<h2 id="IPFS中发布动态内容"><a href="#IPFS中发布动态内容" class="headerlink" title="IPFS中发布动态内容"></a>IPFS中发布动态内容</h2><p>从IPFS原理可知，每上传一个文件，都有唯一的一个地址指向这个文件，假如我发布了一篇博客，此时得到一个地址<code>A</code>，如果我对博客内容做了一点改动，重新发布后，得到的地址变为了<code>B</code>， 这样会对博客浏览者造成很大困惑，无法通过一个稳定的地址来访问我的这篇博客。针对此类问题，IPFS推出了一个新的技术，叫<code>IPNS（星际文件命名系统）</code>，其实这技术也不算新了，很多年前就已经推出了。 使用该技术，会为一个文件提供一个稳定的命名空间或者叫地址（姑且这么理解），无论文件改变多少次，该地址始终都会指向最新改动后的文件。也就是说，无论我的博客修改并发布多少次，<code>IPNS</code>的地址始终指向我最后一次修改后的博客。</p>
+<h3 id="先新建一个文件，并上传到IPFS"><a href="#先新建一个文件，并上传到IPFS" class="headerlink" title="先新建一个文件，并上传到IPFS"></a>先新建一个文件，并上传到IPFS</h3><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">echo &quot;hello jason&quot; &gt; test.txt</span><br><span class="line">ipfs add test.txt</span><br></pre></td></tr></table></figure>
+<p>输出结果：</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">added QmcMR7dqXvUxgCXpwmKHyeu4mbwGAfvd5zoa7fY4UYmtPP test.txt</span><br></pre></td></tr></table></figure>
+<h3 id="通过RSA公钥绑定文件内容"><a href="#通过RSA公钥绑定文件内容" class="headerlink" title="通过RSA公钥绑定文件内容"></a>通过RSA公钥绑定文件内容</h3><ol>
+<li>查看当前IPFS节点的所有公钥<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">ipfs key list -l</span><br></pre></td></tr></table></figure>
+输出结果：<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">k51qzi5uqu5dmd05ublqz4hxj2iuyy888cihg06pzda9lm4qghxnwrnwywaup0 self </span><br></pre></td></tr></table></figure>
+表示当前IPFS节点只有一个公钥key，且其别名为<code>self</code>，表示属于节点ID的，就是说该公钥唯一对应到IPFS的节点ID</li>
+<li>创建新的RSA公钥<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">ipfs key gen --type=rsa --size=2048 newkey</span><br></pre></td></tr></table></figure>
+生成新的公钥：<code>k2k4r8pp1pt90mojqe0xgerxyjum439xhob526rvmhd5iambe7ri60f1</code><br>也就是说，此时该IPFS节点有两个公钥了，用上面的命令<code>ipfs key list -l</code>查看:<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">k51qzi5uqu5dmd05ublqz4hxj2iuyy888cihg06pzda9lm4qghxnwrnwywaup0 self   </span><br><span class="line">k2k4r8pp1pt90mojqe0xgerxyjum439xhob526rvmhd5iambe7ri60f1       newkey</span><br></pre></td></tr></table></figure>
+发现新加了一个公钥匙，对应别称为<code>newkey</code></li>
+<li>将文件CID挂载到<code>newkey</code>的公钥地址上<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">ipfs name publish --key=newkey QmcMR7dqXvUxgCXpwmKHyeu4mbwGAfvd5zoa7fY4UYmtPP</span><br></pre></td></tr></table></figure>
+输出结果：<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">Published to k2k4r8pp1pt90mojqe0xgerxyjum439xhob526rvmhd5iambe7ri60f1: /ipfs/QmcMR7dqXvUxgCXpwmKHyeu4mbwGAfvd5zoa7fY4UYmtPP</span><br></pre></td></tr></table></figure>
+输出表明已经将文件CID关联到指定公钥了，即绑定了固定的一个地址，也就是IPNS地址</li>
+<li>浏览器访问：<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">http://localhost:8080/ipns/k51qzi5uqu5dmd05ublqz4hxj2iuyy888cihg06pzda9lm4qghxnwrnwywaup0</span><br></pre></td></tr></table></figure></li>
+<li>以后每次改动文件后，重复执行上面的步骤，最终都可以用同一个公钥来访问这个文件最新状态，其实也就是，每次公钥绑定了哪个CID，就能通过公钥(IPNS)在浏览器中看到对应CID的文件内容</li>
+</ol>
+<h3 id="通过当前节点绑定文件内容"><a href="#通过当前节点绑定文件内容" class="headerlink" title="通过当前节点绑定文件内容"></a>通过当前节点绑定文件内容</h3><p>看了上面的内容，其实很容易理解这个节点绑定文件内容的逻辑，也就是说<code>ipfs name publish</code>的时候，不要指定<code>--key</code>，则会默认将CID绑定到节点的<code>self</code>的公钥上，这个公钥本来就是关联节点ID的，因此文件就直接和节点绑定了，这样的坏处是，整个节点只能指向一个文件，很不灵活，因此一般不会在生产环境中使用这种方式。这里就不详细说明了（没啥好讲的，都是同一回事）。</p>
+<h2 id="持久保存IPFS网络数据"><a href="#持久保存IPFS网络数据" class="headerlink" title="持久保存IPFS网络数据"></a>持久保存IPFS网络数据</h2><p>如果文件存储在别人的IPFS节点上，直接在自己节点<code>ipfs cat 文件</code>，虽然能够读取到远程节点的这个文件，但这个文件只会临时缓存到自己的节点上，一段时间后，自己节点的缓存机制（<code>手动命令：ipfs repo gc</code>）会自动将这个文件给删除掉，造成下次从自己节点再次读取该文件的时，还得重新缓存的问题，严重影响了体验。<br>为此，需要一个方式，能够永久保留下从远程节点读取到的文件。这里需要用到的命令是：</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">ipfs pin add QmcMR7dqXvUxgCXpwmKHyeu4mbwGAfvd5zoa7fY4UYmtPP</span><br></pre></td></tr></table></figure>
+<p>如此可以将远程文件永久保存在自己节点上</p>
+<h3 id="查看当前节点有哪些永久保存的文件和目录"><a href="#查看当前节点有哪些永久保存的文件和目录" class="headerlink" title="查看当前节点有哪些永久保存的文件和目录"></a>查看当前节点有哪些永久保存的文件和目录</h3><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">ipfs pin ls --type=all</span><br></pre></td></tr></table></figure>
+<h3 id="资源手动回收"><a href="#资源手动回收" class="headerlink" title="资源手动回收"></a>资源手动回收</h3><p>也就是手动清除缓存，释放资源</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">ipfs repo gc</span><br></pre></td></tr></table></figure>
+<h3 id="强制删除本地的某个文件目录及其子文件"><a href="#强制删除本地的某个文件目录及其子文件" class="headerlink" title="强制删除本地的某个文件目录及其子文件"></a>强制删除本地的某个文件目录及其子文件</h3><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">ipfs pin rm -r QmejvEPop4D7YUadeGqYWmZxHhLc4JBUCzJJHWMzdcMe2y</span><br></pre></td></tr></table></figure>
+<h2 id="操作IPFS-Merkle-DAG"><a href="#操作IPFS-Merkle-DAG" class="headerlink" title="操作IPFS Merkle DAG"></a>操作IPFS Merkle DAG</h2><p>尽情期待</p>
+<h2 id="IPFS消息发布"><a href="#IPFS消息发布" class="headerlink" title="IPFS消息发布"></a>IPFS消息发布</h2><p>尽情期待</p>
+<h2 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h2><p>尽情期待</p>
  
       <!-- reward -->
+      
+      <div id="reword-out">
+        <div id="reward-btn">
+          Donate
+        </div>
+      </div>
       
     </div>
     
 
     <!-- copyright -->
+    
+    <div class="declare">
+      <ul class="post-copyright">
+        <li>
+          <i class="ri-copyright-line"></i>
+          <strong>Copyright： </strong>
+          
+          Copyright is owned by the author. For commercial reprints, please contact the author for authorization. For non-commercial reprints, please indicate the source.
+          
+        </li>
+      </ul>
+    </div>
     
     <footer class="article-footer">
        
@@ -119,15 +201,27 @@
     <a class="modal-close" href="javascript:;"><i class="ri-close-circle-line"></i></a>
     <p>扫一扫，分享到微信</p>
     <div class="wx-qrcode">
-      <img src="//api.qrserver.com/v1/create-qr-code/?size=150x150&data=http://jason-wj.gitee.io/about/" alt="微信分享二维码">
+      <img src="//api.qrserver.com/v1/create-qr-code/?size=150x150&data=http://jason-wj.gitee.io/articles/6ebd6fe7/" alt="微信分享二维码">
     </div>
 </div>
 
 <div id="share-mask"></div>  
+  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/ipfs/" rel="tag">ipfs</a></li></ul>
+
     </footer>
   </div>
 
    
+  <nav class="article-nav">
+    
+    
+      <a href="/articles/5ce15195/" class="article-nav-link">
+        <strong class="article-nav-caption">下一篇</strong>
+        <div class="article-nav-title">IPFS主要命令汇总</div>
+      </a>
+    
+  </nav>
+
    
 <!-- valine评论 -->
 <div id="vcomments-box">
@@ -177,7 +271,8 @@
 </style>
 
  
-    
+   
+     
 </article>
 
 </section>
@@ -323,6 +418,23 @@
 <script src="/js/lazyload.min.js"></script>
 
 <!-- Tocbot -->
+
+
+<script src="/js/tocbot.min.js"></script>
+
+<script>
+  tocbot.init({
+    tocSelector: '.tocbot',
+    contentSelector: '.article-entry',
+    headingSelector: 'h1, h2, h3, h4, h5, h6',
+    hasInnerContainers: true,
+    scrollSmooth: true,
+    scrollContainer: 'main',
+    positionFixedSelector: '.tocbot',
+    positionFixedClass: 'is-position-fixed',
+    fixedSidebarOffset: 'auto'
+  });
+</script>
 
 <script src="https://cdn.jsdelivr.net/npm/jquery-modal@0.9.2/jquery.modal.min.js"></script>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/jquery-modal@0.9.2/jquery.modal.min.css">
