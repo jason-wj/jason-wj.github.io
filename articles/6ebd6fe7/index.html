@@ -76,7 +76,7 @@
         <span class="post-meta-item-icon">
             <i class="ri-quill-pen-line"></i>
             <span class="post-meta-item-text"> Word count:</span>
-            <span class="post-count">1.1k</span>
+            <span class="post-count">2.3k</span>
         </span>
     </span>
 
@@ -85,7 +85,7 @@
         <span class="post-meta-item-icon">
             <i class="ri-book-open-line"></i>
             <span class="post-meta-item-text"> Reading time≈</span>
-            <span class="post-count">3 min</span>
+            <span class="post-count">8 min</span>
         </span>
     </span>
 </div>
@@ -128,9 +128,89 @@
 <h3 id="资源手动回收"><a href="#资源手动回收" class="headerlink" title="资源手动回收"></a>资源手动回收</h3><p>也就是手动清除缓存，释放资源</p>
 <figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">ipfs repo gc</span><br></pre></td></tr></table></figure>
 <h3 id="强制删除本地的某个文件目录及其子文件"><a href="#强制删除本地的某个文件目录及其子文件" class="headerlink" title="强制删除本地的某个文件目录及其子文件"></a>强制删除本地的某个文件目录及其子文件</h3><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">ipfs pin rm -r QmejvEPop4D7YUadeGqYWmZxHhLc4JBUCzJJHWMzdcMe2y</span><br></pre></td></tr></table></figure>
-<h2 id="操作IPFS-Merkle-DAG"><a href="#操作IPFS-Merkle-DAG" class="headerlink" title="操作IPFS Merkle DAG"></a>操作IPFS Merkle DAG</h2><p>尽情期待</p>
-<h2 id="IPFS消息发布"><a href="#IPFS消息发布" class="headerlink" title="IPFS消息发布"></a>IPFS消息发布</h2><p>尽情期待</p>
-<h2 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h2><p>尽情期待</p>
+<h2 id="操作IPFS-Merkle-DAG"><a href="#操作IPFS-Merkle-DAG" class="headerlink" title="操作IPFS Merkle DAG"></a>操作IPFS Merkle DAG</h2><p>IPFS的两个核心概念：默克尔树（Merkle）和有向无环图（DAG）。数据的存储结构大部分是Merkle DAG形式构成。理论部分不在这里介绍，本文主要介绍Merkle DAG的操作。<br>之所以介绍，是因为在操作<code>分布式数据库</code>、<code>分布式版本控制软件</code>时，非常重要。 更通俗的说，就是操作一个文件的子块数据时，是需要掌握这部分内容的<br>关于块和对象的裂变理论部分，本文不作详述。只要记着：<code>Block超过256Kb，就会生成新的Block；Object的Links数量超过174个，就会生成新的Object</code></p>
+<h3 id="创建Merkle-DAG结构"><a href="#创建Merkle-DAG结构" class="headerlink" title="创建Merkle DAG结构"></a>创建Merkle DAG结构</h3><p>通过<code>ipfs add</code>上传的文件，本身就是为文件创建Merkle DAG对象</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">ipfs add test.txt</span><br></pre></td></tr></table></figure>
+<p>输出结果：</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">added QmWJgfUvpjNN7ycjYac86kogRPmS1Bj33gH2LRMA9dPW1j test.txt</span><br></pre></td></tr></table></figure>
+<p>查看结构信息和子对象信息：</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">ipfs object links -v QmWJgfUvpjNN7ycjYac86kogRPmS1Bj33gH2LRMA9dPW1j</span><br></pre></td></tr></table></figure>
+<p>输出结果：</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">Hash                                           Size   Name</span><br><span class="line">QmZCxwMMGar8RDc4ckezyL1uNS2ACKKyUvh6kDc6g2urHP 262158 </span><br><span class="line">QmVp79sgyHbzvpF8cdB7pmpbBYEkNoKUEBajTzpv9HhdqV 19869 </span><br></pre></td></tr></table></figure>
+<p>可以看出有两个地址来管理这个<code>test.txt</code>文件，第一个地址：<code>QmZCxwMMGar8RDc4ckezyL1uNS2ACKKyUvh6kDc6g2urHP</code>对应文件的256kb文件块，另一个地址：<code>QmVp79sgyHbzvpF8cdB7pmpbBYEkNoKUEBajTzpv9HhdqV</code>对应文件的剩余大小。也就是说，一个文件是按照256kb来切分文件块的。<br>使用如下命令即可查看每个子块的信息：</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">ipfs cat QmZCxwMMGar8RDc4ckezyL1uNS2ACKKyUvh6kDc6g2urHP</span><br><span class="line">ipfs cat QmVp79sgyHbzvpF8cdB7pmpbBYEkNoKUEBajTzpv9HhdqV</span><br></pre></td></tr></table></figure>
+<h3 id="组装子块数据"><a href="#组装子块数据" class="headerlink" title="组装子块数据"></a>组装子块数据</h3><p>该命令可以将文件的指定子块合并成一个新文件。</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">ipfs cat QmZCxwMMGar8RDc4ckezyL1uNS2ACKKyUvh6kDc6g2urHP QmVp79sgyHbzvpF8cdB7pmpbBYEkNoKUEBajTzpv9HhdqV &gt; test2.txt</span><br></pre></td></tr></table></figure>
+<p>这是Merkle DAG的一种应用。该应用同时也可以用于身份校验，比如某两个子块合并后校验权限A，某三个子块合并后校验权限B，这个扩展应用根据需要灵活考虑。</p>
+<h3 id="块和对象的区别"><a href="#块和对象的区别" class="headerlink" title="块和对象的区别"></a>块和对象的区别</h3><ol>
+<li>块：代表的是文件分割后的一部分，可以通过如下命令查看块信息，只有hash和对应的大小：<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">ipfs block stat QmZCxwMMGar8RDc4ckezyL1uNS2ACKKyUvh6kDc6g2urHP</span><br></pre></td></tr></table></figure>
+输出结果：<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">Key: QmZCxwMMGar8RDc4ckezyL1uNS2ACKKyUvh6kDc6g2urHP</span><br><span class="line">Size: 262158</span><br></pre></td></tr></table></figure></li>
+<li>对象：一般代表的是在IPFS中存储的一个完整文件，当然，块也可以理解是一个对象。查看信息，比如块hash用如下命令查看：<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">ipfs object stat QmZCxwMMGar8RDc4ckezyL1uNS2ACKKyUvh6kDc6g2urHP</span><br></pre></td></tr></table></figure>
+输出结果：<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">NumLinks:       0</span><br><span class="line">BlockSize:      262158</span><br><span class="line">LinksSize:      4      # 链接本身也是有容量等</span><br><span class="line">DataSize:       262154 </span><br><span class="line">CumulativeSize: 262158</span><br></pre></td></tr></table></figure>
+可以看出输出结果明显比用块查看多出很多信息，入链接数、块大小、对象大小等</li>
+</ol>
+<h3 id="操作Block"><a href="#操作Block" class="headerlink" title="操作Block"></a>操作Block</h3><p>对于小的文件(小于256Kb)，可以直接使用block来操作，能够提高处理效率。</p>
+<ol>
+<li><p>block存储小数据</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">echo &quot;hello jason block&quot; | ipfs block put</span><br></pre></td></tr></table></figure>
+<p>输出结果：</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">QmQbQ6mZ79dj7VSXUZWDfLavVvwEYkRrhbpELMDP3J4CtY</span><br></pre></td></tr></table></figure></li>
+<li><p>block读取小数据</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">ipfs block get QmQbQ6mZ79dj7VSXUZWDfLavVvwEYkRrhbpELMDP3J4CtY</span><br></pre></td></tr></table></figure>
+<p>输出结果：</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">hello jason block</span><br></pre></td></tr></table></figure></li>
+<li><p>查看block信息</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">ipfs block stat QmQbQ6mZ79dj7VSXUZWDfLavVvwEYkRrhbpELMDP3J4CtY</span><br></pre></td></tr></table></figure>
+<p>输出结果：</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">Key: QmQbQ6mZ79dj7VSXUZWDfLavVvwEYkRrhbpELMDP3J4CtY</span><br><span class="line">Size: 18</span><br></pre></td></tr></table></figure></li>
+<li><p>删除</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">ipfs block rm QmQbQ6mZ79dj7VSXUZWDfLavVvwEYkRrhbpELMDP3J4CtY</span><br></pre></td></tr></table></figure>
+<p>输出结果：</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">removed QmQbQ6mZ79dj7VSXUZWDfLavVvwEYkRrhbpELMDP3J4CtY</span><br></pre></td></tr></table></figure>
+<h3 id="操作Object"><a href="#操作Object" class="headerlink" title="操作Object"></a>操作Object</h3></li>
+<li><p>创建IPFS DAG对象</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">echo &quot;hello jason object&quot; | ipfs add</span><br></pre></td></tr></table></figure>
+<p>输出结果：</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">added QmZU1y9z8WxQJLAxQHrqFDrQsmLrLYuHiCfMYhbLFP8S43 QmZU1y9z8WxQJLAxQHrqFDrQsmLrLYuHiCfMYhbLFP8S43</span><br></pre></td></tr></table></figure></li>
+<li><p>返回对象数据，输出JSON格式</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">ipfs object get QmZU1y9z8WxQJLAxQHrqFDrQsmLrLYuHiCfMYhbLFP8S43</span><br></pre></td></tr></table></figure>
+<p>输出结果：</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">&#123;&quot;Links&quot;:[],&quot;Data&quot;:&quot;\u0008\u0002\u0012\u0013hello jason object\n\u0018\u0013&quot;&#125;</span><br></pre></td></tr></table></figure>
+<p>可以看出返回两个字段：Links子块链接和Data数据</p>
+</li>
+<li><p>返回解码后的数据</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">ipfs object data QmZU1y9z8WxQJLAxQHrqFDrQsmLrLYuHiCfMYhbLFP8S43</span><br></pre></td></tr></table></figure>
+<p>输出结果：</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">hello jason object</span><br></pre></td></tr></table></figure></li>
+<li><p>为已有数据追加新数据</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">echo &quot;patch info&quot; &gt; ./patch.txt</span><br><span class="line">ipfs object patch append-data QmZU1y9z8WxQJLAxQHrqFDrQsmLrLYuHiCfMYhbLFP8S43 ./patch.txt</span><br></pre></td></tr></table></figure>
+<p>输出结果：</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">QmfDtGvBafCPCoR6hNetXAgBZ2kg4Y2CPpfHL2RRGU38z2</span><br></pre></td></tr></table></figure></li>
+<li><p>解析新内容</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">ipfs object data QmfDtGvBafCPCoR6hNetXAgBZ2kg4Y2CPpfHL2RRGU38z2</span><br></pre></td></tr></table></figure>
+<p>输出结果：</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">hello jason object</span><br><span class="line">patch info</span><br></pre></td></tr></table></figure>
+<h2 id="IPFS消息发布"><a href="#IPFS消息发布" class="headerlink" title="IPFS消息发布"></a>IPFS消息发布</h2><p>该功能当前属于实验功能(<code>记忆从0.4版本到今天0.8版本这个功能一直处于实验阶段</code>)，需要在启动IPFS节点的时候，带入如下参数，开启消息功能：</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">ipfs daemon --enable-pubsub-experiment</span><br></pre></td></tr></table></figure>
+<h3 id="相关主要命令"><a href="#相关主要命令" class="headerlink" title="相关主要命令"></a>相关主要命令</h3><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#</span><span class="bash"> 列出本节点订阅的全部主题</span></span><br><span class="line">ipfs pubsub ls</span><br><span class="line"></span><br><span class="line"><span class="meta">#</span><span class="bash"> 列出与本节点相连接的开通pubsub功能的节点</span></span><br><span class="line">ipfs pubsub peers</span><br><span class="line"></span><br><span class="line"><span class="meta">#</span><span class="bash"> 发布数据到相应的主题</span></span><br><span class="line">ipfs pubsub pub &lt;topic&gt;&lt;data&gt;</span><br><span class="line"></span><br><span class="line"><span class="meta">#</span><span class="bash"> 订阅主题</span></span><br><span class="line">ipfs pubsub sub &lt;topic&gt;</span><br></pre></td></tr></table></figure>
+<h3 id="实际操作"><a href="#实际操作" class="headerlink" title="实际操作"></a>实际操作</h3><p>多节点模拟主题发布与订阅，需先确保各个节点的私有环境，排除外界其余关联节点的干扰。比如A、B两个节点，将B节点关联到A节点</p>
+</li>
+<li><p>在A节点订阅主题<code>topic-A</code>，如此凡是发往这个这个主题的消息，都会被A接收</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">ipfs pubsub sub topic-A</span><br></pre></td></tr></table></figure>
+<p>此时A处于接收状态</p>
+</li>
+<li><p>在B节点对主题<code>topic-A</code>发布消息<code>Hello Jason</code></p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">ipfs pubsub pub topic-A &quot;Hello Jason&quot;</span><br></pre></td></tr></table></figure></li>
+<li><p>此时A节点收到B节点发来的信息：<code>Hello Jason</code></p>
+</li>
+<li><p>扩展：消息可以通过中间节点转发：A-&gt;C-&gt;B，就是说即使C不订阅任何主题，只要B订阅了A的主题，依旧能经过C来接收到</p>
+</li>
+</ol>
+<h3 id="应用场景"><a href="#应用场景" class="headerlink" title="应用场景"></a>应用场景</h3><ol>
+<li>可以用于及时通信</li>
+<li>可用于分布式数据库</li>
+</ol>
+<h2 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h2><p>本文综合介绍了IPFS的一些高级操作，能够更深的了解一些IPFS的应用层的技术逻辑，对后续业务层应用会起到一定的帮助。</p>
  
       <!-- reward -->
       

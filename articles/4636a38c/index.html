@@ -11,7 +11,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
   <title>
-    fabric基本概念 |  Jason漫谈区块链
+    fabric基础-综合简介 |  Jason漫谈区块链
   </title>
   <meta name="generator" content="hexo-theme-ayer">
   
@@ -46,7 +46,7 @@
     <main class="content on">
       <section class="outer">
   <article
-  id="post-fabric/desc/fabric基本概念"
+  id="post-fabric/fabric基础/fabric基础-入门介绍"
   class="article article-type-post"
   itemscope
   itemprop="blogPost"
@@ -57,7 +57,7 @@
     <header class="article-header">
        
 <h1 class="article-title sea-center" style="border-left:0" itemprop="name">
-  fabric基本概念
+  fabric基础-综合简介
 </h1>
  
 
@@ -76,7 +76,7 @@
         <span class="post-meta-item-icon">
             <i class="ri-quill-pen-line"></i>
             <span class="post-meta-item-text"> Word count:</span>
-            <span class="post-count">1k</span>
+            <span class="post-count">860</span>
         </span>
     </span>
 
@@ -85,7 +85,7 @@
         <span class="post-meta-item-icon">
             <i class="ri-book-open-line"></i>
             <span class="post-meta-item-text"> Reading time≈</span>
-            <span class="post-count">3 min</span>
+            <span class="post-count">2 min</span>
         </span>
     </span>
 </div>
@@ -100,21 +100,37 @@
   
     <div class="article-entry" itemprop="articleBody">
        
-  <p>比起了解fabric的架构，需要先了解一些fabric的概念，这样在见到这个生态内的内容时，心里会有个底。本文主要介绍fabric中的一些核心概念</p>
+  <p>fabric的背景、作用等等，这里就不介绍了，网上一搜一大堆。本文主要从技术层面来讲解fabric的特点、主要概念以及架构，从而能够快速对fabric能有一个整体上的认知。</p>
 <a id="more"></a>
+<h2 id="总体架构"><a href="#总体架构" class="headerlink" title="总体架构"></a>总体架构</h2>
 
-<h2 id="Peer节点"><a href="#Peer节点" class="headerlink" title="Peer节点"></a>Peer节点</h2><p>Peer节点是Fabric区块链网络中的一种记账节点，负责区块数据的校验和保存。同时在Peer节点上，也可以安装和执行Chaincode(智能合约)， 对账本进行读写操作。</p>
-<h2 id="Orderer节点"><a href="#Orderer节点" class="headerlink" title="Orderer节点"></a>Orderer节点</h2><p>Orderer节点依据先到先服务的原则，为区块链网络中的所有channel提供公共服务，将交易排序后组装为区块。Orderer节点独立于Peer节点运行， 其架构被设计为支持可插拔的共识算法实现，包括1.4已经实现SOLO、Kafka以及未来的其他共识算法（2.3已经支持Raft算法）。</p>
-<h2 id="通道"><a href="#通道" class="headerlink" title="通道"></a>通道</h2><p>通道(Channel)是构建在Fabric区块链网络上的私有区块链，每个channel拥有自己独立的账本，实现了数据的隔离和保密。 通道私有的账本在通道中是与所有参与该通道的对等节点共享的，并且交易方必须通过该通道的相关验证后才能与账本进行交互。</p>
-<h2 id="智能合约"><a href="#智能合约" class="headerlink" title="智能合约"></a>智能合约</h2><p>Hyperledger Fabric的智能合约是指Chaincode，也有人翻译为链码，其实就是一段实现交易逻辑的程序，在Farbric中所起的作用和其它区块链平台(比如以太坊)的智能合约一样。 它需要安装运行在充当Endorser(背书者)角色的Peer节点上，通过交易指令对账本数据进行修改。目前Fabirc只支持Go语言编写的Chaincode。</p>
-<h2 id="共识算法"><a href="#共识算法" class="headerlink" title="共识算法"></a>共识算法</h2><p>共识(Consensus)作用于区块链交易的全过程，用于同意交易的排序以及确认区块交易数据集的正确性。共识算法(Consensus Algorithm)是共识过程的软件实现。</p>
-<h2 id="MSP"><a href="#MSP" class="headerlink" title="MSP"></a>MSP</h2><p>MSP全称为Membership Service Provider，是为区块链应用和Peer节点参与Fabric区块链网络而定义的证书系统的一种抽象组件。 区块链应用用这些证书来对它们的交易做身份认证，Peer节点用证书来对交易结果做签名背书。 Fabric的每个Peeer节点或者Orderer节点都必须属于一个组织（组织可以用来代表某个公司、机构或者行业联盟等）， MSP被用作组织和用户(包括管理员和普通用户)在区块链的标识。</p>
-<h2 id="EventHub"><a href="#EventHub" class="headerlink" title="EventHub"></a>EventHub</h2><p>EventHub是Peer节点用于发送事件通知到区块链应用的网络通信接口。区块链应用可以在Peer节点上注册其希望接收到的事件通知。</p>
-<h2 id="区块链组织"><a href="#区块链组织" class="headerlink" title="区块链组织"></a>区块链组织</h2><p>区块链组织(Organization)被Hyperledger Fabric用于管理Peer节点、Orderer节点的相互关系。 每个Peer节点或Orderer节点都需要属于某个组织，每个组织可以包含多个Peer或Orderer节点，有自己的管理员和普通用户。</p>
-<h2 id="区块链联盟"><a href="#区块链联盟" class="headerlink" title="区块链联盟"></a>区块链联盟</h2><p>区块链联盟(Consortium)是包含一个或多个区块链组织的集合。每个Channel被创建时，都需要指定一个与之关联的联盟。 只有在这个联盟中的组织才可以在该channel中执行初始化、调用、查询智能合约等操作。</p>
-<h2 id="区块链用户"><a href="#区块链用户" class="headerlink" title="区块链用户"></a>区块链用户</h2><p>区块链用户是用来对区块链进行管理、使用和维护的身份设定，每个用户都有代表自己身份的证书和私钥，由某个组织下的根证书签发。 每个组织下面都可以根据需要创建一个或者多个区块链用户。根据用户权限的不同，可以将用户划分为两种角色：</p>
-<p>管理员：可以管理属于该用户所在组织的Peer节点或Orderer节点， 通常具有安装、初始化和执行智能合约的权限。</p>
-<p>普通用户：通常具有在属于该用户所在组织下的Peer节点上执行智能合约的权限。</p>
+<p>图中可知主要分为：网络层、核心层、接口层。</p>
+<ol>
+<li><p>网络层<br>负责P2P网络的实现，取保区块链分布式存储的一致性。使用了gRPC协议以及Gossip协议。</p>
+</li>
+<li><p>接口层<br>给第三方提供API、可通过Events监控事件，方便第三方应用调用和处理</p>
+</li>
+<li><p>核心层</p>
+<ol>
+<li>成员服务：包括注册、登记、申请证书等，为保证联盟成员数据的安全性，必须获得证书才能加入链中。</li>
+<li>区块链服务：负责账本的计算和存储、节点的排序服务、背书验证管理以及账本存储方式等功能等实现</li>
+<li>链码服务：智能合约，用于支撑业务</li>
+</ol>
+</li>
+</ol>
+<h2 id="交易流程"><a href="#交易流程" class="headerlink" title="交易流程"></a>交易流程</h2><ol>
+<li>交易流程是Fabric的核心运行机制以及整体运行原理，很有必要去完整掌握。</li>
+<li>Fabric中，并不是像公链那样一个节点集中处理各种问题，而是根据功能到不同，划分为了不同的节点和角色。大体上节点分为：处理业务的Peer节点以及用于达成排序共识的Order节点，其中Peer节点根据不同功能，还可具体划分为不同角色的节点，如背书节点Peer、提交节点Peer。关于节点概念、功能和细节，后续逐步会去详细讲解，在此只要有个大概了解即可。</li>
+<li>在Fabric中，处理每笔交易都需要都需要对交易信息进行权限校验，确保上链的数据是经过授权允许的。</li>
+</ol>
+<h3 id="流程描述（重点掌握）"><a href="#流程描述（重点掌握）" class="headerlink" title="流程描述（重点掌握）"></a>流程描述（重点掌握）</h3><ol>
+<li>应用程序客户端通过SDK调用成员服务，进行注册、登记并获取身份证书</li>
+<li>应用程序客户端通过SDK向区块链网络发起一个交易提案(Proposal)，交易提案把本次交易要调用的合约标识，合约方法和参数信息以及客户端签名等信息发送给背书节点。</li>
+<li>背书节点收到交易提案后，验证签名并确定交易者是否有权执行操作，同时根据背书策略模拟执行智能合约，并将结果及各自的CA证书签名返回给应用程序客户端。</li>
+<li>应用程序客户端收到背书节点返回的信息后，判断提案结果是否一致，以及是否参照指定的背书策略执行。如果没有足够的背书，则种植处理；否则，应用程序客户端把数据打包到一起，组成一个交易并签名，发送给排序节点（角色）。</li>
+<li>排序节点（角色）对接收到的交易进行共识排序，然后按照区块生成策略，将一批交易打包到一起，生成新的区块，发送给提交节点(Peer)。</li>
+<li>提交节点收到区块后，会对区块中的每笔交易进行校验，检查交易依赖的输入输出是否符合当前区块链的状态，完成后将区块追加到本地的区块链，并修改世界状态(即确保参数为最新值)</li>
+</ol>
  
       <!-- reward -->
       
@@ -198,11 +214,11 @@
    
   <nav class="article-nav">
     
-      <a href="/articles/7e379521/" class="article-nav-link">
+      <a href="/articles/25678954/" class="article-nav-link">
         <strong class="article-nav-caption">上一篇</strong>
         <div class="article-nav-title">
           
-            fabric生命周期
+            IPFS开篇-简单部署和私有环境部署
           
         </div>
       </a>

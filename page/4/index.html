@@ -147,62 +147,6 @@
     
     
     <article
-  id="post-ethereum/src_analysis/vm/以太坊vm系列3-固定长度数据类型的处理"
-  class="article article-type-post"
-  itemscope
-  itemprop="blogPost"
-  data-scroll-reveal
->
-  <div class="article-inner">
-    
-    <header class="article-header">
-       
-<h2 itemprop="name">
-  <a class="article-title" href="/articles/8ddcbc00/"
-    >以太坊vm系列3-固定长度数据类型的处理</a> 
-</h2>
- 
-
-    </header>
-     
-    <div class="article-meta">
-      <a href="/articles/8ddcbc00/" class="article-date">
-  <time datetime="2018-07-19T13:33:04.000Z" itemprop="datePublished">2018-07-19</time>
-</a> 
-  <div class="article-category">
-    <a class="article-category-link" href="/categories/%E4%BB%A5%E5%A4%AA%E5%9D%8A/">以太坊</a> / <a class="article-category-link" href="/categories/%E4%BB%A5%E5%A4%AA%E5%9D%8A/%E6%BA%90%E7%A0%81%E8%A7%A3%E8%AF%BB/">源码解读</a>
-  </div>
-   
-    </div>
-      
-    <div class="article-entry" itemprop="articleBody">
-       
-  <h2 id="前言"><a href="#前言" class="headerlink" title="前言"></a>前言</h2><p>本文主要是讲Solidity以及EVM对数组、结构体等复杂的数据类型的处理方式，了解了这些基本情况，对我们编写经济的合约或者设计新的vm，都有极大的帮助。</p> 
-      <a class="article-more-link" href="/articles/8ddcbc00/"
-        >阅读更多...</a
-      >
-       
-      <!-- reward -->
-      
-    </div>
-    
-
-    <!-- copyright -->
-    
-    <footer class="article-footer">
-       
-  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/EVM/" rel="tag">EVM</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/ethereum/" rel="tag">ethereum</a></li></ul>
-
-    </footer>
-  </div>
-
-    
- 
-    
-</article>
-
-    
-    <article
   id="post-ethereum/src_analysis/vm/以太坊vm系列2-基础篇"
   class="article article-type-post"
   itemscope
@@ -683,6 +627,62 @@
        
   <h2 id="前言"><a href="#前言" class="headerlink" title="前言"></a>前言</h2><p>看了trie模块的源码，我们知道了其中的节点数据是通过ethdb来进行磁盘db的读写操作的。其实ethdb是依赖google的一个开源kv数据库levelDB实现的。最终所有的数据都是存储在levelDB中。<br>我们会很好奇，什么是levelDB？在ethdb中是如何处理levelDB的？下面小编一步步来揭开它的面纱。</p> 
       <a class="article-more-link" href="/articles/f54b1404/"
+        >阅读更多...</a
+      >
+       
+      <!-- reward -->
+      
+    </div>
+    
+
+    <!-- copyright -->
+    
+    <footer class="article-footer">
+       
+  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/ethereum/" rel="tag">ethereum</a></li></ul>
+
+    </footer>
+  </div>
+
+    
+ 
+    
+</article>
+
+    
+    <article
+  id="post-ethereum/src_analysis/以太坊源码解读-第3.2讲-trie模块源码解读"
+  class="article article-type-post"
+  itemscope
+  itemprop="blogPost"
+  data-scroll-reveal
+>
+  <div class="article-inner">
+    
+    <header class="article-header">
+       
+<h2 itemprop="name">
+  <a class="article-title" href="/articles/dcade07d/"
+    >以太坊源码解读-第3.2讲-trie模块源码解读</a> 
+</h2>
+ 
+
+    </header>
+     
+    <div class="article-meta">
+      <a href="/articles/dcade07d/" class="article-date">
+  <time datetime="2018-04-19T07:40:25.000Z" itemprop="datePublished">2018-04-19</time>
+</a> 
+  <div class="article-category">
+    <a class="article-category-link" href="/categories/%E4%BB%A5%E5%A4%AA%E5%9D%8A/">以太坊</a> / <a class="article-category-link" href="/categories/%E4%BB%A5%E5%A4%AA%E5%9D%8A/%E6%BA%90%E7%A0%81%E8%A7%A3%E8%AF%BB/">源码解读</a>
+  </div>
+   
+    </div>
+      
+    <div class="article-entry" itemprop="articleBody">
+       
+  <h2 id="前言"><a href="#前言" class="headerlink" title="前言"></a>前言</h2><p>这一部分，我们主要是讲trie源码的实现，要理解代码的实现过程，是需要先了解一下理论内容的，建议大家先看看我的上一篇文章：<a href="/articles/original/ethereum/src_analysis/%E4%BB%A5%E5%A4%AA%E5%9D%8A%E6%BA%90%E7%A0%81%E8%A7%A3%E8%AF%BB-%E7%AC%AC3.1%E8%AE%B2-trie%E5%8E%9F%E7%90%86%E4%BB%8B%E7%BB%8D.html">以太坊源码解读-第3.1讲-trie原理介绍</a></p> 
+      <a class="article-more-link" href="/articles/dcade07d/"
         >阅读更多...</a
       >
        
