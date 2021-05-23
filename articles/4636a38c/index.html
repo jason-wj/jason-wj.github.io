@@ -46,7 +46,7 @@
     <main class="content on">
       <section class="outer">
   <article
-  id="post-fabric/fabric基础/fabric基础-入门介绍"
+  id="post-fabric/fabric基础/fabric基础-综合简介"
   class="article article-type-post"
   itemscope
   itemprop="blogPost"
@@ -76,7 +76,7 @@
         <span class="post-meta-item-icon">
             <i class="ri-quill-pen-line"></i>
             <span class="post-meta-item-text"> Word count:</span>
-            <span class="post-count">860</span>
+            <span class="post-count">1.4k</span>
         </span>
     </span>
 
@@ -85,7 +85,7 @@
         <span class="post-meta-item-icon">
             <i class="ri-book-open-line"></i>
             <span class="post-meta-item-text"> Reading time≈</span>
-            <span class="post-count">2 min</span>
+            <span class="post-count">4 min</span>
         </span>
     </span>
 </div>
@@ -102,7 +102,7 @@
        
   <p>fabric的背景、作用等等，这里就不介绍了，网上一搜一大堆。本文主要从技术层面来讲解fabric的特点、主要概念以及架构，从而能够快速对fabric能有一个整体上的认知。</p>
 <a id="more"></a>
-<h2 id="总体架构"><a href="#总体架构" class="headerlink" title="总体架构"></a>总体架构</h2>
+<h2 id="总体架构"><a href="#总体架构" class="headerlink" title="总体架构"></a>总体架构</h2><img src="/articles/4636a38c/1.png" class="" title="Fabric架构">
 
 <p>图中可知主要分为：网络层、核心层、接口层。</p>
 <ol>
@@ -123,15 +123,27 @@
 <li>Fabric中，并不是像公链那样一个节点集中处理各种问题，而是根据功能到不同，划分为了不同的节点和角色。大体上节点分为：处理业务的Peer节点以及用于达成排序共识的Order节点，其中Peer节点根据不同功能，还可具体划分为不同角色的节点，如背书节点Peer、提交节点Peer。关于节点概念、功能和细节，后续逐步会去详细讲解，在此只要有个大概了解即可。</li>
 <li>在Fabric中，处理每笔交易都需要都需要对交易信息进行权限校验，确保上链的数据是经过授权允许的。</li>
 </ol>
-<h3 id="流程描述（重点掌握）"><a href="#流程描述（重点掌握）" class="headerlink" title="流程描述（重点掌握）"></a>流程描述（重点掌握）</h3><ol>
+<h3 id="流程描述（重点掌握）"><a href="#流程描述（重点掌握）" class="headerlink" title="流程描述（重点掌握）"></a>流程描述（重点掌握）</h3><img src="/articles/4636a38c/3.png" class="" title="Fabric交易流程">
+
+<ol>
 <li>应用程序客户端通过SDK调用成员服务，进行注册、登记并获取身份证书</li>
 <li>应用程序客户端通过SDK向区块链网络发起一个交易提案(Proposal)，交易提案把本次交易要调用的合约标识，合约方法和参数信息以及客户端签名等信息发送给背书节点。</li>
 <li>背书节点收到交易提案后，验证签名并确定交易者是否有权执行操作，同时根据背书策略模拟执行智能合约，并将结果及各自的CA证书签名返回给应用程序客户端。</li>
-<li>应用程序客户端收到背书节点返回的信息后，判断提案结果是否一致，以及是否参照指定的背书策略执行。如果没有足够的背书，则种植处理；否则，应用程序客户端把数据打包到一起，组成一个交易并签名，发送给排序节点（角色）。</li>
+<li>应用程序客户端收到背书节点返回的信息后，判断提案结果是否一致，以及是否参照指定的背书策略执行。如果没有足够的背书，则终止处理；否则，应用程序客户端把数据打包到一起，组成一个交易并签名，发送给排序节点（角色）。</li>
 <li>排序节点（角色）对接收到的交易进行共识排序，然后按照区块生成策略，将一批交易打包到一起，生成新的区块，发送给提交节点(Peer)。</li>
 <li>提交节点收到区块后，会对区块中的每笔交易进行校验，检查交易依赖的输入输出是否符合当前区块链的状态，完成后将区块追加到本地的区块链，并修改世界状态(即确保参数为最新值)</li>
 </ol>
- 
+<h2 id="关键技术"><a href="#关键技术" class="headerlink" title="关键技术"></a>关键技术</h2><p>Fabric的关键技术主要分为：<code>账本</code>、<code>智能合约</code>、<code>通道</code>、<code>节点</code>、<code>排序</code>、<code>接口</code>，通过这六部分底层内容的了解，可以很好的了解Fabric的运行机制</p>
+<h3 id="1-账本-Ledger"><a href="#1-账本-Ledger" class="headerlink" title="1. 账本(Ledger)"></a>1. 账本(Ledger)</h3><p>主要是区块本身以及世界状态的存储，有序、防篡改。</p>
+<img src="/articles/4636a38c/2.png" class="" title="Fabric交易流程">
+<ol>
+<li>本地文件系统<br>将区块存储于文件系统的硬盘中，每个区块中保存区块头(Block Header)、区块数据(Block Data)、区块元数据(Block Metadata，<code>配置相关信息?</code>)，通过区块头中的前一个区块的哈希值指向前一个区块区块的当前哈希值。</li>
+<li>状态数据库<br>存储在链交易中出现的所有键值对的最新值，调用链码执行交易可改变状态数据。为了高效执行联码调用，最新值都保存在状态数据库中。默认状态数据库为LevelDB（特点：简单的KV），可选择Couchdb作为数据库（特点：富文本查询）。</li>
+<li>账本索引数据库<br>文件系统中保存区块时，会在数据库(LevelDB)中保存索引。提高查询区块交易信息的速度。<code>注意这里跟状态数据库无关，状态数据库更多的是链码对应的业务数据。</code></li>
+<li>历史状态数据库<br>一个键值更改后，更改的历史记录是保存在数据库中的。同样可以使用LevelDB或CouchDB，查询状态的时候，也可以查看值的历史更改记录。</li>
+</ol>
+<h3 id="2-智能合约-Chaincode"><a href="#2-智能合约-Chaincode" class="headerlink" title="2. 智能合约(Chaincode)"></a>2. 智能合约(Chaincode)</h3><p>用于处理业务的代码，稍微了解区块链的人应该都明白这个概念，只是Fabric中，更喜欢用<code>链码</code>来表达智能合约的意思。由于Fabric的授权机制，<code>链码</code>的生命周期较为复杂，其中1.4版和2.0版的生命周期差异很大，从打包、签名到最终安装、发布，涉及的细节较多，后续会专门来讲解这部分内容，这里有个了解即可。后续更多的是以2.0版为主来讲解。</p>
+<h3 id="3-通道-Channel"><a href="#3-通道-Channel" class="headerlink" title="3. 通道(Channel)"></a>3. 通道(Channel)</h3><h3 id="4-Peer节点"><a href="#4-Peer节点" class="headerlink" title="4. Peer节点"></a>4. Peer节点</h3><h3 id="5-Order排序"><a href="#5-Order排序" class="headerlink" title="5. Order排序"></a>5. Order排序</h3><h3 id="6-API接口"><a href="#6-API接口" class="headerlink" title="6. API接口"></a>6. API接口</h3><h2 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h2> 
       <!-- reward -->
       
       <div id="reword-out">
