@@ -76,7 +76,7 @@
         <span class="post-meta-item-icon">
             <i class="ri-quill-pen-line"></i>
             <span class="post-meta-item-text"> Word count:</span>
-            <span class="post-count">1.4k</span>
+            <span class="post-count">2k</span>
         </span>
     </span>
 
@@ -85,7 +85,7 @@
         <span class="post-meta-item-icon">
             <i class="ri-book-open-line"></i>
             <span class="post-meta-item-text"> Reading time≈</span>
-            <span class="post-count">4 min</span>
+            <span class="post-count">6 min</span>
         </span>
     </span>
 </div>
@@ -143,7 +143,28 @@
 <li>历史状态数据库<br>一个键值更改后，更改的历史记录是保存在数据库中的。同样可以使用LevelDB或CouchDB，查询状态的时候，也可以查看值的历史更改记录。</li>
 </ol>
 <h3 id="2-智能合约-Chaincode"><a href="#2-智能合约-Chaincode" class="headerlink" title="2. 智能合约(Chaincode)"></a>2. 智能合约(Chaincode)</h3><p>用于处理业务的代码，稍微了解区块链的人应该都明白这个概念，只是Fabric中，更喜欢用<code>链码</code>来表达智能合约的意思。由于Fabric的授权机制，<code>链码</code>的生命周期较为复杂，其中1.4版和2.0版的生命周期差异很大，从打包、签名到最终安装、发布，涉及的细节较多，后续会专门来讲解这部分内容，这里有个了解即可。后续更多的是以2.0版为主来讲解。</p>
-<h3 id="3-通道-Channel"><a href="#3-通道-Channel" class="headerlink" title="3. 通道(Channel)"></a>3. 通道(Channel)</h3><h3 id="4-Peer节点"><a href="#4-Peer节点" class="headerlink" title="4. Peer节点"></a>4. Peer节点</h3><h3 id="5-Order排序"><a href="#5-Order排序" class="headerlink" title="5. Order排序"></a>5. Order排序</h3><h3 id="6-API接口"><a href="#6-API接口" class="headerlink" title="6. API接口"></a>6. API接口</h3><h2 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h2> 
+<h3 id="3-通道-Channel"><a href="#3-通道-Channel" class="headerlink" title="3. 通道(Channel)"></a>3. 通道(Channel)</h3><ol>
+<li>一条channel可以理解为是一条独立的区块链，在其中拥有独立的创世区块以及智能合约。它是Peer之间通信的私有空间，channel内交易的数据与外部环境隔绝，保证channel内部数据安全。一条channel内部参与交易的成员，都需要经过身份验证和授权。</li>
+<li>Fabric网络是多通道设计，也就是说，一个Peer节点可以同时加入不同的channel。</li>
+<li>每个Channel都有自己的锚节点，通过锚节点可以与其它通道进行交互（比如合约内，可以通过锚节点访问另一个通道的某个参数），但本身通道的账本是隔绝的。</li>
+</ol>
+<h3 id="4-Peer节点"><a href="#4-Peer节点" class="headerlink" title="4. Peer节点"></a>4. Peer节点</h3><ol>
+<li>是区块链交易处理和账本维护的主体，主要负责参与共识过程和通过执行链码实现对账本的读写操作。</li>
+<li>Peer节点根据功能不同可以划分为：<code>背书节点(Endorser Peer)</code>、<code>提交节点(Committer Peer)</code><ol>
+<li>背书节点(Endorser Peer)：根据事先设定好的策略对交易进行签名背书，在链码实例化的时候设置背书策略，指定哪些节点用于背书。当客户端向节点发起交易背书时，该节点才能有背书功能，否则只是普通的记账节点。</li>
+<li>提交节点(Committer Peer)：也是普通的记账节点，负责维护状态数据和账本的副本。</li>
+</ol>
+</li>
+<li>Peer节点根据通信不同可以划分为：<code>锚节点(Anchor Peer)</code>、<code>主节点(Leading Peer)</code><ol>
+<li>锚节点(Anchor Peer)：随channel存在的，是能被其它channel发现的节点，每个channel上有一个或多个锚节点。</li>
+<li>主节点(Leading Peer)：负责与Order通信，把共识后的区块传输到其它节点。</li>
+</ol>
+</li>
+</ol>
+<h3 id="5-Order排序"><a href="#5-Order排序" class="headerlink" title="5. Order排序"></a>5. Order排序</h3><p>对区块链网络中不同通道产生的交易进行排序，并广播给Peer。排序算法Fabric支持多种，如：Solo、Kafka、Raft等，Fabric2.0后，以Raft为主。</p>
+<h3 id="6-API接口"><a href="#6-API接口" class="headerlink" title="6. API接口"></a>6. API接口</h3><p>方便第三方调用账本、chaincode、channel、节点、排序等</p>
+<h2 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h2><p>本文主要介绍了Fabric的几个核心概念，通过这些概念能够对运行机制和原理有一个初步的了解。为后续深入掌握奠定了一个比较好的基础。</p>
+ 
       <!-- reward -->
       
       <div id="reword-out">
