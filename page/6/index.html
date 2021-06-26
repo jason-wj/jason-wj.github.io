@@ -147,6 +147,70 @@
     
     
     <article
+  id="post-ethereum/truffle/official_translate/(truffle官翻)第13讲_编写外部脚本"
+  class="article article-type-post"
+  itemscope
+  itemprop="blogPost"
+  data-scroll-reveal
+>
+  <div class="article-inner">
+    
+    <header class="article-header">
+       
+<h2 itemprop="name">
+  <a class="article-title" href="/articles/712f35b3/"
+    >(truffle官翻)第13讲 编写外部脚本</a> 
+</h2>
+ 
+
+    </header>
+     
+    <div class="article-meta">
+      <a href="/articles/712f35b3/" class="article-date">
+  <time datetime="2018-03-24T02:18:17.000Z" itemprop="datePublished">2018-03-24</time>
+</a> 
+  <div class="article-category">
+    <a class="article-category-link" href="/categories/%E4%BB%A5%E5%A4%AA%E5%9D%8A/">以太坊</a> / <a class="article-category-link" href="/categories/%E4%BB%A5%E5%A4%AA%E5%9D%8A/truffle/">truffle</a> / <a class="article-category-link" href="/categories/%E4%BB%A5%E5%A4%AA%E5%9D%8A/truffle/%E5%AE%98%E7%BF%BB/">官翻</a>
+  </div>
+   
+    </div>
+      
+    <div class="article-entry" itemprop="articleBody">
+       
+  <ol>
+<li><p>有时候想写个外部脚本来和合约交互，Truffle已经替你想好了，你只要这么做就行</p>
+</li>
+<li><p>truffle develop环境中运行：  </p>
+ <figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">exec &lt;path&#x2F;to&#x2F;file.js&gt;</span><br></pre></td></tr></table></figure></li>
+<li><p>文件结构<br>为了使得脚本能正常运行，需要它们能通过js模块导出一个函数，并且有一个回调函数：  </p>
+<pre><code class="js">module.exports = function(callback)&#123;
+   //perform actions
+&#125;</code></pre>
+<p> 在脚本里，随便写，只要能运行就好。上面那个回调，当脚本结束后，会被执行</p>
+</li>
+</ol>
+ 
+      <!-- reward -->
+      
+    </div>
+    
+
+    <!-- copyright -->
+    
+    <footer class="article-footer">
+       
+  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/ethereum/" rel="tag">ethereum</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/truffle/" rel="tag">truffle</a></li></ul>
+
+    </footer>
+  </div>
+
+    
+ 
+    
+</article>
+
+    
+    <article
   id="post-ethereum/truffle/official_translate/(truffle官翻)第12讲_Truffle的develop环境和console环境"
   class="article article-type-post"
   itemscope
