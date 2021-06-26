@@ -197,6 +197,62 @@
 
     
     <article
+  id="post-fabric/fabric基础/fabric基础-Fabric-CA介绍及使用"
+  class="article article-type-post"
+  itemscope
+  itemprop="blogPost"
+  data-scroll-reveal
+>
+  <div class="article-inner">
+    
+    <header class="article-header">
+       
+<h2 itemprop="name">
+  <a class="article-title" href="/articles/342ca2c8/"
+    >fabric基础-Fabric CA介绍及使用</a> 
+</h2>
+ 
+
+    </header>
+     
+    <div class="article-meta">
+      <a href="/articles/342ca2c8/" class="article-date">
+  <time datetime="2021-05-26T11:35:48.000Z" itemprop="datePublished">2021-05-26</time>
+</a> 
+  <div class="article-category">
+    <a class="article-category-link" href="/categories/Hyperledger-Fabric/">Hyperledger Fabric</a> / <a class="article-category-link" href="/categories/Hyperledger-Fabric/Fabric%E5%9F%BA%E7%A1%80/">Fabric基础</a>
+  </div>
+   
+    </div>
+      
+    <div class="article-entry" itemprop="articleBody">
+       
+  <p>Fabric网络中，身份信息文件、TLS通信文件，都需要有专门的模块来管理。通常测试时，为了方便，我们可以使用Fabric官方提供的<code>crypto</code>工具来快速生成需要到证书等。但真正的生产环境中，必须要有一个中心证书机构同一管理和维护证书，合理的规划CA层级，使得新组织加入时不会影响正在使用的证书，并且具有良好的扩展性。官方提供的<code>Fabric CA</code>本身就是为了解决这个问题而生的，是一个完全独立的模块。随着Fabric网络规模的扩大，CA中心由简单的一两个节点，可能会逐步扩充为一个集群等。作为Fabric的入口，很有必要掌握<code>Fabric CA</code>的一些原理和应用。</p> 
+      <a class="article-more-link" href="/articles/342ca2c8/"
+        >阅读更多...</a
+      >
+       
+      <!-- reward -->
+      
+    </div>
+    
+
+    <!-- copyright -->
+    
+    <footer class="article-footer">
+       
+  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/Fabric/" rel="tag">Fabric</a></li></ul>
+
+    </footer>
+  </div>
+
+    
+ 
+    
+</article>
+
+    
+    <article
   id="post-ipfs/ipfs基础/IPFS基础-高级操作"
   class="article article-type-post"
   itemscope
@@ -444,7 +500,7 @@
   <time datetime="2021-04-15T14:00:23.000Z" itemprop="datePublished">2021-04-15</time>
 </a> 
   <div class="article-category">
-    <a class="article-category-link" href="/categories/Hyperledger-Fabric/">Hyperledger Fabric</a> / <a class="article-category-link" href="/categories/Hyperledger-Fabric/%E5%9F%BA%E7%A1%80%E8%AE%B2%E8%A7%A3/">基础讲解</a>
+    <a class="article-category-link" href="/categories/Hyperledger-Fabric/">Hyperledger Fabric</a> / <a class="article-category-link" href="/categories/Hyperledger-Fabric/Fabric%E5%9F%BA%E7%A1%80/">Fabric基础</a>
   </div>
    
     </div>
@@ -634,62 +690,6 @@
     <footer class="article-footer">
        
   <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/Fabric/" rel="tag">Fabric</a></li></ul>
-
-    </footer>
-  </div>
-
-    
- 
-    
-</article>
-
-    
-    <article
-  id="post-lotus/application/lotus应用第1讲-2k扇区开发环境部署和应用"
-  class="article article-type-post"
-  itemscope
-  itemprop="blogPost"
-  data-scroll-reveal
->
-  <div class="article-inner">
-    
-    <header class="article-header">
-       
-<h2 itemprop="name">
-  <a class="article-title" href="/articles/1c05114c/"
-    >lotus应用第1讲-2k扇区开发环境部署和应用</a> 
-</h2>
- 
-
-    </header>
-     
-    <div class="article-meta">
-      <a href="/articles/1c05114c/" class="article-date">
-  <time datetime="2021-02-05T15:50:54.000Z" itemprop="datePublished">2021-02-05</time>
-</a> 
-  <div class="article-category">
-    <a class="article-category-link" href="/categories/Lotus/">Lotus</a> / <a class="article-category-link" href="/categories/Lotus/%E5%BA%94%E7%94%A8/">应用</a>
-  </div>
-   
-    </div>
-      
-    <div class="article-entry" itemprop="articleBody">
-       
-  <p>基于环境限制，使用2k扇区测试和校验lotus功能。<br>此环境的部署和使用，官方文档也有提供，但讲的太过简洁，传送门在这里：<a target="_blank" rel="noopener" href="https://docs.filecoin.io/build/local-devnet/#devnet-with-vanilla-lotus-binaries">Run a Filecoin local devnet</a><br>本文主要是细化官方文档中的描述，加入个人理解和使用心得。</p> 
-      <a class="article-more-link" href="/articles/1c05114c/"
-        >阅读更多...</a
-      >
-       
-      <!-- reward -->
-      
-    </div>
-    
-
-    <!-- copyright -->
-    
-    <footer class="article-footer">
-       
-  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/Filecoin/" rel="tag">Filecoin</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/Lotus/" rel="tag">Lotus</a></li></ul>
 
     </footer>
   </div>

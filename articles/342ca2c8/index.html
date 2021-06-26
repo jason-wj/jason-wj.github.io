@@ -1,0 +1,687 @@
+<!DOCTYPE html>
+
+
+<html lang="zh-Hans">
+
+
+<head>
+  <meta charset="utf-8" />
+    
+  <meta name="description" content="谈天谈地，谈古谈今，一起谈谈我们的未来。" />
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
+  <title>
+    fabric基础-Fabric CA介绍及使用 |  Jason漫谈区块链
+  </title>
+  <meta name="generator" content="hexo-theme-ayer">
+  
+  <link rel="shortcut icon" href="/images/my_head-16x16-next.ico" />
+  
+  
+<link rel="stylesheet" href="/dist/main.css">
+
+  
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/Shen-Yu/cdn/css/remixicon.min.css">
+
+  
+<link rel="stylesheet" href="/css/custom.css">
+
+  
+  
+<script src="https://cdn.jsdelivr.net/npm/pace-js@1.0.2/pace.min.js"></script>
+
+  
+  
+
+  
+
+</head>
+
+</html>
+
+<body>
+  <div id="app">
+    
+      
+    <main class="content on">
+      <section class="outer">
+  <article
+  id="post-fabric/fabric基础/fabric基础-Fabric-CA介绍及使用"
+  class="article article-type-post"
+  itemscope
+  itemprop="blogPost"
+  data-scroll-reveal
+>
+  <div class="article-inner">
+    
+    <header class="article-header">
+       
+<h1 class="article-title sea-center" style="border-left:0" itemprop="name">
+  fabric基础-Fabric CA介绍及使用
+</h1>
+ 
+
+    </header>
+     
+    <div class="article-meta">
+      <a href="/articles/342ca2c8/" class="article-date">
+  <time datetime="2021-05-26T11:35:48.000Z" itemprop="datePublished">2021-05-26</time>
+</a> 
+  <div class="article-category">
+    <a class="article-category-link" href="/categories/Hyperledger-Fabric/">Hyperledger Fabric</a> / <a class="article-category-link" href="/categories/Hyperledger-Fabric/Fabric%E5%9F%BA%E7%A1%80/">Fabric基础</a>
+  </div>
+  
+<div class="word_count">
+    <span class="post-time">
+        <span class="post-meta-item-icon">
+            <i class="ri-quill-pen-line"></i>
+            <span class="post-meta-item-text"> Word count:</span>
+            <span class="post-count">2.4k</span>
+        </span>
+    </span>
+
+    <span class="post-time">
+        &nbsp; | &nbsp;
+        <span class="post-meta-item-icon">
+            <i class="ri-book-open-line"></i>
+            <span class="post-meta-item-text"> Reading time≈</span>
+            <span class="post-count">9 min</span>
+        </span>
+    </span>
+</div>
+ 
+    </div>
+      
+    <div class="tocbot"></div>
+
+
+
+
+  
+    <div class="article-entry" itemprop="articleBody">
+       
+  <p>Fabric网络中，身份信息文件、TLS通信文件，都需要有专门的模块来管理。通常测试时，为了方便，我们可以使用Fabric官方提供的<code>crypto</code>工具来快速生成需要到证书等。但真正的生产环境中，必须要有一个中心证书机构同一管理和维护证书，合理的规划CA层级，使得新组织加入时不会影响正在使用的证书，并且具有良好的扩展性。官方提供的<code>Fabric CA</code>本身就是为了解决这个问题而生的，是一个完全独立的模块。随着Fabric网络规模的扩大，CA中心由简单的一两个节点，可能会逐步扩充为一个集群等。作为Fabric的入口，很有必要掌握<code>Fabric CA</code>的一些原理和应用。</p>
+<a id="more"></a>
+
+<h2 id="1、Fabric-CA整体架构"><a href="#1、Fabric-CA整体架构" class="headerlink" title="1、Fabric CA整体架构"></a>1、Fabric CA整体架构</h2><img src="/articles/342ca2c8/1.png" class="" title="Fabric架构">
+<ol>
+<li>Fabric CA根证书服务：建议在正是环境中只存在一个根证书，当然根据具体情况也可以有多个。该证书不用于具体CA证书颁发，具体的颁发行为交由中间CA来处理。该服务重要是用于统一管理中间证书。</li>
+<li>Fabric CA中间证书服务：每个中间证书都隶属于根证书，或隶属于其它中间证书，在正式环境中，建议每个组织对应一个中间证书，由该中间证书负责处理该组织的全部节点和成员的证书颁发。</li>
+<li>Fabric CA服务器集群：可以把中间证书服务通过HA Proxy实现Fabric CA服务器集群。将流量负载平衡到一个Fabric CA集群成员。各汲取成员生成的证书保存到同一个数据库中，方便查询身份和证书。</li>
+<li>Fabric CA客户端：负责登记、注册、销毁证书。</li>
+<li>两种方式和CA服务器交互：直接使用CA客户端、通过SDK调用</li>
+</ol>
+<h3 id="1-1-主要功能"><a href="#1-1-主要功能" class="headerlink" title="1.1 主要功能"></a>1.1 主要功能</h3><ol>
+<li>各实体的身份注册和登记</li>
+<li>给各实体发放登记证书(ECerts)</li>
+<li>给各实体发放交易证书(TCerts)</li>
+<li>各颁发证书的更新和销毁</li>
+</ol>
+<h2 id="2、下载与安装"><a href="#2、下载与安装" class="headerlink" title="2、下载与安装"></a>2、下载与安装</h2><ol>
+<li>可直接下载官方相应系统最新编译好的二进制文件，下载入口：<a target="_blank" rel="noopener" href="https://github.com/hyperledger/fabric-ca/releases">fabric-ca可执行程序</a> 或者使用源码编译生成可执行程序，源码仓库：<a target="_blank" rel="noopener" href="https://github.com/hyperledger/fabric-ca">fabric-ca源码</a><br>二进制程序。</li>
+<li>这里建议直接使用官方已编译好的，本文使用的是<code>v1.5.0</code>版本</li>
+<li>二进制可执行程序分为两个：<br>服务器端：<code>fabric-ca-server</code>，顾名思义，用于提供CA服务，需要放到指定服务器<br>客户端：<code>fabric-ca-client</code>，用于连接CA服务，可以客户端操作和测试CA服务，放在你想放的地方即可。</li>
+<li>为方便操作，建议设置环境变量，这个过程不阐述。</li>
+</ol>
+<h2 id="3、fabric-ca-server使用"><a href="#3、fabric-ca-server使用" class="headerlink" title="3、fabric-ca-server使用"></a>3、fabric-ca-server使用</h2><h3 id="3-1-初始化"><a href="#3-1-初始化" class="headerlink" title="3.1 初始化"></a>3.1 初始化</h3><p>这个过程只是生成启动前的初始化文件，其实下一个步骤<code>启动</code>已经包含了这个过程，根据实际需要可选择是否要跳过该步骤。<br>设置工作主目录，这里有这样一个规则，优先级由上至下：</p>
+<ol>
+<li>命令行设置<code>-home</code></li>
+<li>配置环境变量：<code>FABRIC_CA_SERVER_HOME</code></li>
+<li>配置环境变量：<code>FABRIC_CA_HOME</code></li>
+<li>配置环境变量：<code>FABRIC_CFG_PATH</code></li>
+<li>使用当前二进制所在目录</li>
+</ol>
+<p>初始化命令：</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">./fabric-ca-server init -b admin:adminpw --home ./fabric_ca_server</span><br></pre></td></tr></table></figure>
+<p><code>-b</code>：设置默认管理员的账户和密码<br><code>--home</code>：设置默认工作目录<br>命令执行后，会有一系列的日志，记录了整个执行过程，这个日志在这里就不贴上来了。<br>执行后，会在工作目录下生成如下文件：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line">.</span><br><span class="line">├── IssuerPublicKey                  # 身份混合器会用到（零知识证明）</span><br><span class="line">├── IssuerRevocationPublicKey        # 身份混合器会用到（零知识证明）</span><br><span class="line">├── ca-cert.pem                      # 自签名CA根证书，用于验证其它证书的有效性</span><br><span class="line">├── fabric-ca-server-config.yaml     # CA服务端配置文件，服务启动时会读取这里的配置信息</span><br><span class="line">├── fabric-ca-server.db              # 用于存储注册用户和证书的数据库，这里默认用的是sqlite</span><br><span class="line">└── msp                              # 存放CA中心生成的个人身份的私钥文件，用于生成根证书和其他证书，生成的文件格式为_sk</span><br><span class="line">    └── keystore</span><br><span class="line">        ├── 41a1416624e186b4f5f19ae643c8e2b2493f5175226b49668fb34dfa7cc2bd9e_sk</span><br><span class="line">        ├── IssuerRevocationPrivateKey</span><br><span class="line">        └── IssuerSecretKey</span><br></pre></td></tr></table></figure>
+<p>其中，<code>fabric-ca-server-config.yaml</code>涉及到一系列CA服务器的配置属性，需要根据了解逐步去配置，里面官方给每个属性都配有说明。这块如果展开说，篇幅不够的，后续根据需要看是否需要开专门一篇文章来讲解这个配置文件的内容。</p>
+<h3 id="3-2-启动"><a href="#3-2-启动" class="headerlink" title="3.2 启动"></a>3.2 启动</h3><p>启动时，会生成一系列检测信息，<code>启动过程本身就包含了初始化过程，如果先前没有初始化，或者没有指定配置文件，则该过程会自动生成新的初始化文件</code>。<br>启动后，默认端口号是：<code>7054</code>，用来监听客户端的请求。要改别的端口号，则前往配置设置。<br>启动命令：</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">./fabric-ca-server start -b admin:adminpw --home ./fabric_ca_server --cfg.affiliations.allowremove --cfg.identities.allowremove</span><br></pre></td></tr></table></figure>
+<p><code>--cfg.affiliations.allowremove</code>：指定允许删除联盟<br><code>--cfg.identities.allowremove</code>：指定允许删除用户</p>
+<h3 id="3-3-sqlite-db"><a href="#3-3-sqlite-db" class="headerlink" title="3.3 sqlite db"></a>3.3 sqlite db</h3><p>默认使用的是sqlite数据库，ca server初始化完成后，会生成<code>fabric-ca-server.db</code>，使用navicat打开后，会发现里面总共7张表，分别为：</p>
+<ol>
+<li><code>affiliations</code>：存储机构组织</li>
+<li><code>certificates</code>：客户端登录账号会在此处有一个记录</li>
+<li><code>credentials</code>：</li>
+<li><code>nonces</code>：</li>
+<li><code>properties</code>：</li>
+<li><code>revocation_authority_info</code>：</li>
+<li><code>users</code>：用户账户</li>
+</ol>
+<h2 id="4、fabric-ca-client使用"><a href="#4、fabric-ca-client使用" class="headerlink" title="4、fabric-ca-client使用"></a>4、fabric-ca-client使用</h2><ol>
+<li><p>这个是ca客户端，主要用来和ca服务器端的交互，主要涉及到以下几个命令：<br><code>register</code>：注册用户身份<br><code>enroll</code>：登记用户身份<br><code>reenroll</code>：重新登记用户身份<br><code>revoke</code>：注销已签发的用户证书<br><code>affiliation list</code>：列举组织关系<br><code>affiliation remove</code>：移除组织关系<br><code>affiliation add</code>：添加组织关系</p>
+</li>
+<li><p>注：务必先启动ca服务器端</p>
+</li>
+<li><p>默认启动的ca server，数据库里组织是没什么用的，需要删除掉，然后重新添加一个需要的组织，然后为该组织注册一个账号。这整个操作流程，正好满足ca客户端的基本使用，为此按照这个思路，讲解以下流程</p>
+</li>
+<li><p>以下操作建议为ca客户端配置一个根目录<code>FABRIC_CA_CLIENT_HOME</code>，取代<code>--home</code>参数</p>
+</li>
+</ol>
+<h3 id="4-1-登记账号"><a href="#4-1-登记账号" class="headerlink" title="4.1 登记账号"></a>4.1 登记账号</h3><p>CA客户端要操作任何内容，都需要先登记相应的账号，这里我们登记管理员账号admin。<br>登记的目的是获取签名证书，这样之后只要用相应账号密码连接ca服务即可操作相应功能</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">./fabric-ca-client enroll -d --enrollment.profile tls -u http://admin:adminpw@localhost:7054 --home ./fabric_ca_client  -M ./crypto_config/ordererOrganizations/msp </span><br></pre></td></tr></table></figure>
+<h3 id="4-2-查看现有组织"><a href="#4-2-查看现有组织" class="headerlink" title="4.2 查看现有组织"></a>4.2 查看现有组织</h3><p>可以直观返回当前ca数据库组织关系</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">./fabric-ca-client  affiliation list -u http://admin:adminpw@localhost:7054 --home ./fabric_ca_client  -M ./crypto_config/ordererOrganizations/msp</span><br></pre></td></tr></table></figure>
+<p>返回默认组织关系</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">affiliation: .</span><br><span class="line">   affiliation: org2</span><br><span class="line">      affiliation: org2.department1</span><br><span class="line">   affiliation: org1</span><br><span class="line">      affiliation: org1.department1</span><br><span class="line">      affiliation: org1.department2</span><br></pre></td></tr></table></figure>
+<h3 id="4-3-删除组织"><a href="#4-3-删除组织" class="headerlink" title="4.3 删除组织"></a>4.3 删除组织</h3><p>需要admin账户拥有删除组织的权限。默认自带的组织并没有什么用，可以逐个删除，比如删除org1组织</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#</span><span class="bash"> 删除组织1</span></span><br><span class="line">./fabric-ca-client  affiliation remove --force org1 -u http://admin:adminpw@localhost:7054 --home ./fabric_ca_client  -M ./crypto_config/ordererOrganizations/msp</span><br><span class="line"></span><br><span class="line"><span class="meta">#</span><span class="bash"> 删除组织2</span></span><br><span class="line">./fabric-ca-client  affiliation remove --force org2 -u http://admin:adminpw@localhost:7054 --home ./fabric_ca_client  -M ./crypto_config/ordererOrganizations/msp</span><br></pre></td></tr></table></figure>
+<p><code>--force</code>：可以强制删除组织和其子组织</p>
+<h3 id="4-4-添加组织"><a href="#4-4-添加组织" class="headerlink" title="4.4 添加组织"></a>4.4 添加组织</h3><p>组织添加有规则限制，比如组织格式为：com.jason.org1，需要先添加组织<code>com</code>，然后添加<code>com.jason</code>，最后添加<code>com.jason.org1</code></p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#</span><span class="bash"> 添加组织com</span></span><br><span class="line">fabric-ca-client affiliation add com -u http://admin:adminpw@localhost:7054 --home ./fabric_ca_client  -M ./crypto_config/ordererOrganizations/msp</span><br><span class="line"></span><br><span class="line"><span class="meta">#</span><span class="bash"> 添加组织com.jason</span></span><br><span class="line">fabric-ca-client affiliation add com.jason -u http://admin:adminpw@localhost:7054 --home ./fabric_ca_client  -M ./crypto_config/ordererOrganizations/msp</span><br><span class="line"></span><br><span class="line"><span class="meta">#</span><span class="bash"> 添加组织com.jason.org1</span></span><br><span class="line">fabric-ca-client affiliation add com.jason.org1 -u http://admin:adminpw@localhost:7054 --home ./fabric_ca_client  -M ./crypto_config/ordererOrganizations/msp</span><br><span class="line"></span><br><span class="line"><span class="meta">#</span><span class="bash"> 添加组织com.jason.org2</span></span><br><span class="line">fabric-ca-client affiliation add com.jason.org2 -u http://admin:adminpw@localhost:7054 --home ./fabric_ca_client  -M ./crypto_config/ordererOrganizations/msp</span><br></pre></td></tr></table></figure>
+<p>通过查看可知，当前ca数据库中，组织关系为：</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">affiliation: com</span><br><span class="line">   affiliation: com.jason</span><br><span class="line">      affiliation: com.jason.org1</span><br><span class="line">      affiliation: com.jason.org2</span><br></pre></td></tr></table></figure>
+<h3 id="4-5-为指定组织添加证书"><a href="#4-5-为指定组织添加证书" class="headerlink" title="4.5 为指定组织添加证书"></a>4.5 为指定组织添加证书</h3><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">fabric-ca-client getcainfo -u http://admin:adminpw@localhost:7054 --home ./fabric_ca_client  -M ./crypto_config/organizations/msp</span><br></pre></td></tr></table></figure>
+<h3 id="4-6-注册用户身份"><a href="#4-6-注册用户身份" class="headerlink" title="4.6 注册用户身份"></a>4.6 注册用户身份</h3><p>需要记住的是，注册完成之后，要及时登记(enroll)，否则该账号依旧无法做任何操作</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#</span><span class="bash"> 注册</span></span><br><span class="line">./fabric-ca-client register -u http://admin:adminpw@localhost:7054 --id.name orderer.jason.com --id.type orderer --id.affiliation &quot;com.jason&quot; --id.attrs &#x27;&quot;hf.Registrar.Roles=client,orderer,peer,user&quot;,&quot;hf.Registrar.DelegateRoles=client,orderer,peer,user&quot;,hf.Registrar.Attributes=*,hf.GenCRL=true,hf.Revoker=true,hf.AffiliationMgr=true,hf.IntermediateCA=true,role=admin:ecert&#x27; --id.secret=123456 --home ./fabric_ca_client  -M ./crypto_config/ordererOrganizations/msp </span><br><span class="line"></span><br><span class="line"><span class="meta">#</span><span class="bash"> 登记</span></span><br><span class="line">./fabric-ca-client enroll -d --enrollment.profile tls -u http://orderer.jason.com:123456@localhost:7054 --home ./fabric_ca_client  -M ./crypto_config/peerOrganizations/msp </span><br><span class="line"></span><br></pre></td></tr></table></figure>
+<h3 id="4-7-重新登记用户身份"><a href="#4-7-重新登记用户身份" class="headerlink" title="4.7 重新登记用户身份"></a>4.7 重新登记用户身份</h3><p>比如证书快到期了，或者想要更换证书，则重新登记</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">./fabric-ca-client reenroll -d --enrollment.profile tls -u http://admin:adminpw@localhost:7054 --home ./fabric_ca_client  -M ./crypto_config/ordererOrganizations/msp </span><br></pre></td></tr></table></figure>
+<h3 id="4-8-注销已签发的证书"><a href="#4-8-注销已签发的证书" class="headerlink" title="4.8 注销已签发的证书"></a>4.8 注销已签发的证书</h3><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">./fabric-ca-client revoke -e &quot;orderer.jason.com&quot; -r &quot;注销原因：xxxx&quot; -u http://admin:adminpw@localhost:7054 --home ./fabric_ca_client  -M ./crypto_config/ordererOrganizations/msp </span><br></pre></td></tr></table></figure>
+<p><code>-e</code>：用户账号<br><code>-r</code>：注销原因</p>
+<h2 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h2><p>本文主要介绍了CA服务端和客户端的操作以及执行原理</p>
+ 
+      <!-- reward -->
+      
+      <div id="reword-out">
+        <div id="reward-btn">
+          Donate
+        </div>
+      </div>
+      
+    </div>
+    
+
+    <!-- copyright -->
+    
+    <div class="declare">
+      <ul class="post-copyright">
+        <li>
+          <i class="ri-copyright-line"></i>
+          <strong>Copyright： </strong>
+          
+          Copyright is owned by the author. For commercial reprints, please contact the author for authorization. For non-commercial reprints, please indicate the source.
+          
+        </li>
+      </ul>
+    </div>
+    
+    <footer class="article-footer">
+       
+<div class="share-btn">
+      <span class="share-sns share-outer">
+        <i class="ri-share-forward-line"></i>
+        分享
+      </span>
+      <div class="share-wrap">
+        <i class="arrow"></i>
+        <div class="share-icons">
+          
+          <a class="weibo share-sns" href="javascript:;" data-type="weibo">
+            <i class="ri-weibo-fill"></i>
+          </a>
+          <a class="weixin share-sns wxFab" href="javascript:;" data-type="weixin">
+            <i class="ri-wechat-fill"></i>
+          </a>
+          <a class="qq share-sns" href="javascript:;" data-type="qq">
+            <i class="ri-qq-fill"></i>
+          </a>
+          <a class="douban share-sns" href="javascript:;" data-type="douban">
+            <i class="ri-douban-line"></i>
+          </a>
+          <!-- <a class="qzone share-sns" href="javascript:;" data-type="qzone">
+            <i class="icon icon-qzone"></i>
+          </a> -->
+          
+          <a class="facebook share-sns" href="javascript:;" data-type="facebook">
+            <i class="ri-facebook-circle-fill"></i>
+          </a>
+          <a class="twitter share-sns" href="javascript:;" data-type="twitter">
+            <i class="ri-twitter-fill"></i>
+          </a>
+          <a class="google share-sns" href="javascript:;" data-type="google">
+            <i class="ri-google-fill"></i>
+          </a>
+        </div>
+      </div>
+</div>
+
+<div class="wx-share-modal">
+    <a class="modal-close" href="javascript:;"><i class="ri-close-circle-line"></i></a>
+    <p>扫一扫，分享到微信</p>
+    <div class="wx-qrcode">
+      <img src="//api.qrserver.com/v1/create-qr-code/?size=150x150&data=http://jason-wj.gitee.io/articles/342ca2c8/" alt="微信分享二维码">
+    </div>
+</div>
+
+<div id="share-mask"></div>  
+  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/Fabric/" rel="tag">Fabric</a></li></ul>
+
+    </footer>
+  </div>
+
+   
+  <nav class="article-nav">
+    
+    
+      <a href="/articles/6ebd6fe7/" class="article-nav-link">
+        <strong class="article-nav-caption">下一篇</strong>
+        <div class="article-nav-title">IPFS基础-高级操作</div>
+      </a>
+    
+  </nav>
+
+   
+<!-- valine评论 -->
+<div id="vcomments-box">
+  <div id="vcomments"></div>
+</div>
+<script src="//cdn1.lncld.net/static/js/3.0.4/av-min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/valine@1.4.14/dist/Valine.min.js"></script>
+<script>
+  new Valine({
+    el: "#vcomments",
+    app_id: "gdw0hVSwW3l6KgEMulSAc9Rx-gzGzoHsz",
+    app_key: "M4iiVXe0CuXWQEKuyIzWWDMh",
+    path: window.location.pathname,
+    avatar: "monsterid",
+    placeholder: "给我的文章加点评论吧~",
+    recordIP: true,
+  });
+  const infoEle = document.querySelector("#vcomments .info");
+  if (infoEle && infoEle.childNodes && infoEle.childNodes.length > 0) {
+    infoEle.childNodes.forEach(function (item) {
+      item.parentNode.removeChild(item);
+    });
+  }
+</script>
+<style>
+  #vcomments-box {
+    padding: 5px 30px;
+  }
+
+  @media screen and (max-width: 800px) {
+    #vcomments-box {
+      padding: 5px 0px;
+    }
+  }
+
+  #vcomments-box #vcomments {
+    background-color: #fff;
+  }
+
+  .v .vlist .vcard .vh {
+    padding-right: 20px;
+  }
+
+  .v .vlist .vcard {
+    padding-left: 10px;
+  }
+</style>
+
+ 
+   
+     
+</article>
+
+</section>
+      <footer class="footer">
+  <div class="outer">
+    <ul>
+      <li>
+        Copyrights &copy;
+        2017-2021
+        <i class="ri-heart-fill heart_icon"></i> Jason
+      </li>
+    </ul>
+    <ul>
+      <li>
+        
+      </li>
+    </ul>
+    <ul>
+      <li>
+        
+        
+        <span>
+  <span><i class="ri-user-3-fill"></i>Visitors:<span id="busuanzi_value_site_uv"></span></s>
+  <span class="division">|</span>
+  <span><i class="ri-eye-fill"></i>Views:<span id="busuanzi_value_page_pv"></span></span>
+</span>
+        
+      </li>
+    </ul>
+    <ul>
+      
+    </ul>
+    <ul>
+      
+    </ul>
+    <ul>
+      <li>
+        <!-- cnzz统计 -->
+        
+        <script type="text/javascript" src='https://s4.cnzz.com/z_stat.php?id=1279593399&amp;web_id=1279593399'></script>
+        
+      </li>
+    </ul>
+  </div>
+</footer>
+      <div class="float_btns">
+        <div class="totop" id="totop">
+  <i class="ri-arrow-up-line"></i>
+</div>
+
+<div class="todark" id="todark">
+  <i class="ri-moon-line"></i>
+</div>
+
+      </div>
+    </main>
+    <aside class="sidebar on">
+      <button class="navbar-toggle"></button>
+<nav class="navbar">
+  
+  <div class="logo">
+    <a href="/"><img src="/images/my_head-touch-icon-next.png" alt="Jason漫谈区块链"></a>
+  </div>
+  
+  <ul class="nav nav-main">
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/">主页</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/archives">归档</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/categories">分类</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/tags">标签</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/friends">友链</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/about">关于我</a>
+    </li>
+    
+  </ul>
+</nav>
+<nav class="navbar navbar-bottom">
+  <ul class="nav">
+    <li class="nav-item">
+      
+      <a class="nav-item-link nav-item-search"  title="Search">
+        <i class="ri-search-line"></i>
+      </a>
+      
+      
+    </li>
+  </ul>
+</nav>
+<div class="search-form-wrap">
+  <div class="local-search local-search-plugin">
+  <input type="search" id="local-search-input" class="local-search-input" placeholder="Search...">
+  <div id="local-search-result" class="local-search-result"></div>
+</div>
+</div>
+    </aside>
+    <script>
+      if (window.matchMedia("(max-width: 768px)").matches) {
+        document.querySelector('.content').classList.remove('on');
+        document.querySelector('.sidebar').classList.remove('on');
+      }
+    </script>
+    <div id="mask"></div>
+
+<!-- #reward -->
+<div id="reward">
+  <span class="close"><i class="ri-close-line"></i></span>
+  <p class="reward-p"><i class="ri-cup-line"></i>请我喝杯咖啡吧~</p>
+  <div class="reward-box">
+    
+    <div class="reward-item">
+      <img class="reward-img" src="/images/pay_ali.jpg">
+      <span class="reward-type">支付宝</span>
+    </div>
+    
+    
+    <div class="reward-item">
+      <img class="reward-img" src="/images/pay_wechat.jpg">
+      <span class="reward-type">微信</span>
+    </div>
+    
+  </div>
+</div>
+    
+<script src="/js/jquery-2.0.3.min.js"></script>
+
+
+<script src="/js/lazyload.min.js"></script>
+
+<!-- Tocbot -->
+
+
+<script src="/js/tocbot.min.js"></script>
+
+<script>
+  tocbot.init({
+    tocSelector: '.tocbot',
+    contentSelector: '.article-entry',
+    headingSelector: 'h1, h2, h3, h4, h5, h6',
+    hasInnerContainers: true,
+    scrollSmooth: true,
+    scrollContainer: 'main',
+    positionFixedSelector: '.tocbot',
+    positionFixedClass: 'is-position-fixed',
+    fixedSidebarOffset: 'auto'
+  });
+</script>
+
+<script src="https://cdn.jsdelivr.net/npm/jquery-modal@0.9.2/jquery.modal.min.js"></script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/jquery-modal@0.9.2/jquery.modal.min.css">
+<script src="https://cdn.jsdelivr.net/npm/justifiedGallery@3.7.0/dist/js/jquery.justifiedGallery.min.js"></script>
+
+<script src="/dist/main.js"></script>
+
+<!-- ImageViewer -->
+
+<!-- Root element of PhotoSwipe. Must have class pswp. -->
+<div class="pswp" tabindex="-1" role="dialog" aria-hidden="true">
+
+    <!-- Background of PhotoSwipe. 
+         It's a separate element as animating opacity is faster than rgba(). -->
+    <div class="pswp__bg"></div>
+
+    <!-- Slides wrapper with overflow:hidden. -->
+    <div class="pswp__scroll-wrap">
+
+        <!-- Container that holds slides. 
+            PhotoSwipe keeps only 3 of them in the DOM to save memory.
+            Don't modify these 3 pswp__item elements, data is added later on. -->
+        <div class="pswp__container">
+            <div class="pswp__item"></div>
+            <div class="pswp__item"></div>
+            <div class="pswp__item"></div>
+        </div>
+
+        <!-- Default (PhotoSwipeUI_Default) interface on top of sliding area. Can be changed. -->
+        <div class="pswp__ui pswp__ui--hidden">
+
+            <div class="pswp__top-bar">
+
+                <!--  Controls are self-explanatory. Order can be changed. -->
+
+                <div class="pswp__counter"></div>
+
+                <button class="pswp__button pswp__button--close" title="Close (Esc)"></button>
+
+                <button class="pswp__button pswp__button--share" style="display:none" title="Share"></button>
+
+                <button class="pswp__button pswp__button--fs" title="Toggle fullscreen"></button>
+
+                <button class="pswp__button pswp__button--zoom" title="Zoom in/out"></button>
+
+                <!-- Preloader demo http://codepen.io/dimsemenov/pen/yyBWoR -->
+                <!-- element will get class pswp__preloader--active when preloader is running -->
+                <div class="pswp__preloader">
+                    <div class="pswp__preloader__icn">
+                        <div class="pswp__preloader__cut">
+                            <div class="pswp__preloader__donut"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="pswp__share-modal pswp__share-modal--hidden pswp__single-tap">
+                <div class="pswp__share-tooltip"></div>
+            </div>
+
+            <button class="pswp__button pswp__button--arrow--left" title="Previous (arrow left)">
+            </button>
+
+            <button class="pswp__button pswp__button--arrow--right" title="Next (arrow right)">
+            </button>
+
+            <div class="pswp__caption">
+                <div class="pswp__caption__center"></div>
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe.min.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/default-skin/default-skin.min.css">
+<script src="https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe-ui-default.min.js"></script>
+
+<script>
+    function viewer_init() {
+        let pswpElement = document.querySelectorAll('.pswp')[0];
+        let $imgArr = document.querySelectorAll(('.article-entry img:not(.reward-img)'))
+
+        $imgArr.forEach(($em, i) => {
+            $em.onclick = () => {
+                // slider展开状态
+                // todo: 这样不好，后面改成状态
+                if (document.querySelector('.left-col.show')) return
+                let items = []
+                $imgArr.forEach(($em2, i2) => {
+                    let img = $em2.getAttribute('data-idx', i2)
+                    let src = $em2.getAttribute('data-target') || $em2.getAttribute('src')
+                    let title = $em2.getAttribute('alt')
+                    // 获得原图尺寸
+                    const image = new Image()
+                    image.src = src
+                    items.push({
+                        src: src,
+                        w: image.width || $em2.width,
+                        h: image.height || $em2.height,
+                        title: title
+                    })
+                })
+                var gallery = new PhotoSwipe(pswpElement, PhotoSwipeUI_Default, items, {
+                    index: parseInt(i)
+                });
+                gallery.init()
+            }
+        })
+    }
+    viewer_init()
+</script>
+
+<!-- MathJax -->
+
+<!-- Katex -->
+
+<!-- busuanzi  -->
+
+
+<script src="/js/busuanzi-2.3.pure.min.js"></script>
+
+
+<!-- ClickLove -->
+
+<!-- ClickBoom1 -->
+
+<!-- ClickBoom2 -->
+
+<!-- CodeCopy -->
+
+
+<link rel="stylesheet" href="/css/clipboard.css">
+
+<script src="https://cdn.jsdelivr.net/npm/clipboard@2/dist/clipboard.min.js"></script>
+<script>
+  function wait(callback, seconds) {
+    var timelag = null;
+    timelag = window.setTimeout(callback, seconds);
+  }
+  !function (e, t, a) {
+    var initCopyCode = function(){
+      var copyHtml = '';
+      copyHtml += '<button class="btn-copy" data-clipboard-snippet="">';
+      copyHtml += '<i class="ri-file-copy-2-line"></i><span>COPY</span>';
+      copyHtml += '</button>';
+      $(".highlight .code pre").before(copyHtml);
+      $(".article pre code").before(copyHtml);
+      var clipboard = new ClipboardJS('.btn-copy', {
+        target: function(trigger) {
+          return trigger.nextElementSibling;
+        }
+      });
+      clipboard.on('success', function(e) {
+        let $btn = $(e.trigger);
+        $btn.addClass('copied');
+        let $icon = $($btn.find('i'));
+        $icon.removeClass('ri-file-copy-2-line');
+        $icon.addClass('ri-checkbox-circle-line');
+        let $span = $($btn.find('span'));
+        $span[0].innerText = 'COPIED';
+        
+        wait(function () { // 等待两秒钟后恢复
+          $icon.removeClass('ri-checkbox-circle-line');
+          $icon.addClass('ri-file-copy-2-line');
+          $span[0].innerText = 'COPY';
+        }, 2000);
+      });
+      clipboard.on('error', function(e) {
+        e.clearSelection();
+        let $btn = $(e.trigger);
+        $btn.addClass('copy-failed');
+        let $icon = $($btn.find('i'));
+        $icon.removeClass('ri-file-copy-2-line');
+        $icon.addClass('ri-time-line');
+        let $span = $($btn.find('span'));
+        $span[0].innerText = 'COPY FAILED';
+        
+        wait(function () { // 等待两秒钟后恢复
+          $icon.removeClass('ri-time-line');
+          $icon.addClass('ri-file-copy-2-line');
+          $span[0].innerText = 'COPY';
+        }, 2000);
+      });
+    }
+    initCopyCode();
+  }(window, document);
+</script>
+
+
+<!-- CanvasBackground -->
+
+
+    
+  </div>
+</body>
+
+</html>
