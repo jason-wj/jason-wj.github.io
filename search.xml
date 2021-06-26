@@ -1444,12 +1444,12 @@ http://192.168.3.100:8080/ipfs/QmbvBDKPhdHMVDthaafapqsis9g4YorjRp3bTLc4v7ZMp2/
 <a id="more"></a>
 
 <h2 id="ubuntu相关"><a href="#ubuntu相关" class="headerlink" title="ubuntu相关"></a>ubuntu相关</h2><h3 id="服务器信息"><a href="#服务器信息" class="headerlink" title="服务器信息"></a>服务器信息</h3><ol>
-<li>服务器1（节点1）:<a href="mailto:&#114;&#111;&#111;&#x74;&#x40;&#49;&#x39;&#x32;&#x2e;&#x31;&#54;&#x38;&#x2e;&#x33;&#46;&#49;&#x30;&#x30;">&#114;&#111;&#111;&#x74;&#x40;&#49;&#x39;&#x32;&#x2e;&#x31;&#54;&#x38;&#x2e;&#x33;&#46;&#49;&#x30;&#x30;</a><ol>
+<li>服务器1（节点1）:<a href="mailto:&#x72;&#111;&#x6f;&#116;&#64;&#x31;&#57;&#x32;&#x2e;&#49;&#x36;&#56;&#x2e;&#51;&#46;&#x31;&#x30;&#48;">&#x72;&#111;&#x6f;&#116;&#64;&#x31;&#57;&#x32;&#x2e;&#49;&#x36;&#56;&#x2e;&#51;&#46;&#x31;&#x30;&#48;</a><ol>
 <li>ipfs第一节点</li>
 <li>密码已修改******</li>
 </ol>
 </li>
-<li>服务器2（节点2）:<a href="mailto:&#x72;&#x6f;&#111;&#116;&#x40;&#49;&#57;&#50;&#46;&#49;&#x36;&#56;&#46;&#x33;&#x2e;&#x31;&#48;&#49;">&#x72;&#x6f;&#111;&#116;&#x40;&#49;&#57;&#50;&#46;&#49;&#x36;&#56;&#46;&#x33;&#x2e;&#x31;&#48;&#49;</a><ol>
+<li>服务器2（节点2）:<a href="mailto:&#x72;&#111;&#x6f;&#x74;&#x40;&#49;&#x39;&#50;&#46;&#x31;&#54;&#56;&#x2e;&#x33;&#46;&#49;&#48;&#49;">&#x72;&#111;&#x6f;&#x74;&#x40;&#49;&#x39;&#50;&#46;&#x31;&#54;&#56;&#x2e;&#x33;&#46;&#49;&#48;&#49;</a><ol>
 <li>ipfs第二节点</li>
 <li>密码已修改******</li>
 </ol>
@@ -3060,6 +3060,31 @@ http://192.168.3.100:8080/ipfs/QmbvBDKPhdHMVDthaafapqsis9g4YorjRp3bTLc4v7ZMp2/
       </tags>
   </entry>
   <entry>
+    <title>(truffle官翻)第3讲 创建项目</title>
+    <url>/articles/39ce2b06/</url>
+    <content><![CDATA[<h2 id="概述"><a href="#概述" class="headerlink" title="概述"></a>概述</h2><p>官方和社区已有项目应用地址：<a href="http://truffleframework.com/boxes/metacoin">http://truffleframework.com/boxes/metacoin</a>  </p>
+<h2 id="安装"><a href="#安装" class="headerlink" title="安装"></a>安装</h2><ul>
+<li>从头开始项目建立空项目  <ol>
+<li>创建和初始化：   <figure class="highlight bash"><table><tr><td class="code"><pre><span class="line">mkdir testproject</span><br><span class="line"><span class="built_in">cd</span> testproject</span><br><span class="line">truffle init</span><br></pre></td></tr></table></figure></li>
+<li>目录结构：   <figure class="highlight bash"><table><tr><td class="code"><pre><span class="line">find . -<span class="built_in">print</span> | sed -e <span class="string">&#x27;s;[^/]*/;|____;g;s;____|; |;g’ //mac环境</span></span><br></pre></td></tr></table></figure>
+
+
+</li>
+</ol>
+</li>
+</ul>
+]]></content>
+      <categories>
+        <category>以太坊</category>
+        <category>truffle</category>
+        <category>官翻</category>
+      </categories>
+      <tags>
+        <tag>ethereum</tag>
+        <tag>truffle</tag>
+      </tags>
+  </entry>
+  <entry>
     <title>(truffle官翻)第4讲 选择一个以太坊客户端</title>
     <url>/articles/dbe1bf88/</url>
     <content><![CDATA[<h1 id="第4讲-选择一个以太坊客户端"><a href="#第4讲-选择一个以太坊客户端" class="headerlink" title="第4讲_选择一个以太坊客户端"></a>第4讲_选择一个以太坊客户端</h1><h2 id="概述"><a href="#概述" class="headerlink" title="概述"></a>概述</h2><p>需要选择一个以太坊客户端环境来测试truffle项目  </p>
@@ -3092,31 +3117,6 @@ http://192.168.3.100:8080/ipfs/QmbvBDKPhdHMVDthaafapqsis9g4YorjRp3bTLc4v7ZMp2/
 </li>
 <li>Ganache 命令行<br>略，小编用第二种方式就够了</li>
 </ol>
-]]></content>
-      <categories>
-        <category>以太坊</category>
-        <category>truffle</category>
-        <category>官翻</category>
-      </categories>
-      <tags>
-        <tag>ethereum</tag>
-        <tag>truffle</tag>
-      </tags>
-  </entry>
-  <entry>
-    <title>(truffle官翻)第3讲 创建项目</title>
-    <url>/articles/39ce2b06/</url>
-    <content><![CDATA[<h2 id="概述"><a href="#概述" class="headerlink" title="概述"></a>概述</h2><p>官方和社区已有项目应用地址：<a href="http://truffleframework.com/boxes/metacoin">http://truffleframework.com/boxes/metacoin</a>  </p>
-<h2 id="安装"><a href="#安装" class="headerlink" title="安装"></a>安装</h2><ul>
-<li>从头开始项目建立空项目  <ol>
-<li>创建和初始化：   <figure class="highlight bash"><table><tr><td class="code"><pre><span class="line">mkdir testproject</span><br><span class="line"><span class="built_in">cd</span> testproject</span><br><span class="line">truffle init</span><br></pre></td></tr></table></figure></li>
-<li>目录结构：   <figure class="highlight bash"><table><tr><td class="code"><pre><span class="line">find . -<span class="built_in">print</span> | sed -e <span class="string">&#x27;s;[^/]*/;|____;g;s;____|; |;g’ //mac环境</span></span><br></pre></td></tr></table></figure>
-
-
-</li>
-</ol>
-</li>
-</ul>
 ]]></content>
       <categories>
         <category>以太坊</category>
