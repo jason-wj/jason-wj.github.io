@@ -113,9 +113,10 @@
 <li>进入容器，并进入指定映射目录<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">./main.sh exec python </span><br><span class="line">cd /docs</span><br></pre></td></tr></table></figure></li>
 <li>虽然ca文档源码中官方提供了<code>requirements.txt</code>，但是你会发现如果直接使用，不管用哪个版本的python，都无法成功编译，因此需要手动执行加入以下依赖包，默认使用最新版的包：<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">pip install sphinx</span><br><span class="line">pip install sphinx_rtd_theme</span><br><span class="line">pip install recommonmark</span><br></pre></td></tr></table></figure></li>
 <li>编译生成html文档<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">make html</span><br></pre></td></tr></table></figure>
-build/html/中会有编译后的文档，这就是最终完整的编译内容，之后只要用nginx等服务器部署该静态文档即可。<h2 id="停止sphinx容器"><a href="#停止sphinx容器" class="headerlink" title="停止sphinx容器"></a>停止sphinx容器</h2><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">./main.sh release python</span><br></pre></td></tr></table></figure>
-<h2 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h2>本文主要记录了编译官方CA文档源码的流程，方便后续参考。</li>
+build/html/中会有编译后的文档，这就是最终完整的编译内容，之后只要用nginx等服务器部署该静态文档即可。</li>
 </ol>
+<h2 id="停止sphinx容器"><a href="#停止sphinx容器" class="headerlink" title="停止sphinx容器"></a>停止sphinx容器</h2><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">./main.sh release python</span><br></pre></td></tr></table></figure>
+<h2 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h2><p>本文主要记录了编译官方CA文档源码的流程，方便后续参考。</p>
  
       <!-- reward -->
       
