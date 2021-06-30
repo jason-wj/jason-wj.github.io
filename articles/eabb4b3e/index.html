@@ -11,7 +11,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
   <title>
-    Archives: 2021/6 |  Jason漫谈区块链
+    fabric应用-ca官方文档编译及发布 |  Jason漫谈区块链
   </title>
   <meta name="generator" content="hexo-theme-ayer">
   
@@ -45,73 +45,221 @@
       
     <main class="content on">
       <section class="outer">
-  
-  
-  <article class="articles">
+  <article
+  id="post-fabric/application/fabric应用-ca官方文档编译及发布"
+  class="article article-type-post"
+  itemscope
+  itemprop="blogPost"
+  data-scroll-reveal
+>
+  <div class="article-inner">
     
-    
-    <h1 class="page-type-title">2021/6</h1>
-    
-    
-  
-  
-  
-  
-  
-  
-  <div class="archives-wrap">
-    <div class="archive-year-wrap">
-      <a href="/archives/2021" class="archive-year">2021</a>
-    </div>
-    <div class="archives">
-      
-      <article class="archive-article archive-type-post">
-  <div class="archive-article-inner">
-    <header class="archive-article-header">
-      <a href="/articles/eabb4b3e/" class="archive-article-date">
-  <time datetime="2021-06-30T10:03:55.000Z" itemprop="datePublished">06/30</time>
-</a>
+    <header class="article-header">
        
-<h2 itemprop="name">
-  <a class="archive-article-title" href="/articles/eabb4b3e/"
-    >fabric应用-ca官方文档编译及发布</a> 
-</h2>
+<h1 class="article-title sea-center" style="border-left:0" itemprop="name">
+  fabric应用-ca官方文档编译及发布
+</h1>
  
 
     </header>
-    
-    
+     
+    <div class="article-meta">
+      <a href="/articles/eabb4b3e/" class="article-date">
+  <time datetime="2021-06-30T10:03:55.000Z" itemprop="datePublished">2021-06-30</time>
+</a> 
+  <div class="article-category">
+    <a class="article-category-link" href="/categories/Hyperledger-Fabri/">Hyperledger Fabri</a> / <a class="article-category-link" href="/categories/Hyperledger-Fabri/%E5%BA%94%E7%94%A8/">应用</a>
   </div>
-</article>
-      
   
-  
-      <article class="archive-article archive-type-post">
-  <div class="archive-article-inner">
-    <header class="archive-article-header">
-      <a href="/articles/69fa33db/" class="archive-article-date">
-  <time datetime="2021-06-26T14:41:36.000Z" itemprop="datePublished">06/26</time>
-</a>
-       
-<h2 itemprop="name">
-  <a class="archive-article-title" href="/articles/69fa33db/"
-    >fabric基础-Fabric-CA应用案例</a> 
-</h2>
- 
+<div class="word_count">
+    <span class="post-time">
+        <span class="post-meta-item-icon">
+            <i class="ri-quill-pen-line"></i>
+            <span class="post-meta-item-text"> Word count:</span>
+            <span class="post-count">446</span>
+        </span>
+    </span>
 
-    </header>
-    
-    
-  </div>
-</article>
+    <span class="post-time">
+        &nbsp; | &nbsp;
+        <span class="post-meta-item-icon">
+            <i class="ri-book-open-line"></i>
+            <span class="post-meta-item-text"> Reading time≈</span>
+            <span class="post-count">1 min</span>
+        </span>
+    </span>
+</div>
+ 
+    </div>
       
+    <div class="tocbot"></div>
+
+
+
+
+  
+    <div class="article-entry" itemprop="articleBody">
+       
+  <p>官方发布的 <a target="_blank" rel="noopener" href="https://hyperledger-fabric-ca.readthedocs.io/">CA文档</a> 非常陈旧，但是<a target="_blank" rel="noopener" href="https://github.com/hyperledger/fabric-ca">CA文档源</a>的内容却一直在更新，为了能即时了解最新的文档动向，还是需要自己根据官方提供的文档源码，编译一份可阅读的文档。<br>但官方文档使用的是<code>sphinx</code>生成的，而按照官方提供的方式，无法直接编译，为此本文记录一下实际编译流程。</p>
+<a id="more"></a>
+
+<h2 id="简介"><a href="#简介" class="headerlink" title="简介"></a>简介</h2><p>为了避免污染主机环境，本文将使用docker编译官方的<code>CA文档源码</code>。</p>
+<h2 id="下载脚本"><a href="#下载脚本" class="headerlink" title="下载脚本"></a>下载脚本</h2><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">git clone https://github.com/jason-wj/docker_bash.git</span><br><span class="line">cd docker_bash</span><br></pre></td></tr></table></figure>
+<p>我将常用的一些docker镜像都集成到上面的脚本中了，下载后，有兴趣可以看看，在这里主要就是关注<code>python</code>在docker-compose.yml中的编排</p>
+<h2 id="启动python容器"><a href="#启动python容器" class="headerlink" title="启动python容器"></a>启动python容器</h2><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">./main.sh start python</span><br></pre></td></tr></table></figure>
+<p>该操作可以通过docker-compose将python容器启动</p>
+<h3 id="编译文档"><a href="#编译文档" class="headerlink" title="编译文档"></a>编译文档</h3><ol>
+<li>将ca文档源码根目录<code>docs</code>中的所有内容，直接拷贝到上述python容器映射的主机目录<code>$ROOT_PATH/data-server/$&#123;CONTAINER_PYTHON&#125;/data/</code>下</li>
+<li>进入容器，并进入指定映射目录<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">./main.sh exec python </span><br><span class="line">cd /docs</span><br></pre></td></tr></table></figure></li>
+<li>虽然ca文档源码中官方提供了<code>requirements.txt</code>，但是你会发现如果直接使用，不管用哪个版本的python，都无法成功编译，因此需要手动执行加入以下依赖包，默认使用最新版的包：<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">pip install sphinx</span><br><span class="line">pip install sphinx_rtd_theme</span><br><span class="line">pip install recommonmark</span><br></pre></td></tr></table></figure></li>
+<li>编译生成html文档<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">make html</span><br></pre></td></tr></table></figure>
+build/html/中会有编译后的文档，这就是最终完整的编译内容，之后只要用nginx等服务器部署该静态文档即可。<h2 id="停止sphinx容器"><a href="#停止sphinx容器" class="headerlink" title="停止sphinx容器"></a>停止sphinx容器</h2><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">./main.sh release python</span><br></pre></td></tr></table></figure>
+<h2 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h2>本文主要记录了编译官方CA文档源码的流程，方便后续参考。</li>
+</ol>
+ 
+      <!-- reward -->
+      
+      <div id="reword-out">
+        <div id="reward-btn">
+          Donate
+        </div>
+      </div>
       
     </div>
-  </div>
-  
-  
+    
 
-  
+    <!-- copyright -->
+    
+    <div class="declare">
+      <ul class="post-copyright">
+        <li>
+          <i class="ri-copyright-line"></i>
+          <strong>Copyright： </strong>
+          
+          Copyright is owned by the author. For commercial reprints, please contact the author for authorization. For non-commercial reprints, please indicate the source.
+          
+        </li>
+      </ul>
+    </div>
+    
+    <footer class="article-footer">
+       
+<div class="share-btn">
+      <span class="share-sns share-outer">
+        <i class="ri-share-forward-line"></i>
+        分享
+      </span>
+      <div class="share-wrap">
+        <i class="arrow"></i>
+        <div class="share-icons">
+          
+          <a class="weibo share-sns" href="javascript:;" data-type="weibo">
+            <i class="ri-weibo-fill"></i>
+          </a>
+          <a class="weixin share-sns wxFab" href="javascript:;" data-type="weixin">
+            <i class="ri-wechat-fill"></i>
+          </a>
+          <a class="qq share-sns" href="javascript:;" data-type="qq">
+            <i class="ri-qq-fill"></i>
+          </a>
+          <a class="douban share-sns" href="javascript:;" data-type="douban">
+            <i class="ri-douban-line"></i>
+          </a>
+          <!-- <a class="qzone share-sns" href="javascript:;" data-type="qzone">
+            <i class="icon icon-qzone"></i>
+          </a> -->
+          
+          <a class="facebook share-sns" href="javascript:;" data-type="facebook">
+            <i class="ri-facebook-circle-fill"></i>
+          </a>
+          <a class="twitter share-sns" href="javascript:;" data-type="twitter">
+            <i class="ri-twitter-fill"></i>
+          </a>
+          <a class="google share-sns" href="javascript:;" data-type="google">
+            <i class="ri-google-fill"></i>
+          </a>
+        </div>
+      </div>
+</div>
+
+<div class="wx-share-modal">
+    <a class="modal-close" href="javascript:;"><i class="ri-close-circle-line"></i></a>
+    <p>扫一扫，分享到微信</p>
+    <div class="wx-qrcode">
+      <img src="//api.qrserver.com/v1/create-qr-code/?size=150x150&data=http://jason-wj.gitee.io/articles/eabb4b3e/" alt="微信分享二维码">
+    </div>
+</div>
+
+<div id="share-mask"></div>  
+  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/Fabric/" rel="tag">Fabric</a></li></ul>
+
+    </footer>
+  </div>
+
+   
+  <nav class="article-nav">
+    
+    
+      <a href="/articles/69fa33db/" class="article-nav-link">
+        <strong class="article-nav-caption">下一篇</strong>
+        <div class="article-nav-title">fabric基础-Fabric-CA应用案例</div>
+      </a>
+    
+  </nav>
+
+   
+<!-- valine评论 -->
+<div id="vcomments-box">
+  <div id="vcomments"></div>
+</div>
+<script src="//cdn1.lncld.net/static/js/3.0.4/av-min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/valine@1.4.14/dist/Valine.min.js"></script>
+<script>
+  new Valine({
+    el: "#vcomments",
+    app_id: "gdw0hVSwW3l6KgEMulSAc9Rx-gzGzoHsz",
+    app_key: "M4iiVXe0CuXWQEKuyIzWWDMh",
+    path: window.location.pathname,
+    avatar: "monsterid",
+    placeholder: "给我的文章加点评论吧~",
+    recordIP: true,
+  });
+  const infoEle = document.querySelector("#vcomments .info");
+  if (infoEle && infoEle.childNodes && infoEle.childNodes.length > 0) {
+    infoEle.childNodes.forEach(function (item) {
+      item.parentNode.removeChild(item);
+    });
+  }
+</script>
+<style>
+  #vcomments-box {
+    padding: 5px 30px;
+  }
+
+  @media screen and (max-width: 800px) {
+    #vcomments-box {
+      padding: 5px 0px;
+    }
+  }
+
+  #vcomments-box #vcomments {
+    background-color: #fff;
+  }
+
+  .v .vlist .vcard .vh {
+    padding-right: 20px;
+  }
+
+  .v .vlist .vcard {
+    padding-left: 10px;
+  }
+</style>
+
+ 
+   
+     
+</article>
+
 </section>
       <footer class="footer">
   <div class="outer">
@@ -255,6 +403,23 @@
 <script src="/js/lazyload.min.js"></script>
 
 <!-- Tocbot -->
+
+
+<script src="/js/tocbot.min.js"></script>
+
+<script>
+  tocbot.init({
+    tocSelector: '.tocbot',
+    contentSelector: '.article-entry',
+    headingSelector: 'h1, h2, h3, h4, h5, h6',
+    hasInnerContainers: true,
+    scrollSmooth: true,
+    scrollContainer: 'main',
+    positionFixedSelector: '.tocbot',
+    positionFixedClass: 'is-position-fixed',
+    fixedSidebarOffset: 'auto'
+  });
+</script>
 
 <script src="https://cdn.jsdelivr.net/npm/jquery-modal@0.9.2/jquery.modal.min.js"></script>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/jquery-modal@0.9.2/jquery.modal.min.css">

@@ -147,6 +147,62 @@
     
     
     <article
+  id="post-ethereum/src_analysis/以太坊源码解读-第5.1讲-rpc官翻及个人理解"
+  class="article article-type-post"
+  itemscope
+  itemprop="blogPost"
+  data-scroll-reveal
+>
+  <div class="article-inner">
+    
+    <header class="article-header">
+       
+<h2 itemprop="name">
+  <a class="article-title" href="/articles/25c7447/"
+    >以太坊源码解读-第5.1讲-rpc官翻及个人理解</a> 
+</h2>
+ 
+
+    </header>
+     
+    <div class="article-meta">
+      <a href="/articles/25c7447/" class="article-date">
+  <time datetime="2018-05-02T11:34:27.000Z" itemprop="datePublished">2018-05-02</time>
+</a> 
+  <div class="article-category">
+    <a class="article-category-link" href="/categories/%E4%BB%A5%E5%A4%AA%E5%9D%8A/">以太坊</a> / <a class="article-category-link" href="/categories/%E4%BB%A5%E5%A4%AA%E5%9D%8A/%E6%BA%90%E7%A0%81%E8%A7%A3%E8%AF%BB/">源码解读</a>
+  </div>
+   
+    </div>
+      
+    <div class="article-entry" itemprop="articleBody">
+       
+  <h2 id="前言"><a href="#前言" class="headerlink" title="前言"></a>前言</h2><p>rpc在ethereum中是很重要的一个模块，官方在该模块的一个叫做<code>doc.go</code>的文件中专门介绍了RPC的机制。本文小编会带着自己的理解逐步翻译<code>doc.go</code>中对RPC机制的描述。</p> 
+      <a class="article-more-link" href="/articles/25c7447/"
+        >阅读更多...</a
+      >
+       
+      <!-- reward -->
+      
+    </div>
+    
+
+    <!-- copyright -->
+    
+    <footer class="article-footer">
+       
+  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/ethereum/" rel="tag">ethereum</a></li></ul>
+
+    </footer>
+  </div>
+
+    
+ 
+    
+</article>
+
+    
+    <article
   id="post-ethereum/src_analysis/以太坊源码解读-第4讲-ethdb模块源码解读"
   class="article article-type-post"
   itemscope
@@ -653,90 +709,13 @@
 </article>
 
     
-    <article
-  id="post-ethereum/truffle/official_translate/(truffle官翻)第14讲_各种配置文件"
-  class="article article-type-post"
-  itemscope
-  itemprop="blogPost"
-  data-scroll-reveal
->
-  <div class="article-inner">
-    
-    <header class="article-header">
-       
-<h2 itemprop="name">
-  <a class="article-title" href="/articles/c382f486/"
-    >(truffle官翻)第14讲 各种配置文件（truffle.js、MochaJS、Solidity）</a> 
-</h2>
- 
-
-    </header>
-     
-    <div class="article-meta">
-      <a href="/articles/c382f486/" class="article-date">
-  <time datetime="2018-03-24T02:19:08.000Z" itemprop="datePublished">2018-03-24</time>
-</a> 
-  <div class="article-category">
-    <a class="article-category-link" href="/categories/%E4%BB%A5%E5%A4%AA%E5%9D%8A/">以太坊</a> / <a class="article-category-link" href="/categories/%E4%BB%A5%E5%A4%AA%E5%9D%8A/truffle/">truffle</a> / <a class="article-category-link" href="/categories/%E4%BB%A5%E5%A4%AA%E5%9D%8A/truffle/%E5%AE%98%E7%BF%BB/">官翻</a>
-  </div>
-   
-    </div>
-      
-    <div class="article-entry" itemprop="articleBody">
-       
-  <h2 id="truffle-js配置"><a href="#truffle-js配置" class="headerlink" title="truffle.js配置"></a>truffle.js配置</h2><h3 id="概述"><a href="#概述" class="headerlink" title="概述"></a>概述</h3><p>当使用Windows的命令行时，默认的配置文件名与truffle冲突。这种情况下，我们推荐使用Windows的power Shell或Git BASH。你也可以将配置文件重命名为truffle-config.js来避免冲突。<br>这也是为什么<code>truffle init</code>时候，项目里会生成一个<code>truffle.js</code>和<code>truffle_config.js</code>。</p>
-<ol>
-<li>配置文件位置：<br>它在项目根目录中，称为<em>truffle.js</em></li>
-<li>必须要配置这个文件，格式如下，默认是8545端口：   <figure class="highlight js"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line"><span class="built_in">module</span>.exports = &#123;</span><br><span class="line">  networks: &#123;</span><br><span class="line">    development: &#123;</span><br><span class="line">      host: <span class="string">&quot;127.0.0.1&quot;</span>,</span><br><span class="line">      port: <span class="number">8545</span>,</span><br><span class="line">      network_id: <span class="string">&quot;*&quot;</span> <span class="comment">// Match any network id</span></span><br><span class="line">    &#125;</span><br><span class="line">  &#125;</span><br><span class="line">&#125;;</span><br></pre></td></tr></table></figure>
-<h3 id="常规配置"><a href="#常规配置" class="headerlink" title="常规配置"></a>常规配置</h3></li>
-<li>build设置<br>就是说，将你的应用和Truffle结合在一起当应用（一般很少见），可参考：<br><a href="/doc/truffle/doc/%E7%AC%AC16%E8%AE%B2_%E5%B0%86%E5%BA%94%E7%94%A8%E5%92%8Ctruffle%E9%9B%86%E6%88%90%E7%BC%96%E8%AF%91.md">第16讲_将应用和truffle集成编译</a>  </li>
-<li>合约发布时，可以指定使用哪个网络：   <figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">&#x2F;&#x2F;使用哪种网络，需要在truffle.js中配置</span><br><span class="line">migrate —network live  </span><br></pre></td></tr></table></figure></li>
-<li>具体配置文件如下：   <figure class="highlight js"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br></pre></td><td class="code"><pre><span class="line"><span class="built_in">module</span>.exports = &#123;</span><br><span class="line">    networks: &#123;</span><br><span class="line">      development: &#123;</span><br><span class="line">        host: <span class="string">&quot;127.0.0.1&quot;</span>,  <span class="comment">// 默认为localhost</span></span><br><span class="line">        port: <span class="number">8545</span>,         <span class="comment">// 默认为8545</span></span><br><span class="line">        network_id: <span class="string">&quot;*&quot;</span> <span class="comment">// match any network</span></span><br><span class="line">      &#125;,</span><br><span class="line">      live: &#123;</span><br><span class="line">        host: <span class="string">&quot;178.25.19.88&quot;</span>, <span class="comment">// Random IP for example purposes (do not use)</span></span><br><span class="line">        port: <span class="number">80</span>,</span><br><span class="line">        network_id: <span class="number">1</span>,        <span class="comment">// Ethereum public network</span></span><br><span class="line">        <span class="comment">// optional config values:</span></span><br><span class="line">        <span class="comment">// gas  - 默认为4712388  </span></span><br><span class="line">        <span class="comment">// gasPrice  - 默认为100000000000（100Gwei）</span></span><br><span class="line">        <span class="comment">// from - default address to use for any transaction Truffle makes during migrations</span></span><br><span class="line">        <span class="comment">// provider - web3 provider instance Truffle should use to talk to the Ethereum network.</span></span><br><span class="line">        <span class="comment">//          - function that returns a web3 provider instance (see below.)</span></span><br><span class="line">        <span class="comment">//          - if specified, host and port are ignored.</span></span><br><span class="line">      &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></li>
-<li>说明：<ol>
-<li><strong>注意，networks中，每一个代表一个provider</strong></li>
-<li>设置网络参数，设置gas和地址等信息，</li>
-<li>truffle.js中的networks配置是必要的，默认给出的网络是可以连接在任意的network_id中的，在测试时候，这是有用的，但是在生产环境下，不建议。可通过network _id来指定多个网络。</li>
-<li>gas：gas最大值设置，默认为4712388（这个设置的大点，默认就好，）</li>
-<li>gasPrice：gas 价格，默认为100000000000wei(众筹一般：100Gwei就够了)</li>
-<li>from：移植期间，默认的第一个有效提供者（当前指定以太坊网络中）</li>
-<li>provider：默认是web3使用host和port提供：<br>注意，在任意网络中，或者是设置host/port或者设置provider，不可以同时设置。 <figure class="highlight js"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br></pre></td><td class="code"><pre><span class="line">    <span class="keyword">new</span> Web3.providers.HttpProvider(<span class="string">&quot;http://&lt;host&gt;:&lt;port&gt;&quot;</span>);</span><br><span class="line">    <span class="string">``</span><span class="string">`  </span></span><br><span class="line"><span class="string">8. 管理多个providers，  </span></span><br><span class="line"><span class="string">一个网络还不够用啊，非要搞一堆，具体自己看文档吧（http://truffleframework.com/docs/advanced/configuration），这里小编偷懒不翻译了，感觉没啥用。</span></span><br><span class="line"><span class="string">9. 设置.sol合约编译输出的默认路径（contracts_build_directory）  </span></span><br><span class="line"><span class="string">默认就是输出来./build/contracts  </span></span><br><span class="line"><span class="string">    `</span><span class="string">``</span>js</span><br><span class="line">    <span class="built_in">module</span>.exports = &#123;</span><br><span class="line">      contracts_build_directory: <span class="string">&quot;./output&quot;</span>,</span><br><span class="line">      networks: &#123;</span><br><span class="line">        development: &#123;</span><br><span class="line">          host: <span class="string">&quot;127.0.0.1&quot;</span>,</span><br><span class="line">          port: <span class="number">8545</span>,</span><br><span class="line">          network_id: <span class="string">&quot;*&quot;</span>,</span><br><span class="line">        &#125;</span><br><span class="line">      &#125;</span><br><span class="line">    &#125;;</span><br></pre></td></tr></table></figure></li>
-</ol>
-</li>
-<li>Mocha配置<ol>
-<li>可参考：<a target="_blank" rel="noopener" href="http://mochajs.org/">http://mochajs.org/</a></li>
-<li>例子：   <figure class="highlight js"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">mocha: &#123;</span><br><span class="line">  useColors: <span class="literal">true</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></li>
-</ol>
-</li>
-<li>Solidity编译器配置<br>可以设置solc:   <figure class="highlight js"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">solc: &#123;</span><br><span class="line">  optimizer: &#123;</span><br><span class="line">    enabled: <span class="literal">true</span>,</span><br><span class="line">    runs: <span class="number">200</span></span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></li>
-</ol>
- 
-      <!-- reward -->
-      
-    </div>
-    
-
-    <!-- copyright -->
-    
-    <footer class="article-footer">
-       
-  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/ethereum/" rel="tag">ethereum</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/truffle/" rel="tag">truffle</a></li></ul>
-
-    </footer>
-  </div>
-
-    
- 
-    
-</article>
-
-    
   </article>
   
 
   
   <nav class="page-nav">
     
-    <a class="extend prev" rel="prev" href="/page/4/">上一页</a><a class="page-number" href="/">1</a><span class="space">&hellip;</span><a class="page-number" href="/page/3/">3</a><a class="page-number" href="/page/4/">4</a><span class="page-number current">5</span><a class="page-number" href="/page/6/">6</a><a class="extend next" rel="next" href="/page/6/">下一页</a>
+    <a class="extend prev" rel="prev" href="/page/4/">上一页</a><a class="page-number" href="/">1</a><span class="space">&hellip;</span><a class="page-number" href="/page/3/">3</a><a class="page-number" href="/page/4/">4</a><span class="page-number current">5</span><a class="page-number" href="/page/6/">6</a><a class="page-number" href="/page/7/">7</a><a class="extend next" rel="next" href="/page/6/">下一页</a>
   </nav>
   
 </section>
